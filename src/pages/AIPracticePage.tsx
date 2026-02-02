@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import Exam from "@/pages/components/AIPracticePage/Exam";
 import MCQ from "@/pages/components/AIPracticePage/MCQ";
+import LoadingScreen from "@/pages/components/LoadingScreen";
 
 const chapters = [
   "1. Real Numbers",
@@ -49,6 +50,7 @@ export default function AIPracticePage() {
   const [selectedLanguage, setSelectedLanguage] = useState("english");
   const [selectedSubject, setSelectedSubject] = useState("mathematics");
   const [examData, setExamData] = useState({});
+  const [loading, setLoading] = useState(false);
 
   const toggleChapter = (chapter: string) => {
     setSelectedChapters((prev) =>
@@ -77,6 +79,7 @@ export default function AIPracticePage() {
     };
 
     console.log("Generated Exam Data:", data);
+    setLoading(true);
 
     // setStep("exam");
     try {
@@ -85,7 +88,7 @@ export default function AIPracticePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-
+      setLoading(false);
       if (res.ok) {
         const data = await res.json();
         setExamData(data);
@@ -117,6 +120,9 @@ export default function AIPracticePage() {
         examData={examData}
       />
     );
+  }
+  if (loading) {
+    return <LoadingScreen />;
   }
 
   return (

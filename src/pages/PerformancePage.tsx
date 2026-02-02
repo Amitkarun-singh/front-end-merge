@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import {
   BarChart3,
   Clock,
@@ -19,27 +22,111 @@ import {
   Cell,
 } from "recharts";
 
-const progressData = [
-  { month: "January", math: 65, science: 45, english: 55 },
-  { month: "February", math: 72, science: 58, english: 62 },
-  { month: "March", math: 80, science: 65, english: 70 },
-  { month: "April", math: 85, science: 75, english: 78 },
-];
+// Optional: colors for subjects
+const SUBJECT_COLORS = {
+  Math: "hsl(262, 83%, 58%)",
+  Science: "hsl(187, 96%, 42%)",
+  English: "hsl(330, 80%, 65%)",
+  Other: "hsl(160, 60%, 50%)",
+};
 
-const subjectMastery = [
-  { name: "Math", value: 18, color: "hsl(262, 83%, 58%)" },
-  { name: "Science", value: 30, color: "hsl(187, 96%, 42%)" },
-  { name: "English", value: 20, color: "hsl(330, 80%, 65%)" },
-  { name: "Other", value: 32, color: "hsl(160, 60%, 50%)" },
-];
-
-const latestTests = [
-  { subject: "Math", score: 85, color: "bg-primary" },
-  { subject: "Science", score: 32, color: "bg-secondary" },
-  { subject: "English", score: 20, color: "bg-chart-3" },
+const MONTH_NAMES = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
 ];
 
 export default function PerformancePage() {
+  const [summary, setSummary] = useState(null);
+  const [progressData, setProgressData] = useState([]);
+  const [subjectMastery, setSubjectMastery] = useState([]);
+  const [latestTests, setLatestTests] = useState([]);
+  const [weeklyTime, setWeeklyTime] = useState({
+    hours: 0,
+    percentageChange: 0,
+  });
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch("http://localhost:3000/student-performance/1");
+        const json = await res.json();
+
+        if (json.success) {
+          const data = json.data;
+
+          // Summary
+          setSummary({
+            overallScore: data.summary.overallScore,
+            totalTimeMinutes: data.summary.totalTimeMinutes,
+            totalQuestions: data.summary.totalQuestions,
+            totalTests: data.summary.totalTests,
+          });
+
+          // Progress Chart
+          const monthMap = {};
+          data.progressChart.forEach((item) => {
+            const month = MONTH_NAMES[item.month - 1] || `Month ${item.month}`;
+            if (!monthMap[month]) monthMap[month] = {};
+            monthMap[month][item.subject_name.toLowerCase()] = Number(
+              item.score_percentage,
+            );
+          });
+
+          setProgressData(
+            Object.keys(monthMap).map((month) => ({
+              month,
+              math: monthMap[month].math || 0,
+              science: monthMap[month].science || 0,
+              english: monthMap[month].english || 0,
+            })),
+          );
+
+          // Subject Mastery
+          setSubjectMastery(
+            data.subjectMastery.map((item) => ({
+              name: item.label,
+              value: Number(item.value),
+              color: SUBJECT_COLORS[item.label] || "gray",
+            })),
+          );
+
+          // Latest Tests
+          setLatestTests(
+            data.latestTests.map((test) => {
+              let colorClass = "bg-primary";
+              if (test.score >= 70) colorClass = "bg-primary";
+              else if (test.score >= 40) colorClass = "bg-secondary";
+              else colorClass = "bg-destructive";
+              return { ...test, color: colorClass };
+            }),
+          );
+
+          // Weekly Time
+          setWeeklyTime(data.weeklyTime);
+        }
+      } catch (err) {
+        console.error("Failed to fetch student performance:", err);
+      }
+    }
+
+    fetchData();
+  }, []);
+
+  if (!summary) return <div className="p-6">Loading...</div>;
+
+  const totalHours = Math.floor(Number(summary.totalTimeMinutes) / 60);
+  const totalMinutes = Number(summary.totalTimeMinutes) % 60;
+
   return (
     <div className="min-h-screen p-6 lg:p-8">
       <div className="max-w-6xl mx-auto">
@@ -59,28 +146,28 @@ export default function PerformancePage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           <StatsCard
             title="Overall Score"
-            value="85%"
+            value={`${summary.overallScore}%`}
             icon={BarChart3}
             iconBg="bg-primary/10"
             iconColor="text-primary"
           />
           <StatsCard
             title="Time Spent"
-            value="120h 30m"
+            value={`${totalHours}h ${totalMinutes}m`}
             icon={Clock}
             iconBg="bg-secondary/10"
             iconColor="text-secondary"
           />
           <StatsCard
             title="Questions"
-            value="450"
+            value={summary.totalQuestions}
             icon={HelpCircle}
             iconBg="bg-chart-3/10"
             iconColor="text-chart-3"
           />
           <StatsCard
             title="Tests"
-            value="25"
+            value={summary.totalTests}
             icon={ClipboardList}
             iconBg="bg-chart-4/10"
             iconColor="text-chart-4"
@@ -95,13 +182,22 @@ export default function PerformancePage() {
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={progressData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="hsl(var(--border))"
+                  />
                   <XAxis
                     dataKey="month"
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                    tick={{
+                      fill: "hsl(var(--muted-foreground))",
+                      fontSize: 12,
+                    }}
                   />
                   <YAxis
-                    tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
+                    tick={{
+                      fill: "hsl(var(--muted-foreground))",
+                      fontSize: 12,
+                    }}
                   />
                   <Tooltip
                     contentStyle={{
@@ -110,9 +206,21 @@ export default function PerformancePage() {
                       borderRadius: "8px",
                     }}
                   />
-                  <Bar dataKey="math" fill="hsl(187, 96%, 42%)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="science" fill="hsl(160, 60%, 50%)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="english" fill="hsl(262, 83%, 58%)" radius={[4, 4, 0, 0]} />
+                  <Bar
+                    dataKey="math"
+                    fill={SUBJECT_COLORS.Math}
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="science"
+                    fill={SUBJECT_COLORS.Science}
+                    radius={[4, 4, 0, 0]}
+                  />
+                  <Bar
+                    dataKey="english"
+                    fill={SUBJECT_COLORS.English}
+                    radius={[4, 4, 0, 0]}
+                  />
                 </BarChart>
               </ResponsiveContainer>
             </div>
@@ -134,7 +242,7 @@ export default function PerformancePage() {
                     outerRadius={90}
                     paddingAngle={3}
                     dataKey="value"
-                    label={({ name, value }) => `${value}%`}
+                    label={({ value }) => `${value}%`}
                   >
                     {subjectMastery.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
@@ -166,8 +274,8 @@ export default function PerformancePage() {
           <div className="edtech-card">
             <h3 className="font-semibold text-foreground mb-4">Latest Tests</h3>
             <div className="space-y-4">
-              {latestTests.map((test) => (
-                <div key={test.subject} className="flex items-center gap-4">
+              {latestTests.map((test, index) => (
+                <div key={index} className="flex items-center gap-4">
                   <div className="flex-1">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium text-foreground">
@@ -178,8 +286,8 @@ export default function PerformancePage() {
                           test.score >= 70
                             ? "text-chart-4"
                             : test.score >= 40
-                            ? "text-chart-5"
-                            : "text-destructive"
+                              ? "text-chart-5"
+                              : "text-destructive"
                         }`}
                       >
                         {test.score}
@@ -207,13 +315,15 @@ export default function PerformancePage() {
                 <div className="w-24 h-24 mx-auto rounded-full border-4 border-primary flex items-center justify-center mb-3">
                   <Clock className="w-10 h-10 text-primary" />
                 </div>
-                <p className="text-2xl font-bold text-foreground">12 hours</p>
+                <p className="text-2xl font-bold text-foreground">
+                  {weeklyTime.hours} hours
+                </p>
                 <p className="text-sm text-muted-foreground">This Week</p>
               </div>
             </div>
             <div className="flex items-center justify-center gap-2 text-sm text-chart-4">
               <TrendingUp className="w-4 h-4" />
-              <span>+15% from last week</span>
+              <span>+{weeklyTime.percentageChange}% from last week</span>
             </div>
           </div>
         </div>
