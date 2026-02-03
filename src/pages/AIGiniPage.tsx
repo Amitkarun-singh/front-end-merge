@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   Home as HomeIcon,
@@ -33,7 +33,10 @@ const CHAT_URL = `http://localhost:3000/gini/ai/gini`;
 export default function AIGiniPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const { toast } = useToast();
 
   const handleSend = async () => {
@@ -53,15 +56,16 @@ export default function AIGiniPage() {
     let assistantContent = "";
 
     try {
+      // Use FormData to send messages + optional file
+      const formData = new FormData();
+      formData.append("messages", JSON.stringify(newMessages));
+      if (uploadedFile) {
+        formData.append("file", uploadedFile);
+      }
+
       const resp = await fetch(CHAT_URL, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "text/event-stream",
-        },
-        body: JSON.stringify({
-          messages: newMessages,
-        }),
+        body: formData,
       });
 
       if (!resp.ok) {
@@ -120,6 +124,7 @@ export default function AIGiniPage() {
               });
             }
           } catch {
+            // Incomplete JSON, wait for more
             textBuffer = line + "\n" + textBuffer;
             break;
           }
@@ -135,16 +140,8 @@ export default function AIGiniPage() {
       });
     } finally {
       setIsLoading(false);
+      setUploadedFile(null); // optional: clear uploaded file after sending
     }
-  };
-
-  const handleFileUpload = (file: File) => {
-    // You can integrate your AI backend file handling here
-    console.log("Selected file:", file);
-    toast({
-      title: "File uploaded",
-      description: file.name,
-    });
   };
 
   return (
@@ -168,7 +165,6 @@ export default function AIGiniPage() {
             higher
           </p>
 
-          {/* Quick tools */}
           <div className="flex flex-wrap justify-center gap-3 mb-10">
             <QuickTool
               title="Doc Summariser"
@@ -184,12 +180,11 @@ export default function AIGiniPage() {
             />
           </div>
 
-          {/* AI Chat Box */}
+          {/* Chat Box */}
           <div className="max-w-3xl mx-auto">
             <div className="edtech-card glass p-6 md:p-8">
               {messages.length === 0 ? (
                 <div className="flex flex-col md:flex-row items-center gap-6">
-                  {/* Robot mascot */}
                   <div className="w-32 h-32 md:w-40 md:h-40 flex-shrink-0 animate-float">
                     <img
                       alt="AI Gini"
@@ -198,51 +193,61 @@ export default function AIGiniPage() {
                     />
                   </div>
 
-                  {/* Input area */}
                   <div className="flex-1 w-full space-y-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Upload className="w-4 h-4" />
-                      <span>
-                        Upload{" "}
-                        <span className="text-secondary font-medium">
-                          Image
-                        </span>{" "}
-                        or <span className="text-primary font-medium">PDF</span>{" "}
-                        to solve questions
-                      </span>
+                    {/* File Upload */}
+                    <div className="flex flex-col gap-2">
+                      <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                        <Upload className="w-4 h-4" />
+                        <span>
+                          Upload{" "}
+                          <span className="text-secondary font-medium">
+                            Image
+                          </span>{" "}
+                          or{" "}
+                          <span className="text-primary font-medium">PDF</span>
+                        </span>
+                        <input
+                          type="file"
+                          className="hidden"
+                          accept="image/*,.pdf"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0] || null;
+                            if (!file) return;
+
+                            setUploadedFile(file);
+
+                            // Add file as a chat message
+                            const fileMessage: Message = {
+                              id: Date.now().toString(),
+                              role: "user",
+                              content: file.type.startsWith("image/")
+                                ? `![${file.name}](${URL.createObjectURL(file)})` // image markdown style
+                                : `Uploaded file: ${file.name}`, // text for PDFs
+                            };
+
+                            setMessages((prev) => [...prev, fileMessage]);
+                          }}
+                        />
+                      </label>
+                      {uploadedFile && (
+                        <div className="text-sm text-foreground">
+                          Uploaded: {uploadedFile.name}
+                        </div>
+                      )}
                     </div>
 
                     {/* Tags */}
                     <div className="flex flex-wrap gap-2">
-                      {/* File Upload */}
-                      <label className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground cursor-pointer">
-                        <Upload className="w-3.5 h-3.5" />
-                        Upload File
-                        <input
-                          type="file"
-                          accept=".pdf,.jpg,.jpeg,.png"
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handleFileUpload(file);
-                          }}
-                        />
-                      </label>
-
-                      {/* Language */}
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground">
                         <Globe className="w-3.5 h-3.5" />
                         Language
                       </span>
-
-                      {/* Subject */}
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground">
                         <MonitorSmartphone className="w-3.5 h-3.5" />
                         Subject
                       </span>
                     </div>
 
-                    {/* Input */}
                     <div className="relative">
                       <Input
                         value={input}
@@ -253,7 +258,6 @@ export default function AIGiniPage() {
                       />
                     </div>
 
-                    {/* CTA Button */}
                     <Button
                       onClick={handleSend}
                       disabled={!input.trim() || isLoading}
@@ -294,10 +298,20 @@ export default function AIGiniPage() {
                                 : "chat-bubble-ai max-w-[80%]"
                             }
                           >
-                            {message.content}
+                            {/* Display images inline */}
+                            {message.content.startsWith("![") ? (
+                              <img
+                                src={message.content.match(/\((.*?)\)/)?.[1]}
+                                alt={message.content.match(/\[(.*?)\]/)?.[1]}
+                                className="max-w-[200px] rounded-md"
+                              />
+                            ) : (
+                              message.content
+                            )}
                           </div>
                         </div>
                       ))}
+
                       {isLoading &&
                         messages[messages.length - 1]?.role === "user" && (
                           <div className="flex justify-start">
@@ -310,15 +324,46 @@ export default function AIGiniPage() {
                     </div>
                   </ScrollArea>
 
-                  {/* Input area for continued chat */}
+                  {/* Input area */}
                   <div className="flex items-center gap-3 pt-4 border-t border-border">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="flex-shrink-0"
-                    >
-                      <Paperclip className="w-5 h-5 text-muted-foreground" />
-                    </Button>
+                    {/* file upload icon */}
+
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="flex-shrink-0"
+                        onClick={() => fileInputRef.current?.click()} // trigger hidden input
+                      >
+                        <Paperclip className="w-5 h-5 text-muted-foreground" />
+                      </Button>
+
+                      <input
+                        type="file"
+                        disabled={isLoading}
+                        ref={fileInputRef} // attach ref
+                        className="hidden"
+                        accept="image/*,.pdf"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0] || null;
+                          if (!file) return;
+
+                          setUploadedFile(file);
+
+                          // Add file as a chat message
+                          const fileMessage: Message = {
+                            id: Date.now().toString(),
+                            role: "user",
+                            content: file.type.startsWith("image/")
+                              ? `![${file.name}](${URL.createObjectURL(file)})` // inline image preview
+                              : `Uploaded file: ${file.name}`, // PDF or others
+                          };
+
+                          setMessages((prev) => [...prev, fileMessage]);
+                        }}
+                      />
+                    </div>
+
                     <div className="flex-1 relative">
                       <Input
                         value={input}
@@ -329,9 +374,6 @@ export default function AIGiniPage() {
                         disabled={isLoading}
                       />
                       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <Upload className="w-4 h-4 text-muted-foreground" />
-                        </Button>
                         <Button
                           onClick={handleSend}
                           size="icon"
