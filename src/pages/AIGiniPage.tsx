@@ -21,6 +21,7 @@ import { useChat } from "@/hooks/useChat";
 import heroBg from "@/assets/hero-bg.jpg";
 import { FC, ChangeEvent } from "react";
 import RecentsSection from "./components/AIPracticePage/RecentsSection";
+import { useEffect, useRef } from "react";
 
 interface Message {
   id: string;
@@ -165,101 +166,109 @@ const ChatView: FC<ChatViewProps> = ({
   handleFileChange,
   fileInputRef,
   resetChat,
-}) => (
-  <div className="space-y-4">
-    <ScrollArea className="h-[300px] pr-4">
-      <div className="space-y-4">
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex ${
-              message.role === "user" ? "justify-end" : "justify-start"
-            }`}
-          >
+}) => {
+  const bottomRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
+
+  return (
+    <div className="space-y-4">
+      <ScrollArea className="h-[300px] pr-4">
+        <div className="space-y-4">
+          {messages.map((message) => (
             <div
-              className={
-                message.role === "user"
-                  ? "chat-bubble-user max-w-[80%]"
-                  : "chat-bubble-ai max-w-[80%]"
-              }
+              key={message.id}
+              className={`flex ${
+                message.role === "user" ? "justify-end" : "justify-start"
+              }`}
             >
-              {message.content.startsWith("![") ? (
-                <img
-                  src={message.content.match(/\((.*?)\)/)?.[1]}
-                  alt={message.content.match(/\[(.*?)\]/)?.[1]}
-                  className="max-w-[200px] rounded-md"
-                />
+              <div
+                className={
+                  message.role === "user"
+                    ? "chat-bubble-user max-w-[80%]"
+                    : "chat-bubble-ai max-w-[80%]"
+                }
+              >
+                {message.content.startsWith("![") ? (
+                  <img
+                    src={message.content.match(/\((.*?)\)/)?.[1]}
+                    alt={message.content.match(/\[(.*?)\]/)?.[1]}
+                    className="max-w-[200px] rounded-md"
+                  />
+                ) : (
+                  message.content
+                )}
+              </div>
+            </div>
+          ))}
+          {isLoading && messages[messages.length - 1]?.role === "user" && (
+            <div className="flex justify-start">
+              <div className="chat-bubble-ai max-w-[80%] flex items-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Thinking...
+              </div>
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+      </ScrollArea>
+      <div className="flex items-center gap-3 pt-4 border-t border-border">
+        <div className="flex flex-col gap-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="flex-shrink-0"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <Paperclip className="w-5 h-5 text-muted-foreground" />
+          </Button>
+          <input
+            type="file"
+            disabled={isLoading}
+            ref={fileInputRef}
+            className="hidden"
+            accept="image/*,.pdf"
+            onChange={handleFileChange}
+          />
+        </div>
+        <div className="flex-1 relative">
+          <Input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSend()}
+            placeholder="Type your question here..."
+            className="pr-24 h-12 text-base"
+            disabled={isLoading}
+          />
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+            <Button
+              onClick={handleSend}
+              size="icon"
+              className="h-8 w-8 gradient-button"
+              disabled={!input.trim() || isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                message.content
+                <Send className="w-4 h-4" />
               )}
-            </div>
+            </Button>
           </div>
-        ))}
-        {isLoading && messages[messages.length - 1]?.role === "user" && (
-          <div className="flex justify-start">
-            <div className="chat-bubble-ai max-w-[80%] flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Thinking...
-            </div>
-          </div>
-        )}
-      </div>
-    </ScrollArea>
-    <div className="flex items-center gap-3 pt-4 border-t border-border">
-      <div className="flex flex-col gap-2">
+        </div>
         <Button
           variant="ghost"
           size="icon"
+          onClick={resetChat}
           className="flex-shrink-0"
-          onClick={() => fileInputRef.current?.click()}
+          disabled={isLoading}
         >
-          <Paperclip className="w-5 h-5 text-muted-foreground" />
+          <RotateCcw className="w-5 h-5 text-muted-foreground" />
         </Button>
-        <input
-          type="file"
-          disabled={isLoading}
-          ref={fileInputRef}
-          className="hidden"
-          accept="image/*,.pdf"
-          onChange={handleFileChange}
-        />
       </div>
-      <div className="flex-1 relative">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Type your question here..."
-          className="pr-24 h-12 text-base"
-          disabled={isLoading}
-        />
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          <Button
-            onClick={handleSend}
-            size="icon"
-            className="h-8 w-8 gradient-button"
-            disabled={!input.trim() || isLoading}
-          >
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-          </Button>
-        </div>
-      </div>
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={resetChat}
-        className="flex-shrink-0"
-        disabled={isLoading}
-      >
-        <RotateCcw className="w-5 h-5 text-muted-foreground" />
-      </Button>
     </div>
-  </div>
-);
+  );
+};
 
 const ChatBox = () => {
   const {
