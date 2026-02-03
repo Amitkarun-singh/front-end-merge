@@ -7,7 +7,6 @@ import {
   ClipboardList,
   Sparkles,
   Upload,
-  Mic,
   Globe,
   MonitorSmartphone,
   ArrowRight,
@@ -60,12 +59,6 @@ export default function AIGiniPage() {
           "Content-Type": "application/json",
           Accept: "text/event-stream",
         },
-        // body: JSON.stringify({
-        //   messages: newMessages.map((m) => ({
-        //     role: m.role,
-        //     content: m.content,
-        //   })),
-        // }),
         body: JSON.stringify({
           messages: newMessages,
         }),
@@ -79,13 +72,11 @@ export default function AIGiniPage() {
       if (!resp.body) throw new Error("No response body");
 
       const reader = resp.body.getReader();
-
       const decoder = new TextDecoder();
       let textBuffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
-
         if (done) break;
 
         textBuffer += decoder.decode(value, { stream: true });
@@ -129,7 +120,6 @@ export default function AIGiniPage() {
               });
             }
           } catch {
-            // Incomplete JSON, put back and wait for more
             textBuffer = line + "\n" + textBuffer;
             break;
           }
@@ -148,9 +138,18 @@ export default function AIGiniPage() {
     }
   };
 
+  const handleFileUpload = (file: File) => {
+    // You can integrate your AI backend file handling here
+    console.log("Selected file:", file);
+    toast({
+      title: "File uploaded",
+      description: file.name,
+    });
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Hero Section - Same as Home */}
+      {/* Hero Section */}
       <section
         className="relative py-12 px-6 lg:px-12 overflow-hidden"
         style={{
@@ -160,7 +159,6 @@ export default function AIGiniPage() {
         }}
       >
         <div className="max-w-5xl mx-auto text-center">
-          {/* Main heading */}
           <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 animate-fade-in">
             Study Partner{" "}
             <span className="text-gradient">Anytime Anywhere</span>
@@ -210,20 +208,34 @@ export default function AIGiniPage() {
                           Image
                         </span>{" "}
                         or <span className="text-primary font-medium">PDF</span>{" "}
-                        to solve questions in it
+                        to solve questions
                       </span>
                     </div>
 
                     {/* Tags */}
                     <div className="flex flex-wrap gap-2">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground">
-                        <Mic className="w-3.5 h-3.5" />
-                        Recording
-                      </span>
+                      {/* File Upload */}
+                      <label className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground cursor-pointer">
+                        <Upload className="w-3.5 h-3.5" />
+                        Upload File
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file);
+                          }}
+                        />
+                      </label>
+
+                      {/* Language */}
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground">
                         <Globe className="w-3.5 h-3.5" />
                         Language
                       </span>
+
+                      {/* Subject */}
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground">
                         <MonitorSmartphone className="w-3.5 h-3.5" />
                         Subject
@@ -269,7 +281,11 @@ export default function AIGiniPage() {
                       {messages.map((message) => (
                         <div
                           key={message.id}
-                          className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                          className={`flex ${
+                            message.role === "user"
+                              ? "justify-end"
+                              : "justify-start"
+                          }`}
                         >
                           <div
                             className={
@@ -314,7 +330,7 @@ export default function AIGiniPage() {
                       />
                       <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <Mic className="w-4 h-4 text-muted-foreground" />
+                          <Upload className="w-4 h-4 text-muted-foreground" />
                         </Button>
                         <Button
                           onClick={handleSend}

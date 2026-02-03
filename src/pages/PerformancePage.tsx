@@ -1,6 +1,5 @@
-"use client";
-
 import { useEffect, useState } from "react";
+import LoadingScreen from "@/pages/components/LoadingScreen";
 import {
   BarChart3,
   Clock,
@@ -58,7 +57,7 @@ export default function PerformancePage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch("http://localhost:3000/student-performance/1");
+        const res = await fetch("http://localhost:3000/student/performance/1");
         const json = await res.json();
 
         if (json.success) {
@@ -122,7 +121,7 @@ export default function PerformancePage() {
     fetchData();
   }, []);
 
-  if (!summary) return <div className="p-6">Loading...</div>;
+  if (!summary) return <LoadingScreen />;
 
   const totalHours = Math.floor(Number(summary.totalTimeMinutes) / 60);
   const totalMinutes = Number(summary.totalTimeMinutes) % 60;
