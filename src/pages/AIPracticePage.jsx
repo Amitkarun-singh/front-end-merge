@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/select";
 import Exam from "@/pages/components/AIPracticePage/Exam";
 import MCQ from "@/pages/components/AIPracticePage/MCQ";
+import UnifiedExam from "@/pages/components/AIPracticePage/UnifiedExam";
 import LoadingScreen from "@/pages/components/LoadingScreen";
 
 const chapters = [
@@ -95,7 +96,7 @@ export default function AIPracticePage() {
       if (res.ok) {
         const data = await res.json();
         setExamData(data);
-        setStep(data.questionType);
+        setStep("exam");
         console.log(data);
       }
     } catch (error) {
@@ -104,28 +105,33 @@ export default function AIPracticePage() {
     }
   };
 
-  if (step === "SA" || step === "LA" || step === "PYQ" || step === "PQ") {
-    return (
-      <Exam
-        currentQuestion={currentQuestion}
-        setCurrentQuestion={setCurrentQuestion}
-        examData={examData}
-      />
-    );
-  }
+  // if (step === "SA" || step === "LA" || step === "PYQ" || step === "PQ") {
+  //   return (
+  //     <Exam
+  //       currentQuestion={currentQuestion}
+  //       setCurrentQuestion={setCurrentQuestion}
+  //       examData={examData}
+  //     />
+  //   );
+  // }
 
-  if (step === "MCQ") {
-    return (
-      <MCQ
-        currentQuestion={currentQuestion}
-        setCurrentQuestion={setCurrentQuestion}
-        examData={examData}
-      />
-    );
-  }
+  // if (step === "MCQ") {
+  //   return (
+  //     <MCQ
+  //       currentQuestion={currentQuestion}
+  //       setCurrentQuestion={setCurrentQuestion}
+  //       examData={examData}
+  //     />
+  //   );
+  // }
 
   if (loading) {
     return <LoadingScreen />;
+  }
+
+  if (step === "exam") {
+    console.log("exam");
+    return <UnifiedExam examData={examData} />;
   }
 
   const currentYear = new Date().getFullYear();

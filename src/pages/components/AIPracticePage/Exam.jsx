@@ -6,45 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 
-// Sample data (replace with your AI-generated JSON)
-// const examData = {
-//   subject: "Physics",
-//   chapter: "Newton's Laws of Motion",
-//   questionType: "Short questions",
-//   questions: [
-//     {
-//       question:
-//         "**State Newton’s first law of motion and give another name for it.**",
-//       answer:
-//         "It states that an object at rest stays at rest, and an object in motion continues in motion with constant velocity unless acted upon by an external force. It is also called the law of inertia.*",
-//     },
-//     {
-//       question:
-//         "**How does Newton’s second law explain the relationship between force, mass, and acceleration?**",
-//       answer:
-//         "Force equals mass multiplied by acceleration (F = ma). For a constant force, greater mass results in lesser acceleration, and vice versa.*",
-//     },
-//     {
-//       question: "**Give a real-life example of Newton’s third law of motion.**",
-//       answer:
-//         "When you push a wall, the wall exerts an equal and opposite force back on your hands.*",
-//     },
-//     {
-//       question:
-//         "**Why do passengers jerk backward when a bus suddenly accelerates?**",
-//       answer:
-//         "Due to inertia (Newton’s first law), their bodies tend to remain at rest while the bus moves forward.*",
-//     },
-//     {
-//       question:
-//         "**If a 5 N force acts on two objects of 1 kg and 2 kg, which will have greater acceleration? Explain.**",
-//       answer:
-//         "The 1 kg object will have greater acceleration because acceleration is inversely proportional to mass for a constant force (a = F/m).*",
-//     },
-//   ],
-//   message: "AI-generated practice questions successfully created.",
-// };
-
 const Exam = ({ currentQuestion, setCurrentQuestion, examData }) => {
   const [showAnswer, setShowAnswer] = useState(false);
   const questions = examData.questions;
