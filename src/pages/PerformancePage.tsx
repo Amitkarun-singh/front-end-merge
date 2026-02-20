@@ -21,6 +21,8 @@ import {
   Cell,
 } from "recharts";
 
+import { config } from "../../app.config.js";
+
 // Optional: colors for subjects
 const SUBJECT_COLORS = {
   Math: "hsl(262, 83%, 58%)",
@@ -57,7 +59,7 @@ export default function PerformancePage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch("http://localhost:3000/student/performance/1");
+        const res = await fetch(`${config.server}/student/performance/1`);
         const json = await res.json();
 
         if (json.success) {

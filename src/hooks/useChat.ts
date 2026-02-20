@@ -7,7 +7,9 @@ interface Message {
   content: string;
 }
 
-const CHAT_URL = `http://localhost:3000/gini/ai/gini`;
+import { config } from "../../app.config.js";
+
+const CHAT_URL = `${config.server}/gini/ai/gini`;
 
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -120,7 +122,7 @@ export const useChat = () => {
       setUploadedFile(null);
     }
   };
-  
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (!file) return;
@@ -140,8 +142,8 @@ export const useChat = () => {
 
   const resetChat = () => {
     setMessages([]);
-    setUploadedFile(null)
-  }
+    setUploadedFile(null);
+  };
 
   return {
     messages,

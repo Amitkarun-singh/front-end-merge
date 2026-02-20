@@ -14,6 +14,8 @@ import MCQ from "@/pages/components/AIPracticePage/MCQ";
 import UnifiedExam from "@/pages/components/AIPracticePage/UnifiedExam";
 import LoadingScreen from "@/pages/components/LoadingScreen";
 
+import { config } from "../../app.config.js";
+
 const chapters = [
   "Real Numbers",
   "Polynomials",
@@ -29,8 +31,8 @@ const questionTypes = [
   { id: "mcq", label: "Multiple choice questions [MCQ]" },
   { id: "sa", label: "Short answers [SA]" },
   { id: "la", label: "Long answers [LA]" },
-  { id: "pyq", label: "Previous Year Questions [PQ]" },
-  { id: "pq", label: "Predicted This year Questions [PQ]" },
+  // { id: "pyq", label: "Previous Year Questions [PQ]" },
+  // { id: "pq", label: "Predicted This year Questions [PQ]" },
 ];
 
 export default function AIPracticePage() {
@@ -87,7 +89,7 @@ export default function AIPracticePage() {
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:3000/gini/practice/questions", {
+      const res = await fetch(`${config.server}/gini/practice/questions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -105,25 +107,25 @@ export default function AIPracticePage() {
     }
   };
 
-  // if (step === "SA" || step === "LA" || step === "PYQ" || step === "PQ") {
-  //   return (
-  //     <Exam
-  //       currentQuestion={currentQuestion}
-  //       setCurrentQuestion={setCurrentQuestion}
-  //       examData={examData}
-  //     />
-  //   );
-  // }
+  if (step === "SA" || step === "LA" || step === "PYQ" || step === "PQ") {
+    return (
+      <Exam
+        currentQuestion={currentQuestion}
+        setCurrentQuestion={setCurrentQuestion}
+        examData={examData}
+      />
+    );
+  }
 
-  // if (step === "MCQ") {
-  //   return (
-  //     <MCQ
-  //       currentQuestion={currentQuestion}
-  //       setCurrentQuestion={setCurrentQuestion}
-  //       examData={examData}
-  //     />
-  //   );
-  // }
+  if (step === "MCQ") {
+    return (
+      <MCQ
+        currentQuestion={currentQuestion}
+        setCurrentQuestion={setCurrentQuestion}
+        examData={examData}
+      />
+    );
+  }
 
   if (loading) {
     return <LoadingScreen />;

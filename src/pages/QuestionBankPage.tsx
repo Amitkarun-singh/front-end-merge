@@ -22,7 +22,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
-const BASE_URL = "http://localhost:3000";
+import { config } from "../../app.config.js";
 
 const predictedQuestions = [
   {
@@ -100,7 +100,7 @@ export default function QuestionBankPage() {
         subject: selectedSubject,
       });
 
-      const url = `http://localhost:3000/pyq/papers?${queryParams.toString()}`;
+      const url = `${config.server}/pyq/papers?${queryParams.toString()}`;
 
       console.log("Request URL:", url);
 
@@ -243,7 +243,10 @@ export default function QuestionBankPage() {
                         variant="outline"
                         size="sm"
                         onClick={() =>
-                          window.open(`${BASE_URL}/pyq/${q.filePath}`, "_blank")
+                          window.open(
+                            `${config.server}/pyq/${q.filePath}`,
+                            "_blank",
+                          )
                         }
                       >
                         Preview
