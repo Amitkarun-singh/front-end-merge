@@ -88,6 +88,7 @@ export default function QuestionBankPage() {
   const [selectedClass, setSelectedClass] = useState("all");
   const [selectedYear, setSelectedYear] = useState("2025");
   const [previousYearQuestions, setPreviousYearQuestions] = useState([]);
+  const [predictQuestions, setPredictYearQuestions] = useState([]);
 
   const years = [2025, 2024, 2023];
 
@@ -118,6 +119,38 @@ export default function QuestionBankPage() {
       // setPapers(data);
 
       setPreviousYearQuestions(data);
+    } catch (error) {
+      console.error("Error fetching papers:", error);
+    }
+  };
+
+  const getPredictQuestions = async () => {
+    try {
+      const queryParams = new URLSearchParams({
+        board: "CBSE", // static or from state if you have it
+        year: selectedYear,
+        className: selectedClass,
+        subject: selectedSubject,
+      });
+
+      const url = `${config.server}/predict/papers?${queryParams.toString()}`;
+
+      console.log("Request URL:", url);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch papers");
+      }
+
+      const data = await response.json();
+
+      console.log("Response:", data);
+
+      // optional: store in state
+      // setPapers(data);
+
+      setPredictYearQuestions(data);
     } catch (error) {
       console.error("Error fetching papers:", error);
     }
@@ -244,14 +277,25 @@ export default function QuestionBankPage() {
                         size="sm"
                         onClick={() =>
                           window.open(
-                            `${config.server}/pyq/${q.filePath}`,
+                            `${config.server}/pyq/pre/{q.filePath}`,
                             "_blank",
                           )
                         }
                       >
                         Preview
                       </Button>
-                      <Button size="sm">Download</Button>
+
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          window.open(
+                            `${config.server}/pyq/papers/download?filePath=${encodeURIComponent(q.filePath)}`,
+                            "_blank",
+                          )
+                        }
+                      >
+                        Download
+                      </Button>
                     </div>
                   </div>
                 </div>
