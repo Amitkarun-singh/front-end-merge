@@ -83,11 +83,11 @@ const predictedQuestions = [
 ];
 
 export default function QuestionBankPage() {
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("all");
   const [selectedClass, setSelectedClass] = useState("all");
   const [selectedYear, setSelectedYear] = useState("2025");
   const [previousYearQuestions, setPreviousYearQuestions] = useState([]);
+  const [predictQuestions, setPredictYearQuestions] = useState([]);
 
   const years = [2025, 2024, 2023];
 
@@ -118,6 +118,38 @@ export default function QuestionBankPage() {
       // setPapers(data);
 
       setPreviousYearQuestions(data);
+    } catch (error) {
+      console.error("Error fetching papers:", error);
+    }
+  };
+
+  const getPredictQuestions = async () => {
+    try {
+      const queryParams = new URLSearchParams({
+        board: "CBSE", // static or from state if you have it
+        // year: selectedYear,
+        className: selectedClass,
+        subject: selectedSubject,
+      });
+
+      const url = `${config.server}/predict/papers?${queryParams.toString()}`;
+
+      console.log("Request URL:", url);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch papers");
+      }
+
+      const data = await response.json();
+
+      console.log("Response:", data);
+
+      // optional: store in state
+      // setPapers(data);
+
+      setPredictYearQuestions(data);
     } catch (error) {
       console.error("Error fetching papers:", error);
     }
@@ -185,7 +217,14 @@ export default function QuestionBankPage() {
                 <SelectItem value="12">12th Grade</SelectItem>
               </SelectContent>
             </Select>
-            <Button className="ml-auto" onClick={PYQ} size="lg">
+            <Button
+              className="ml-auto"
+              onClick={() => {
+                PYQ();
+                getPredictQuestions();
+              }}
+              size="lg"
+            >
               Search
             </Button>
           </div>
@@ -251,7 +290,18 @@ export default function QuestionBankPage() {
                       >
                         Preview
                       </Button>
-                      <Button size="sm">Download</Button>
+
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          window.open(
+                            `${config.server}/pyq/papers/download?filePath=${encodeURIComponent(q.filePath)}`,
+                            "_blank",
+                          )
+                        }
+                      >
+                        Download
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -270,7 +320,8 @@ export default function QuestionBankPage() {
                 </p>
               </div>
             </div>
-            {previousYearQuestions
+            {predictQuestions
+
               // .filter((q) =>
               //   q.question.toLowerCase().includes(searchQuery.toLowerCase()),
               // )
@@ -283,9 +334,9 @@ export default function QuestionBankPage() {
                     {/* Left Section */}
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline" className="text-xs">
+                        {/* <Badge variant="outline" className="text-xs">
                           {q.year}
-                        </Badge>
+                        </Badge> */}
                         <Badge variant="secondary" className="text-xs">
                           {q.subject}
                         </Badge>
@@ -297,10 +348,30 @@ export default function QuestionBankPage() {
 
                     {/* Right Section - Actions */}
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          window.open(
+                            `${config.server}/predict/${q.filePath}`,
+                            "_blank",
+                          )
+                        }
+                      >
                         Preview
                       </Button>
-                      <Button size="sm">Download</Button>
+
+                      <Button
+                        size="sm"
+                        onClick={() =>
+                          window.open(
+                            `${config.server}/predict/papers/download?filePath=${encodeURIComponent(q.filePath)}`,
+                            "_blank",
+                          )
+                        }
+                      >
+                        Download
+                      </Button>
                     </div>
                   </div>
                 </div>
