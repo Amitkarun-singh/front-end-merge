@@ -31,7 +31,7 @@ interface Message {
 
 const HeroSection = () => (
   <section
-    className="relative py-12 px-6 lg:px-12 overflow-hidden"
+    className="relative h-screen py-12 px-6 lg:px-12 overflow-hidden"
     style={{
       backgroundImage: `url(${heroBg})`,
       backgroundSize: "cover",
@@ -78,7 +78,7 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
   uploadedFile,
 }) => (
   <div className="flex flex-col md:flex-row items-center gap-6">
-    <div className="w-32 h-32 md:w-40 md:h-40 flex-shrink-0 animate-float">
+    <div className="w-32  md:w-40 md:h-40 flex-shrink-0 animate-float">
       <img
         alt="AI Gini"
         className="w-full h-full object-contain"
@@ -116,7 +116,7 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
           Subject
         </span>
       </div>
-      <div className="relative">
+      <div className="relative ">
         <Input
           value={input}
           onChange={(e) => setInput(e.target.value)}
@@ -173,8 +173,8 @@ const ChatView: FC<ChatViewProps> = ({
   }, [messages, isLoading]);
 
   return (
-    <div className="space-y-4">
-      <ScrollArea className="h-[300px] pr-4">
+    <div className="h-[600px] flex flex-col">
+      <ScrollArea className="h-auto pr-4">
         <div className="space-y-4">
           {messages.map((message) => (
             <div
@@ -213,7 +213,7 @@ const ChatView: FC<ChatViewProps> = ({
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
-      <div className="flex items-center gap-3 pt-4 border-t border-border">
+      <div className="flex items-center gap-3 pt-4 border-t border-border mt-auto">
         <div className="flex flex-col gap-2">
           <Button
             variant="ghost"
@@ -316,7 +316,7 @@ export default function AIGiniPage() {
   return (
     <div className="min-h-screen flex flex-col">
       <HeroSection />
-      <RecentsSection />
+      {/* <RecentsSection /> */}
     </div>
   );
 }

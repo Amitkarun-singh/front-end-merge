@@ -1,4 +1,4 @@
 export const config = {
-  server: "https://lightsalmon-duck-483366.hostingersite.com",
+  server: "https://sandybrown-manatee-216868.hostingersite.com",
 };
-// export const config = { server: "stude.schools2ai.com" };
+//server: "https://lightsalmon-duck-483366.hostingersite.com",
