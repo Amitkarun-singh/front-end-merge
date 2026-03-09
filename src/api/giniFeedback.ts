@@ -5,9 +5,15 @@ const BASE_URL = `${config.server}/gini/ai`;
 /**
  * Submits thumbs up feedback to the API with the user message and AI response.
  */
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
 export async function submitThumbsUp(
-  userMessage: string,
-  response: string
+  userMessage: Message,
+  response: Message,
 ): Promise<void> {
   const res = await fetch(`${BASE_URL}/feedback/thumbs-up`, {
     method: "POST",
@@ -27,9 +33,9 @@ export async function submitThumbsUp(
  * Submits thumbs down feedback to the API with the user message, AI response, and feedback text.
  */
 export async function submitFeedback(
-  userMessage: string,
-  response: string,
-  feedback: string
+  userMessage: Message,
+  response: Message,
+  feedback: string,
 ): Promise<void> {
   const res = await fetch(`${BASE_URL}/feedback`, {
     method: "POST",

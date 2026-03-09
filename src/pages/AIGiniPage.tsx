@@ -188,18 +188,27 @@ const ChatView: FC<ChatViewProps> = ({
 
   const getUserMessageAndResponse = (assistantMessageId: string) => {
     const idx = messages.findIndex((m) => m.id === assistantMessageId);
+
     if (idx <= 0 || messages[idx]?.role !== "assistant") return null;
     const userMsg = messages[idx - 1];
     const assistantMsg = messages[idx];
+
     if (userMsg?.role !== "user" || !assistantMsg) return null;
-    return { userMessage: userMsg.content, response: assistantMsg.content };
+    return {
+      userMessage: userMsg,
+      response: assistantMsg,
+    };
   };
 
   const handleThumbClick = async (messageId: string, rating: "up" | "down") => {
     const pair = getUserMessageAndResponse(messageId);
 
     setFeedbackByMessageId((prev) => {
-      const current = prev[messageId] ?? { rating: null, comment: "", submitted: false };
+      const current = prev[messageId] ?? {
+        rating: null,
+        comment: "",
+        submitted: false,
+      };
       const isSameRating = current.rating === rating;
       const nextRating = isSameRating ? null : rating;
 
