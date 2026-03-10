@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ClipboardList, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -40,13 +40,40 @@ export default function AIPracticePage() {
   const [selectedChapters, setSelectedChapters] = useState([]);
   const [selectedTypes, setSelectedTypes] = useState([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
-  const [selectedClass, setSelectedClass] = useState("10");
+  const [selectedClass, setSelectedClass] = useState("");
+  const [classes, setClasses] = useState([]);
   const [selectedLanguage, setSelectedLanguage] = useState("english");
   const [selectedSubject, setSelectedSubject] = useState("mathematics");
   const [examData, setExamData] = useState({});
   const [loading, setLoading] = useState(false);
 
   const [questionConfig, setQuestionConfig] = useState({});
+
+  const token =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJyb2xlIjoiQURNSU4iLCJwZXJtaXNzaW9ucyI6WyJNQU5BR0VfUk9MRVMiLCJNQU5BR0VfU0NIT09MIl0sInNjaG9vbF9pZCI6MSwiaWF0IjoxNzcyNzA2MzM5LCJleHAiOjE3NzM1NzAzMzl9.iQ-jqJx4DXMRzeBMjtf99k_r_HP9f0RgNROYgBsOChw"; // Add your Bearer token here
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      try {
+        const response = await fetch(`${config.server}/api/classes`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const result = await response.json();
+        if (result.success) {
+          setClasses(result.data);
+          if (result.data.length > 0) {
+            setSelectedClass(result.data[0].class_id.toString());
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching classes:", error);
+      }
+    };
+
+    fetchClasses();
+  }, [token]);
 
   const updateQuestionCount = (typeId, value) => {
     setQuestionConfig((prev) => ({
@@ -158,17 +185,21 @@ export default function AIPracticePage() {
                 Select Class
               </h3>
               <Select
-                defaultValue={selectedClass}
+                value={selectedClass}
                 onValueChange={(val) => setSelectedClass(val)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select class" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="9">9th Grade</SelectItem>
-                  <SelectItem value="10">10th Grade</SelectItem>
-                  <SelectItem value="11">11th Grade</SelectItem>
-                  <SelectItem value="12">12th Grade</SelectItem>
+                  {classes.map((cls) => (
+                    <SelectItem
+                      key={cls.class_id}
+                      value={cls.class_id.toString()}
+                    >
+                      {cls.class_name}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
