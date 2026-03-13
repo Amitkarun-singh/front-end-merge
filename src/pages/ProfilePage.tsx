@@ -1,12 +1,156 @@
-import { useState } from "react";
-import { User, Mail, Phone, Calendar, School, GraduationCap, ChevronRight, Settings, Shield, FileText, Flame, Target, Languages } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState, useEffect } from "react";
+import { useAuth } from "@/context/AuthContext";
+import {
+  User,
+  Mail,
+  Phone,
+  Calendar,
+  School,
+  GraduationCap,
+  ChevronRight,
+  Shield,
+  FileText,
+  Flame,
+  Target,
+  Languages,
+  MapPin,
+  Hash,
+  BookOpen,
+  Loader2,
+} from "lucide-react";
 import { Progress } from "@/components/ui/progress";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+interface ProfileData {
+  school_name: string | null;
+  board: string | null;
+  address: string | null;
+  class: string | null;
+  div: string | null;
+  roll_number: string | null;
+  Student_name: string | null;
+  number: string | null;
+  email: string | null;
+  gender: string | null;
+  dob: string | null;
+  language: string | null;
+  joining_date: string | null;
+  role: string | null;
+}
+
 export default function ProfilePage() {
-  const [profileCompletion] = useState(40);
-  return <div className="min-h-screen p-6 lg:p-8">
+  const { token } = useAuth();
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const API_BASE =
+          import.meta.env.VITE_API_URL || "http://localhost:5000";
+        const res = await fetch(`${API_BASE}/api/auth/profile`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const json = await res.json();
+
+        if (!res.ok) {
+          throw new Error(json.message || "Failed to fetch profile");
+        }
+
+        setProfile(json.data);
+      } catch (err: unknown) {
+        const message =
+          err instanceof Error ? err.message : "Failed to fetch profile";
+        setError(message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (token) {
+      fetchProfile();
+    }
+  }, [token]);
+
+  // Calculate profile completion
+  const getProfileCompletion = () => {
+    if (!profile) return 0;
+    const fields = [
+      profile.Student_name,
+      profile.email,
+      profile.number,
+      profile.school_name,
+      profile.board,
+      profile.class,
+      profile.div,
+      profile.roll_number,
+      profile.gender,
+      profile.dob,
+      profile.language,
+      profile.address,
+    ];
+    const filled = fields.filter(
+      (f) => f !== null && f !== undefined && f !== ""
+    ).length;
+    return Math.round((filled / fields.length) * 100);
+  };
+
+  const profileCompletion = getProfileCompletion();
+  const initials = profile?.Student_name
+    ? profile.Student_name.split(" ")
+        .map((n) => n[0])
+        .join("")
+        .toUpperCase()
+        .slice(0, 2)
+    : "?";
+
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return null;
+    try {
+      return new Date(dateStr).toLocaleDateString("en-IN", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-muted-foreground text-sm">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="edtech-card text-center max-w-md">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-destructive/10 flex items-center justify-center">
+            <User className="w-6 h-6 text-destructive" />
+          </div>
+          <h3 className="font-semibold text-foreground mb-2">
+            Failed to load profile
+          </h3>
+          <p className="text-sm text-muted-foreground">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen p-6 lg:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
@@ -24,10 +168,15 @@ export default function ProfilePage() {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground">
-                  Complete your profile
+                  {profileCompletion >= 100
+                    ? "Profile complete!"
+                    : "Complete your profile"}
                 </h3>
                 <p className="text-sm text-muted-foreground">
-              </p>
+                  {profileCompletion >= 100
+                    ? "All details are filled in."
+                    : "Fill in your details to get the best experience"}
+                </p>
               </div>
             </div>
             <Progress value={profileCompletion} className="w-32 h-2" />
@@ -40,24 +189,33 @@ export default function ProfilePage() {
             {/* Avatar & Name */}
             <div className="edtech-card text-center">
               <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-primary-foreground text-3xl font-bold">
-                G
+                {initials}
               </div>
               <h2 className="font-display text-xl font-semibold text-foreground">
-                Grv
+                {profile?.Student_name || "Student"}
               </h2>
-              <p className="text-sm text-muted-foreground">
-                Joined November 2025
+              <p className="text-sm text-muted-foreground mt-1">
+                {profile?.role || "STUDENT"}
               </p>
+              {profile?.joining_date && (
+                <p className="text-sm text-muted-foreground">
+                  Joined {formatDate(profile.joining_date)}
+                </p>
+              )}
 
               <div className="mt-4 p-3 rounded-lg bg-accent/50">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">
-                    Complete your profile
+                    {profileCompletion >= 100
+                      ? "Profile complete"
+                      : "Complete your profile"}
                   </span>
                   <ChevronRight className="w-4 h-4 text-muted-foreground" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-              </p>
+                <Progress
+                  value={profileCompletion}
+                  className="h-1.5 mt-2"
+                />
               </div>
             </div>
 
@@ -68,11 +226,13 @@ export default function ProfilePage() {
                 <div className="text-center p-3 rounded-lg bg-muted/50">
                   <Target className="w-5 h-5 mx-auto mb-1 text-primary" />
                   <p className="text-lg font-bold text-foreground">0%</p>
-                  <p className="text-xs text-muted-foreground">Test Overall%</p>
+                  <p className="text-xs text-muted-foreground">
+                    Test Overall%
+                  </p>
                 </div>
                 <div className="text-center p-3 rounded-lg bg-muted/50">
                   <Flame className="w-5 h-5 mx-auto mb-1 text-orange-500" />
-                  <p className="text-lg font-bold text-foreground">1 Days</p>
+                  <p className="text-lg font-bold text-foreground">1 Day</p>
                   <p className="text-xs text-muted-foreground">Login Days</p>
                 </div>
               </div>
@@ -84,9 +244,18 @@ export default function ProfilePage() {
                 Week's Activity
               </h3>
               <div className="flex justify-center gap-1">
-                {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => <div key={i} className={`w-8 h-8 rounded flex items-center justify-center text-xs ${i === 3 ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                {["S", "M", "T", "W", "T", "F", "S"].map((day, i) => (
+                  <div
+                    key={i}
+                    className={`w-8 h-8 rounded flex items-center justify-center text-xs ${
+                      i === new Date().getDay()
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
                     {day}
-                  </div>)}
+                  </div>
+                ))}
               </div>
               <p className="text-center text-sm text-muted-foreground mt-3">
                 Overall: 1 day active
@@ -104,153 +273,111 @@ export default function ProfilePage() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Personal Details */}
                 <div className="space-y-4">
-                  <h4 className="text-sm font-medium text-muted-foreground">
+                  <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
                     Personal Details
                   </h4>
 
-                  <div>
-                    <label className="text-sm text-muted-foreground mb-1.5 block">
-                      <Phone className="w-4 h-4 inline mr-2" />
-                      Mobile
-                    </label>
-                    <Input defaultValue="+91 9762158738" />
-                  </div>
+                  <InfoField
+                    icon={<User className="w-4 h-4" />}
+                    label="Full Name"
+                    value={profile?.Student_name}
+                  />
 
-                  <div>
-                    <label className="text-sm text-muted-foreground mb-1.5 block">
-                      <User className="w-4 h-4 inline mr-2" />
-                      Name
-                    </label>
-                    <Input defaultValue="Grv" />
-                  </div>
+                  <InfoField
+                    icon={<Phone className="w-4 h-4" />}
+                    label="Mobile"
+                    value={
+                      profile?.number ? `+91 ${profile.number}` : null
+                    }
+                  />
 
-                  <div>
-                    <label className="text-sm text-muted-foreground mb-1.5 block">
-                      <Mail className="w-4 h-4 inline mr-2" />
-                      Email
-                    </label>
-                    <div className="flex gap-2">
-                      <Input placeholder="Add email" className="flex-1" />
-                      <Button variant="outline" size="sm">
-                        Add now
-                      </Button>
-                    </div>
-                  </div>
+                  <InfoField
+                    icon={<Mail className="w-4 h-4" />}
+                    label="Email"
+                    value={profile?.email}
+                  />
 
-                  <div>
-                    <label className="text-sm text-muted-foreground mb-1.5 block">
-                      <Calendar className="w-4 h-4 inline mr-2" />
-                      Date of Birth
-                    </label>
-                    <div className="flex gap-2">
-                      <Input placeholder="DD/MM/YYYY" className="flex-1" />
-                      <Button variant="outline" size="sm">
-                        Add now
-                      </Button>
-                    </div>
-                  </div>
+                  <InfoField
+                    icon={<Calendar className="w-4 h-4" />}
+                    label="Date of Birth"
+                    value={formatDate(profile?.dob ?? null)}
+                    placeholder="Not provided"
+                  />
+
+                  <InfoField
+                    icon={<User className="w-4 h-4" />}
+                    label="Gender"
+                    value={profile?.gender}
+                    placeholder="Not provided"
+                  />
+
+                  <InfoField
+                    icon={<Languages className="w-4 h-4" />}
+                    label="Preferred Language"
+                    value={profile?.language}
+                    placeholder="Not set"
+                  />
                 </div>
 
                 {/* School/College Details */}
                 <div className="space-y-4">
-                  <h4 className="text-sm font-medium text-muted-foreground">
-                    School/College details
+                  <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                    School Details
                   </h4>
 
-                  <div>
-                    <label className="text-sm text-muted-foreground mb-1.5 block">
-                      <School className="w-4 h-4 inline mr-2" />
-                      Education Curriculum
-                    </label>
-                    <Select defaultValue="cbse">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select curriculum" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="cbse">CBSE</SelectItem>
-                        <SelectItem value="icse">ICSE</SelectItem>
-                        <SelectItem value="state">State Board</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <InfoField
+                    icon={<School className="w-4 h-4" />}
+                    label="School Name"
+                    value={profile?.school_name}
+                  />
 
-                  <div>
-                    <label className="text-sm text-muted-foreground mb-1.5 block">
-                      <GraduationCap className="w-4 h-4 inline mr-2" />
-                      Select your grade
-                    </label>
-                    <Select defaultValue="10">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select grade" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="9">Class 9</SelectItem>
-                        <SelectItem value="10">Class 10</SelectItem>
-                        <SelectItem value="11">Class 11</SelectItem>
-                        <SelectItem value="12">Class 12</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <InfoField
+                    icon={<BookOpen className="w-4 h-4" />}
+                    label="Board"
+                    value={profile?.board}
+                  />
 
-                  <div>
-                    <label className="text-sm text-muted-foreground mb-1.5 block">
-                      <School className="w-4 h-4 inline mr-2" />
-                      School/College Name
-                    </label>
-                    <div className="flex gap-2">
-                      <Input placeholder="Enter school name" className="flex-1" />
-                      <Button variant="outline" size="sm">
-                        Add now
-                      </Button>
-                    </div>
-                  </div>
+                  <InfoField
+                    icon={<GraduationCap className="w-4 h-4" />}
+                    label="Class"
+                    value={profile?.class}
+                  />
 
-                  <div>
-                    <label className="text-sm text-muted-foreground mb-1.5 block">
-                      <Languages className="w-4 h-4 inline mr-2" />
-                      Preferred Language
-                    </label>
-                    <Select defaultValue="en">
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select language" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="en">English</SelectItem>
-                        <SelectItem value="hi">Hindi</SelectItem>
-                        <SelectItem value="bn">Bengali</SelectItem>
-                        <SelectItem value="ta">Tamil</SelectItem>
-                        <SelectItem value="te">Telugu</SelectItem>
-                        <SelectItem value="mr">Marathi</SelectItem>
-                        <SelectItem value="gu">Gujarati</SelectItem>
-                        <SelectItem value="kn">Kannada</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <InfoField
+                    icon={<Hash className="w-4 h-4" />}
+                    label="Section"
+                    value={profile?.div}
+                  />
+
+                  <InfoField
+                    icon={<Hash className="w-4 h-4" />}
+                    label="Roll Number"
+                    value={profile?.roll_number}
+                  />
+
+                  <InfoField
+                    icon={<MapPin className="w-4 h-4" />}
+                    label="Address"
+                    value={profile?.address}
+                  />
                 </div>
               </div>
             </div>
 
-            {/* Quick Links */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              
-
-              <button className="edtech-card flex items-center justify-between hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3">
-                  <Settings className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-medium">Preferences</span>
-                </div>
-                <ChevronRight className="w-5 h-5 text-muted-foreground" />
-              </button>
-            </div>
-
             {/* Footer Links */}
             <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground">
-              <a href="#" className="hover:text-primary flex items-center gap-1">
+              <a
+                href="#"
+                className="hover:text-primary flex items-center gap-1"
+              >
                 <Shield className="w-4 h-4" />
                 Privacy Policy
               </a>
               <span>•</span>
-              <a href="#" className="hover:text-primary flex items-center gap-1">
+              <a
+                href="#"
+                className="hover:text-primary flex items-center gap-1"
+              >
                 <FileText className="w-4 h-4" />
                 Terms & Conditions
               </a>
@@ -260,5 +387,39 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
-    </div>;
+    </div>
+  );
+}
+
+/* ---- Reusable info field component ---- */
+function InfoField({
+  icon,
+  label,
+  value,
+  placeholder = "Not provided",
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string | null | undefined;
+  placeholder?: string;
+}) {
+  const hasValue = value !== null && value !== undefined && value !== "";
+
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 border border-border/30">
+      <div className="mt-0.5 text-muted-foreground">{icon}</div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs font-medium text-muted-foreground mb-0.5">
+          {label}
+        </p>
+        <p
+          className={`text-sm font-medium truncate ${
+            hasValue ? "text-foreground" : "text-muted-foreground/50 italic"
+          }`}
+        >
+          {hasValue ? value : placeholder}
+        </p>
+      </div>
+    </div>
+  );
 }

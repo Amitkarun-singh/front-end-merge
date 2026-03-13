@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import {
   Home,
@@ -18,6 +19,7 @@ import {
   Globe,
   GraduationCap,
   FileQuestion,
+  LogOut,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -80,8 +82,24 @@ const exploreLinks = [
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
   const currentPath = location.pathname;
   const isActive = (path: string) => currentPath === path;
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login', { replace: true });
+  };
+
+  const displayName = user?.name || user?.Student_name || user?.username || 'Student';
+  const initials = displayName.charAt(0).toUpperCase();
+
+  // role can be a string OR an object { role_id, role_name, description, permissions }
+  const roleName =
+    typeof user?.role === 'string'
+      ? user.role
+      : (user?.role as { role_name?: string })?.role_name || 'Student';
   return (
     <aside
       className={cn(
@@ -214,31 +232,39 @@ export function AppSidebar() {
       </nav>
 
       {/* Bottom section */}
-      <div className="p-3 border-t border-sidebar-border">
+      {/* <div className="p-3 border-t border-sidebar-border">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Globe className="w-4 h-4" />
           {!collapsed && <span>English</span>}
         </div>
-      </div>
+      </div> */}
 
-      {/* User profile */}
+      {/* User profile & Logout */}
       <div className="p-3 border-t border-sidebar-border">
         <Link
           to="/profile"
           className="flex items-center gap-3 p-2 rounded-lg hover:bg-sidebar-accent transition-colors"
         >
           <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-primary-foreground font-medium text-sm">
-            S
+            {initials}
           </div>
           {!collapsed && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">
-                Student
+                {displayName}
               </p>
-              <p className="text-xs text-muted-foreground">Basic</p>
+              <p className="text-xs text-muted-foreground">{roleName}</p>
             </div>
           )}
         </Link>
+        <button
+          onClick={handleLogout}
+          className="sidebar-link w-full mt-1 text-destructive hover:bg-destructive/10 hover:text-destructive"
+          title="Logout"
+        >
+          <LogOut className="w-5 h-5 flex-shrink-0" />
+          {!collapsed && <span>Logout</span>}
+        </button>
       </div>
     </aside>
   );

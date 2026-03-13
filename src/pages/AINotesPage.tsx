@@ -18,6 +18,9 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { config } from "../../app.config.js";
+import 'katex/dist/katex.min.css'
+import { InlineMath, BlockMath } from 'react-katex'
+import { useAuth } from "@/context/AuthContext";
 
 interface AINote {
   topic: string;
@@ -48,6 +51,8 @@ export default function AINotesPage() {
   const [note, setNote] = useState<AINote | null>(null);
   const [showNotes, setShowNotes] = useState(false);
 
+  const { token } = useAuth();
+
   // ===============================
   // RESET NOTES (LOGIC ONLY)
   // ===============================
@@ -60,7 +65,12 @@ export default function AINotesPage() {
   // FETCH LANGUAGES
   // ===============================
   useEffect(() => {
-    fetch(`${config.server}/api/ainote/languages`)
+    fetch(`${config.server}/api/ainote/languages`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        })
       .then(res => res.json())
       .then(data => setLanguages(data.data || []));
   }, []);
@@ -70,8 +80,12 @@ export default function AINotesPage() {
   // ===============================
   useEffect(() => {
     fetch(
-      `${config.server}/api/ainote/classes?language=${language}&board=CBSE`
-    )
+      `${config.server}/api/ainote/classes?language=${language}&board=CBSE`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
       .then(res => res.json())
       .then(data => setClasses(data.data || []));
   }, [language]);
@@ -81,7 +95,12 @@ export default function AINotesPage() {
   // ===============================
   useEffect(() => {
     fetch(
-      `${config.server}/api/ainote/subjects?language=${language}&class=${className}`
+      `${config.server}/api/ainote/subjects?language=${language}&class=${className}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
     )
       .then(res => res.json())
       .then(data => setSubjects(data.data || []));
@@ -92,7 +111,12 @@ export default function AINotesPage() {
   // ===============================
   useEffect(() => {
     fetch(
-      `${config.server}/api/ainote/chapters?language=${language}&class=${className}&subject=${subject}`
+      `${config.server}/api/ainote/chapters?language=${language}&class=${className}&subject=${subject}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
     )
       .then(res => res.json())
       .then(data => setChapters(data.data || []));
@@ -105,12 +129,48 @@ export default function AINotesPage() {
     if (!selectedChapter) return;
 
     const res = await fetch(
-      `${config.server}/api/ainote?language=${language}&board=CBSE&class=${className}&subject=${subject}&topic=${selectedChapter}`
+      `${config.server}/api/ainote?language=${language}&board=CBSE&class=${className}&subject=${subject}&topic=${selectedChapter}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
     );
 
     const data = await res.json();
     setNote(data.data?.[0]);
     setShowNotes(true);
+  };
+
+  const renderLine = (text: string) => {
+    if (!text) return null;
+
+    const cleaned = text.replace("-", "").trim();
+
+    // detect inline math \( ... \)
+    const inlineMatch = cleaned.match(/\\\((.*?)\\\)/);
+
+    if (inlineMatch) {
+      return <InlineMath math={inlineMatch[1]} />;
+    }
+
+    // detect block math
+    if (cleaned.includes("\\")) {
+      const formula = cleaned
+        .replace(/\\\[/g, "")
+        .replace(/\\\]/g, "")
+        .trim();
+
+      return <BlockMath math={formula} />;
+    }
+
+    return <span>{cleaned}</span>;
+  };
+
+  const openFullNotes = () => {
+    if (!note?.full_notes) return;
+
+    window.open(note.full_notes, "_blank");
   };
 
   return (
@@ -303,7 +363,7 @@ export default function AINotesPage() {
                     </p> */}
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm">
+                    <Button variant="outline" size="sm" onClick={openFullNotes}>
                       <FileText className="w-4 h-4 mr-2" />
                       Full Note Preview
                     </Button>
@@ -344,7 +404,7 @@ export default function AINotesPage() {
                                 return (
                                   <div key={i} className="flex gap-2">
                                     <span>•</span>
-                                    <span>{line.replace("-", "").trim()}</span>
+                                    {renderLine(line)}
                                   </div>
                                 );
                               }
