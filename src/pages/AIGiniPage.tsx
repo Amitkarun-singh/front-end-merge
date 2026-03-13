@@ -17,6 +17,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { QuickTool } from "@/components/ui/tool-card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChat } from "@/hooks/useChat";
@@ -84,6 +91,8 @@ const HeroSection = () => (
 interface WelcomeScreenProps {
   input: string;
   setInput: (value: string) => void;
+  language: string;
+  setLanguage: (value: string) => void;
   handleSend: () => void;
   isLoading: boolean;
   handleFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -96,6 +105,8 @@ interface WelcomeScreenProps {
 const WelcomeScreen: FC<WelcomeScreenProps> = ({
   input,
   setInput,
+  language,
+  setLanguage,
   handleSend,
   isLoading,
   handleFileChange,
@@ -131,11 +142,17 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
         )}
       </div>
       <div className="flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground">
-          <Globe className="w-3.5 h-3.5" />
-          Language
-        </span>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground">
+        <Select value={language} onValueChange={setLanguage}>
+          <SelectTrigger className="w-fit h-7 border-none bg-muted rounded-full px-3 py-1 text-sm text-muted-foreground gap-1.5 focus:ring-0 focus:ring-offset-0">
+            <Globe className="w-3.5 h-3.5" />
+            <SelectValue placeholder="Language" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="English">English</SelectItem>
+            <SelectItem value="Hindi">Hindi</SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground h-7">
           <MonitorSmartphone className="w-3.5 h-3.5" />
           Subject
         </span>
@@ -485,6 +502,8 @@ const ChatBox = () => {
     messages,
     input,
     setInput,
+    language,
+    setLanguage,
     isLoading,
     uploadedFile,
     fileInputRef,
@@ -500,6 +519,8 @@ const ChatBox = () => {
           <WelcomeScreen
             input={input}
             setInput={setInput}
+            language={language}
+            setLanguage={setLanguage}
             handleSend={handleSend}
             isLoading={isLoading}
             handleFileChange={handleFileChange}
@@ -533,3 +554,4 @@ export default function AIGiniPage() {
     </div>
   );
 }
+

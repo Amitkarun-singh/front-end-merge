@@ -20,12 +20,13 @@ const CHAT_URL = `${config.server}/gini/ai/gini`;
 /**
  * A custom hook to manage chat state and interactions with the AI assistant.
  * Handles message history, user input, file uploads, and streaming AI responses.
- * 
+ *
  * @returns {Object} Chat state and handler functions.
  */
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [language, setLanguage] = useState("English");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -53,8 +54,10 @@ export const useChat = () => {
     let assistantContent = "";
 
     try {
+      console.log("language", language);
       const formData = new FormData();
       formData.append("messages", JSON.stringify(newMessages));
+      formData.append("language", language);
       if (uploadedFile) {
         formData.append("file", uploadedFile);
       }
@@ -142,7 +145,7 @@ export const useChat = () => {
   /**
    * Handles file selection from an input element.
    * Updates state and adds a placeholder message for the upload to the chat.
-   * 
+   *
    * @param {React.ChangeEvent<HTMLInputElement>} e - The change event from the file input.
    */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -180,5 +183,7 @@ export const useChat = () => {
     handleSend,
     handleFileChange,
     resetChat,
+    language,
+    setLanguage,
   };
 };
