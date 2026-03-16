@@ -1,21 +1,75 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, Clock, ArrowRight } from "lucide-react";
+import { ChevronLeft, Clock, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { config } from "@/../app.config.js";
+import { toast } from "sonner";
 
 const UnifiedExam = ({ examData }) => {
   const questionTypes = examData.questionType;
   const [currentTypeIndex, setCurrentTypeIndex] = useState(0); // Track SA, LA, MCQ
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
-  const [mcqAnswers, setMcqAnswers] = useState({}); // For MCQ
+  const [answers, setAnswers] = useState({}); // Unified state for all answers
+  const [submitting, setSubmitting] = useState(false);
 
   const currentType = questionTypes[currentTypeIndex];
   const questions = examData.questions[currentType] || [];
   const currentQuestion = questions[currentQuestionIndex];
+
+  const handleAnswerChange = (value) => {
+    if (!currentQuestion) return;
+    setAnswers((prev) => ({
+      ...prev,
+      [currentQuestion.id]: value,
+    }));
+  };
+
+  const handleSubmit = async () => {
+    if (!currentQuestion) return;
+
+    const answer = answers[currentQuestion.id];
+    if (!answer) {
+      toast.error("Please provide an answer before submitting.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(
+        `${config.server}/gini/practice/questions/answer-submit`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            questionId: currentQuestion.id,
+            testId: examData.testId,
+            answer: answer,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to submit answer");
+      }
+
+      const result = await response.json();
+      toast.success("Answer submitted successfully!");
+      console.log("Submit Result:", result);
+
+      // Optionally move to next question or show feedback
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error("Failed to submit answer. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const nextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
@@ -120,21 +174,16 @@ const UnifiedExam = ({ examData }) => {
                 <label
                   key={i}
                   className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
-                    mcqAnswers[currentQuestionIndex] === option
+                    answers[currentQuestion.id] === option
                       ? "border-primary bg-primary/10"
                       : "border-border hover:bg-accent"
                   }`}
                 >
                   <input
                     type="radio"
-                    name={`question-${currentQuestionIndex}`}
-                    checked={mcqAnswers[currentQuestionIndex] === option}
-                    onChange={() =>
-                      setMcqAnswers({
-                        ...mcqAnswers,
-                        [currentQuestionIndex]: option,
-                      })
-                    }
+                    name={`question-${currentQuestion.id}`}
+                    checked={answers[currentQuestion.id] === option}
+                    onChange={() => handleAnswerChange(option)}
                   />
                   <span>{option}</span>
                 </label>
@@ -145,6 +194,8 @@ const UnifiedExam = ({ examData }) => {
               <Textarea
                 placeholder="Write your answer here..."
                 className="min-h-[200px] resize-none"
+                value={answers[currentQuestion?.id] || ""}
+                onChange={(e) => handleAnswerChange(e.target.value)}
               />
             </>
           )}
@@ -157,7 +208,10 @@ const UnifiedExam = ({ examData }) => {
             {questions.map((_, i) => (
               <button
                 key={i}
-                onClick={() => setCurrentQuestionIndex(i)}
+                onClick={() => {
+                  setCurrentQuestionIndex(i);
+                  setShowAnswer(false);
+                }}
                 className={`w-10 h-10 rounded-lg text-sm font-medium ${
                   i === currentQuestionIndex
                     ? "bg-primary text-primary-foreground"
@@ -171,7 +225,20 @@ const UnifiedExam = ({ examData }) => {
 
           {/* Navigation Buttons */}
           <div className="flex gap-3">
-            <Button variant="outline">Submit</Button>
+            <Button
+              variant="outline"
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Submitting...
+                </>
+              ) : (
+                "Submit"
+              )}
+            </Button>
             <Button variant="ghost" onClick={prevQuestion}>
               Previous
             </Button>
