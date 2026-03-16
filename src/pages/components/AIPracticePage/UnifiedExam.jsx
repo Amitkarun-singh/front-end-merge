@@ -6,33 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 
-// const examData = {
-//   subject: "Mathematics",
-//   chapter: ["Algebra", "Trigonometry"],
-//   questionType: ["MCQ", "SA", "LA"],
-//   questions: {
-//     MCQ: [
-//       {
-//         question: "What is 2 + 2?",
-//         options: ["3", "4", "5", "6"],
-//         answer: "4",
-//       },
-//     ],
-//     SA: [
-//       {
-//         question: "Define Pythagoras theorem.",
-//         answer: "In a right triangle, a² + b² = c².",
-//       },
-//     ],
-//     LA: [
-//       {
-//         question: "Explain quadratic equations with example.",
-//         answer: "A quadratic equation is of the form ax² + bx + c = 0...",
-//       },
-//     ],
-//   },
-// };
-
 const UnifiedExam = ({ examData }) => {
   const questionTypes = examData.questionType;
   const [currentTypeIndex, setCurrentTypeIndex] = useState(0); // Track SA, LA, MCQ

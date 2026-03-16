@@ -1,4 +1,12 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+  ReactNode,
+} from "react";
+import { config } from "../../app.config.js";
 
 interface User {
   id?: string;
@@ -25,7 +33,11 @@ interface AuthState {
 interface AuthContextType extends AuthState {
   login: (payload: Record<string, string>) => Promise<void>;
   sendOtp: (phoneNumber: string) => Promise<{ otpToken: string }>;
-  verifyOtp: (payload: { phone_number: string; otp: string; otpToken: string }) => Promise<void>;
+  verifyOtp: (payload: {
+    phone_number: string;
+    otp: string;
+    otpToken: string;
+  }) => Promise<void>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
   clearError: () => void;
@@ -33,8 +45,8 @@ interface AuthContextType extends AuthState {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const AUTH_STORAGE_KEY = 'schools2ai_auth';
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const AUTH_STORAGE_KEY = "schools2ai_auth";
+const API_BASE = config.server;
 
 function getStoredAuth(): Partial<AuthState> {
   try {
@@ -69,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (authState.isAuthenticated && authState.token) {
       localStorage.setItem(
         AUTH_STORAGE_KEY,
-        JSON.stringify({ user: authState.user, token: authState.token })
+        JSON.stringify({ user: authState.user, token: authState.token }),
       );
     } else {
       localStorage.removeItem(AUTH_STORAGE_KEY);
@@ -86,9 +98,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const res = await fetch(`${API_BASE}/api/auth/profile`, {
-        method: 'GET',
+        method: "GET",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           Authorization: `Bearer ${currentToken}`,
         },
       });
@@ -103,12 +115,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             user: null,
             token: null,
             loading: false,
-            error: 'Session expired. Please login again.',
+            error: "Session expired. Please login again.",
           });
           localStorage.removeItem(AUTH_STORAGE_KEY);
           return;
         }
-        throw new Error(data.message || 'Failed to fetch profile');
+        throw new Error(data.message || "Failed to fetch profile");
       }
 
       const profile = data.data || data;
@@ -118,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user: profile,
       }));
     } catch (err: unknown) {
-      console.error('Profile fetch error:', err);
+      console.error("Profile fetch error:", err);
     }
   }, [authState.token]);
 
@@ -141,15 +153,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Login failed');
+        throw new Error(data.message || "Login failed");
       }
 
       const responseData = data.data || data;
@@ -166,9 +178,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fetch full profile after login
       try {
         const profileRes = await fetch(`${API_BASE}/api/auth/profile`, {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
         });
@@ -184,10 +196,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       } catch {
         // Profile fetch failed, use login response data
-        console.warn('Could not fetch profile after login, using login response data.');
+        console.warn(
+          "Could not fetch profile after login, using login response data.",
+        );
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Login failed';
+      const message = err instanceof Error ? err.message : "Login failed";
       setAuthState((prev) => ({
         ...prev,
         loading: false,
@@ -205,21 +219,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const res = await fetch(`${API_BASE}/api/auth/login/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone_number: phoneNumber }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'Failed to send OTP');
+        throw new Error(data.message || "Failed to send OTP");
       }
 
       setAuthState((prev) => ({ ...prev, loading: false }));
       return { otpToken: data.data?.otpToken || data.otpToken };
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to send OTP';
+      const message = err instanceof Error ? err.message : "Failed to send OTP";
       setAuthState((prev) => ({
         ...prev,
         loading: false,
@@ -241,15 +255,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.message || 'OTP verification failed');
+        throw new Error(data.message || "OTP verification failed");
       }
 
       const responseData = data.data || data;
@@ -266,9 +280,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Fetch full profile after OTP login
       try {
         const profileRes = await fetch(`${API_BASE}/api/auth/profile`, {
-          method: 'GET',
+          method: "GET",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
         });
@@ -283,10 +297,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }));
         }
       } catch {
-        console.warn('Could not fetch profile after OTP login, using login response data.');
+        console.warn(
+          "Could not fetch profile after OTP login, using login response data.",
+        );
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'OTP verification failed';
+      const message =
+        err instanceof Error ? err.message : "OTP verification failed";
       setAuthState((prev) => ({
         ...prev,
         loading: false,
@@ -318,15 +335,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (currentToken) {
       try {
         await fetch(`${API_BASE}/api/auth/logout`, {
-          method: 'POST',
+          method: "POST",
           headers: {
-            'Content-Type': 'application/json',
+            "Content-Type": "application/json",
             Authorization: `Bearer ${currentToken}`,
           },
         });
       } catch {
         // Logout API failed, but we already cleared local state
-        console.warn('Backend logout call failed, local session cleared.');
+        console.warn("Backend logout call failed, local session cleared.");
       }
     }
   };
@@ -337,7 +354,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ ...authState, login, sendOtp, verifyOtp, logout, fetchProfile, clearError }}
+      value={{
+        ...authState,
+        login,
+        sendOtp,
+        verifyOtp,
+        logout,
+        fetchProfile,
+        clearError,
+      }}
     >
       {children}
     </AuthContext.Provider>
@@ -347,7 +372,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 }

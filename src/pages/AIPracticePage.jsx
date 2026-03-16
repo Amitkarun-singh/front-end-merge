@@ -25,19 +25,19 @@ import { config } from "../../app.config.js";
 /** @type {QuestionType[]} */
 const questionTypes = [
   { id: "mcq", label: "Multiple choice questions [MCQ]" },
-  { id: "sa", label: "Short answers [SA]" },
-  { id: "la", label: "Long answers [LA]" },
+  // { id: "sa", label: "Short answers [SA]" },
+  // { id: "la", label: "Long answers [LA]" },
   // { id: "pyq", label: "Previous Year Questions [PQ]" },
   // { id: "pq", label: "Predicted This year Questions [PQ]" },
 ];
 
 /**
  * AIPracticePage Component
- * 
+ *
  * A comprehensive page for setting up and generating AI-powered mock exams.
- * Users can select class, subject, language, chapters, and specific question types 
+ * Users can select class, subject, language, chapters, and specific question types
  * with custom counts or year ranges for previous year questions.
- * 
+ *
  * @returns {JSX.Element} The rendered AI Practice Page.
  */
 export default function AIPracticePage() {
@@ -59,14 +59,14 @@ export default function AIPracticePage() {
    * Format: { [typeId]: number | { from: number, to: number } }
    */
   const [questionConfig, setQuestionConfig] = useState({});
-
-  const token =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJyb2xlIjoiQURNSU4iLCJwZXJtaXNzaW9ucyI6WyJNQU5BR0VfUk9MRVMiLCJNQU5BR0VfU0NIT09MIl0sInNjaG9vbF9pZCI6MSwiaWF0IjoxNzcyNzA2MzM5LCJleHAiOjE3NzM1NzAzMzl9.iQ-jqJx4DXMRzeBMjtf99k_r_HP9f0RgNROYgBsOChw"; // Add your Bearer token here
+  const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
+  const token = local.token;
 
   /**
    * Effect: Fetch available classes on mount.
    */
   useEffect(() => {
+    console.log(local.token);
     const fetchClasses = async () => {
       try {
         const response = await fetch(`${config.server}/api/classes`, {
@@ -165,7 +165,7 @@ export default function AIPracticePage() {
 
   /**
    * Updates the count or configuration for a specific question type.
-   * 
+   *
    * @param {string} typeId - The ID of the question type to update.
    * @param {number|Object} value - The new value or configuration object.
    */
@@ -178,7 +178,7 @@ export default function AIPracticePage() {
 
   /**
    * Toggles the selection of a chapter.
-   * 
+   *
    * @param {string} chapterName - The name of the chapter to toggle.
    */
   const toggleChapter = (chapterName) => {
@@ -191,7 +191,7 @@ export default function AIPracticePage() {
 
   /**
    * Toggles the selection of a question type.
-   * 
+   *
    * @param {string} type - The ID of the question type to toggle.
    */
   const toggleType = (type) => {
@@ -203,7 +203,7 @@ export default function AIPracticePage() {
   /**
    * Gathers all selected configurations and requests the AI to generate exam questions.
    * Switches the view to 'exam' mode upon success.
-   * 
+   *
    * @async
    * @function handleGenerateExam
    */
@@ -355,9 +355,14 @@ export default function AIPracticePage() {
               <div className="space-y-2">
                 <div className="flex items-center">
                   <Checkbox
-                    checked={chapters.length > 0 && selectedChapters.length === chapters.length}
+                    checked={
+                      chapters.length > 0 &&
+                      selectedChapters.length === chapters.length
+                    }
                     onCheckedChange={(checked) =>
-                      setSelectedChapters(checked ? chapters.map(c => c.chapter_name) : [])
+                      setSelectedChapters(
+                        checked ? chapters.map((c) => c.chapter_name) : [],
+                      )
                     }
                     disabled={chapters.length === 0}
                   />
@@ -367,13 +372,17 @@ export default function AIPracticePage() {
                   <div key={chapter.chapter_id} className="flex items-center">
                     <Checkbox
                       checked={selectedChapters.includes(chapter.chapter_name)}
-                      onCheckedChange={() => toggleChapter(chapter.chapter_name)}
+                      onCheckedChange={() =>
+                        toggleChapter(chapter.chapter_name)
+                      }
                     />
                     <span className="ml-2 text-sm">{chapter.chapter_name}</span>
                   </div>
                 ))}
                 {chapters.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No chapters available</p>
+                  <p className="text-sm text-muted-foreground">
+                    No chapters available
+                  </p>
                 )}
               </div>
             </div>
