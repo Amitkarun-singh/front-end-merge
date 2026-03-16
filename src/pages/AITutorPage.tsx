@@ -1,13 +1,177 @@
-import { useState } from "react";
-import { GraduationCap, Mic, Globe, Sparkles, RotateCcw } from "lucide-react";
+import { useState, useEffect } from "react";
+import {
+  GraduationCap,
+  Mic,
+  Globe,
+  Sparkles,
+  RotateCcw,
+  Loader2,
+  MicOff,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import aiTutorRobot from "@/assets/ai-tutor-robot.png";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { config } from "../../app.config.js";
+
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
 export default function AITutorPage() {
   const [question, setQuestion] = useState("");
+  const [answer, setAnswer] = useState("");
   const [showAnswer, setShowAnswer] = useState(false);
-  return <div className="min-h-screen p-6 lg:p-8">
+  const [isListening, setIsListening] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [language, setLanguage] = useState("en-US");
+  const { toast } = useToast();
+
+  const handleVoiceInput = () => {
+    const SpeechRecognition =
+      window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      toast({
+        title: "Not Supported",
+        description: "Speech recognition is not supported in your browser.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Stop any ongoing speech immediately
+    window.speechSynthesis.cancel();
+
+    // If already listening, stop recognition
+    if (isListening) {
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = language;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error", event.error);
+      setIsListening(false);
+      toast({
+        title: "Error",
+        description: `Speech recognition error: ${event.error}`,
+        variant: "destructive",
+      });
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setQuestion(transcript);
+      handleAsk(transcript);
+    };
+
+    try {
+      recognition.start();
+    } catch (e) {
+      console.error("Failed to start recognition", e);
+    }
+  };
+
+  const speak = (text: string) => {
+    if ("speechSynthesis" in window) {
+      // Cancel any ongoing speech
+      window.speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = language;
+
+      // Optional: find a voice that matches the language
+      const voices = window.speechSynthesis.getVoices();
+      const voice = voices.find((v) =>
+        v.lang.startsWith(language.split("-")[0]),
+      );
+      if (voice) utterance.voice = voice;
+
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  const handleAsk = async (textOverride?: string) => {
+    const query = textOverride || question;
+    if (!query.trim()) return;
+
+    setIsLoading(true);
+    setShowAnswer(true);
+    setAnswer(""); // Clear previous answer
+
+    try {
+      const response = await fetch(`${config.server}/gini/voice-bot`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: [{ role: "user", content: query }],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to get response from AI Tutor");
+      }
+
+      const data = await response.json();
+      const botResponse = data.response.content;
+      setAnswer(botResponse);
+      speak(botResponse);
+    } catch (error) {
+      console.error("Error asking AI Tutor:", error);
+      setAnswer(
+        "Sorry, I encountered an error while processing your request. Please try again.",
+      );
+      toast({
+        title: "Error",
+        description:
+          "Failed to connect to the AI Tutor. Please check if the server is running.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const resetChat = () => {
+    setQuestion("");
+    setAnswer("");
+    setShowAnswer(false);
+    window.speechSynthesis.cancel();
+  };
+
+  // Pre-load voices for TTS
+  useEffect(() => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+    }
+  }, []);
+
+  return (
+    <div className="min-h-screen p-6 lg:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -23,16 +187,34 @@ export default function AITutorPage() {
         <div className="edtech-card overflow-hidden">
           {/* Visual area */}
           <div className="relative h-64 md:h-80 gradient-hero flex items-center justify-center">
-            <div className="animate-float">
-              <img alt="AI Tutor" className="w-48 h-48 md:w-64 md:h-64 object-contain" src="/lovable-uploads/1fbf5827-3da3-4ba7-86f8-3aec96f1ca47.png" />
+            <div
+              className={`${isListening ? "animate-pulse scale-110" : "animate-float"} transition-all duration-300`}
+            >
+              <img
+                alt="AI Tutor"
+                className="w-48 h-48 md:w-64 md:h-64 object-contain"
+                src="/lovable-uploads/1fbf5827-3da3-4ba7-86f8-3aec96f1ca47.png"
+              />
             </div>
 
             {/* Mic button */}
-            <button className="absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full bg-card shadow-lg flex items-center justify-center hover:scale-105 transition-transform">
-              <Mic className="w-6 h-6 text-primary" />
+            <button
+              onClick={handleVoiceInput}
+              disabled={isListening || isLoading}
+              className={`absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
+                isListening
+                  ? "bg-red-500 scale-110 animate-pulse"
+                  : "bg-card hover:scale-105"
+              }`}
+            >
+              {isListening ? (
+                <MicOff className="w-6 h-6 text-white" />
+              ) : (
+                <Mic className="w-6 h-6 text-primary" />
+              )}
             </button>
             <p className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full text-sm text-muted-foreground pt-2">
-              Tap to speak
+              {isListening ? "Listening..." : "Tap to speak"}
             </p>
           </div>
 
@@ -40,15 +222,15 @@ export default function AITutorPage() {
           <div className="p-6 space-y-4">
             {/* Language selector */}
             <div className="flex justify-end">
-              <Select defaultValue="en-us">
+              <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger className="w-auto">
                   <Globe className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Language" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="en-us">English (US)</SelectItem>
-                  <SelectItem value="en-uk">English (UK)</SelectItem>
-                  <SelectItem value="hi">Hindi</SelectItem>
+                  <SelectItem value="en-US">English (US)</SelectItem>
+
+                  <SelectItem value="hi-IN">Hindi</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -59,46 +241,60 @@ export default function AITutorPage() {
                 Student:
               </label>
               <div className="flex gap-3">
-                <Input value={question} onChange={e => setQuestion(e.target.value)} placeholder="What is Euclid's Division Lemma?" className="flex-1" />
-                <Button onClick={() => setShowAnswer(true)} className="gradient-button" disabled={!question.trim()}>
-                  <Sparkles className="w-4 h-4 mr-2" />
+                <Input
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAsk()}
+                  placeholder="What is Euclid's Division Lemma?"
+                  className="flex-1"
+                  disabled={isLoading}
+                />
+                <Button
+                  onClick={() => handleAsk()}
+                  className="gradient-button"
+                  disabled={!question.trim() || isLoading}
+                >
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Sparkles className="w-4 h-4 mr-2" />
+                  )}
                   Ask
                 </Button>
               </div>
             </div>
 
             {/* Answer */}
-            {showAnswer && <div className="p-4 rounded-xl bg-accent/50 animate-fade-in">
+            {showAnswer && (
+              <div className="p-4 rounded-xl bg-accent/50 animate-fade-in">
                 <label className="text-sm font-medium text-foreground mb-2 block">
                   Bot:
                 </label>
-                <p className="text-foreground leading-relaxed">
-                  Euclid's Division Lemma is a fundamental theorem in number
-                  theory that states: For any two positive integers a and b,
-                  there exist unique integers q (quotient) and r (remainder)
-                  such that:
-                </p>
-                <div className="my-3 p-3 bg-card rounded-lg text-center font-mono text-lg">
-                  a = bq + r, where 0 ≤ r &lt; b
-                </div>
-                <p className="text-foreground leading-relaxed">
-                  This lemma is the basis for the Euclidean Algorithm used to
-                  find the HCF (Highest Common Factor) of two numbers. It
-                  essentially tells us that any integer can be expressed as a
-                  multiple of another integer plus a remainder.
-                </p>
-
-                <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                  <Button variant="ghost" size="sm">
-                    <RotateCcw className="w-4 h-4 mr-2" />
-                    Ask Another Question
-                  </Button>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <GraduationCap className="w-4 h-4" />
-                    Step-by-step explanation
+                {isLoading ? (
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Thinking...
                   </div>
-                </div>
-              </div>}
+                ) : (
+                  <>
+                    <div className="text-foreground leading-relaxed whitespace-pre-wrap">
+                      {answer}
+                    </div>
+
+                    <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+                      <Button variant="ghost" size="sm" onClick={resetChat}>
+                        <RotateCcw className="w-4 h-4 mr-2" />
+                        Ask Another Question
+                      </Button>
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <GraduationCap className="w-4 h-4" />
+                        Step-by-step explanation
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -108,14 +304,27 @@ export default function AITutorPage() {
             Popular Questions
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {["What is the Fundamental Theorem of Arithmetic?", "Explain the concept of irrational numbers", "How to find HCF using Euclid's algorithm?", "What are rational numbers?"].map(q => <button key={q} onClick={() => {
-            setQuestion(q);
-            setShowAnswer(true);
-          }} className="text-left p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-sm transition-all text-sm">
+            {[
+              "What is the Fundamental Theorem of Arithmetic?",
+              "Explain the concept of irrational numbers",
+              "How to find HCF using Euclid's algorithm?",
+              "What are rational numbers?",
+            ].map((q) => (
+              <button
+                key={q}
+                disabled={isLoading}
+                onClick={() => {
+                  setQuestion(q);
+                  handleAsk(q);
+                }}
+                className="text-left p-4 rounded-xl bg-card border border-border hover:border-primary/30 hover:shadow-sm transition-all text-sm disabled:opacity-50"
+              >
                 {q}
-              </button>)}
+              </button>
+            ))}
           </div>
         </div>
       </div>
-    </div>;
+    </div>
+  );
 }

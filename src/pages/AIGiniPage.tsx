@@ -12,23 +12,48 @@ import {
   RotateCcw,
   Paperclip,
   Loader2,
+  ThumbsUp,
+  ThumbsDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { QuickTool } from "@/components/ui/tool-card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChat } from "@/hooks/useChat";
+import { submitThumbsUp, submitFeedback } from "@/api/giniFeedback";
+import { useToast } from "@/hooks/use-toast";
 import heroBg from "@/assets/hero-bg.jpg";
-import { FC, ChangeEvent } from "react";
+import { FC, ChangeEvent, useEffect, useRef, useState } from "react";
 import RecentsSection from "./components/AIPracticePage/RecentsSection";
-import { useEffect, useRef } from "react";
 
+/**
+ * Interface representing a single chat message.
+ */
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
 }
 
+/**
+ * Interface for tracking the feedback state of a specific message.
+ */
+interface MessageFeedbackState {
+  rating: "up" | "down" | null;
+  comment: string;
+  submitted: boolean;
+}
+
+/**
+ * Hero section of the AI Gini page, featuring the main title and quick access tools.
+ */
 const HeroSection = () => (
   <section
     className="relative h-screen py-12 px-6 lg:px-12 overflow-hidden"
@@ -60,18 +85,28 @@ const HeroSection = () => (
   </section>
 );
 
+/**
+ * Props for the WelcomeScreen component.
+ */
 interface WelcomeScreenProps {
   input: string;
   setInput: (value: string) => void;
+  language: string;
+  setLanguage: (value: string) => void;
   handleSend: () => void;
   isLoading: boolean;
   handleFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   uploadedFile: File | null;
 }
 
+/**
+ * Initial screen shown before any messages are sent, providing input for questions and file uploads.
+ */
 const WelcomeScreen: FC<WelcomeScreenProps> = ({
   input,
   setInput,
+  language,
+  setLanguage,
   handleSend,
   isLoading,
   handleFileChange,
@@ -107,11 +142,17 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
         )}
       </div>
       <div className="flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground">
-          <Globe className="w-3.5 h-3.5" />
-          Language
-        </span>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground">
+        <Select value={language} onValueChange={setLanguage}>
+          <SelectTrigger className="w-fit h-7 border-none bg-muted rounded-full px-3 py-1 text-sm text-muted-foreground gap-1.5 focus:ring-0 focus:ring-offset-0">
+            <Globe className="w-3.5 h-3.5" />
+            <SelectValue placeholder="Language" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="English">English</SelectItem>
+            <SelectItem value="Hindi">Hindi</SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground h-7">
           <MonitorSmartphone className="w-3.5 h-3.5" />
           Subject
         </span>
@@ -146,6 +187,9 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
   </div>
 );
 
+/**
+ * Props for the ChatView component.
+ */
 interface ChatViewProps {
   messages: Message[];
   isLoading: boolean;
@@ -157,6 +201,9 @@ interface ChatViewProps {
   resetChat: () => void;
 }
 
+/**
+ * Component that displays the conversation history and feedback mechanisms.
+ */
 const ChatView: FC<ChatViewProps> = ({
   messages,
   isLoading,
@@ -167,41 +214,218 @@ const ChatView: FC<ChatViewProps> = ({
   fileInputRef,
   resetChat,
 }) => {
+  const { toast } = useToast();
+  const [feedbackByMessageId, setFeedbackByMessageId] = useState<
+    Record<string, MessageFeedbackState>
+  >({});
+
   const bottomRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
 
+  /**
+   * Helper to retrieve the user's message and the corresponding AI assistant response.
+   */
+  const getUserMessageAndResponse = (assistantMessageId: string) => {
+    const idx = messages.findIndex((m) => m.id === assistantMessageId);
+
+    if (idx <= 0 || messages[idx]?.role !== "assistant") return null;
+    const userMsg = messages[idx - 1];
+    const assistantMsg = messages[idx];
+
+    if (userMsg?.role !== "user" || !assistantMsg) return null;
+    return {
+      userMessage: userMsg,
+      response: assistantMsg,
+    };
+  };
+
+  /**
+   * Handles clicking thumbs up/down for a message.
+   */
+  const handleThumbClick = async (messageId: string, rating: "up" | "down") => {
+    const pair = getUserMessageAndResponse(messageId);
+
+    setFeedbackByMessageId((prev) => {
+      const current = prev[messageId] ?? {
+        rating: null,
+        comment: "",
+        submitted: false,
+      };
+      const isSameRating = current.rating === rating;
+      const nextRating = isSameRating ? null : rating;
+
+      return {
+        ...prev,
+        [messageId]: {
+          rating: nextRating,
+          comment: nextRating === "down" ? current.comment : "",
+          submitted: false,
+        },
+      };
+    });
+
+    if (rating === "up" && pair) {
+      try {
+        await submitThumbsUp(pair.userMessage, pair.response);
+      } catch {
+        toast({
+          title: "Error",
+          description: "Failed to submit feedback",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  /**
+   * Updates the feedback comment for a specific message.
+   */
+  const handleFeedbackChange = (messageId: string, value: string) => {
+    setFeedbackByMessageId((prev) => ({
+      ...prev,
+      [messageId]: {
+        rating: prev[messageId]?.rating ?? "down",
+        comment: value,
+        submitted: prev[messageId]?.submitted ?? false,
+      },
+    }));
+  };
+
+  /**
+   * Submits detailed feedback for a message.
+   */
+  const handleSubmitFeedback = async (messageId: string) => {
+    const pair = getUserMessageAndResponse(messageId);
+    const feedback = feedbackByMessageId[messageId]?.comment ?? "";
+
+    if (pair) {
+      try {
+        await submitFeedback(pair.userMessage, pair.response, feedback);
+      } catch {
+        toast({
+          title: "Error",
+          description: "Failed to submit feedback",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    setFeedbackByMessageId((prev) => ({
+      ...prev,
+      [messageId]: {
+        ...prev[messageId],
+        rating: prev[messageId]?.rating ?? "down",
+        comment: prev[messageId]?.comment ?? "",
+        submitted: true,
+      },
+    }));
+  };
+
   return (
     <div className="h-[600px] flex flex-col">
       <ScrollArea className="h-auto pr-4">
         <div className="space-y-4">
-          {messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.role === "user" ? "justify-end" : "justify-start"
-              }`}
-            >
+          {messages.map((message) => {
+            const feedback = feedbackByMessageId[message.id];
+
+            return (
               <div
-                className={
-                  message.role === "user"
-                    ? "chat-bubble-user max-w-[80%]"
-                    : "chat-bubble-ai max-w-[80%]"
-                }
+                key={message.id}
+                className={`flex ${
+                  message.role === "user" ? "justify-end" : "justify-start"
+                }`}
               >
-                {message.content.startsWith("![") ? (
-                  <img
-                    src={message.content.match(/\((.*?)\)/)?.[1]}
-                    alt={message.content.match(/\[(.*?)\]/)?.[1]}
-                    className="max-w-[200px] rounded-md"
-                  />
-                ) : (
-                  message.content
-                )}
+                <div className="max-w-[80%] space-y-1">
+                  <div
+                    className={
+                      message.role === "user"
+                        ? "chat-bubble-user"
+                        : "chat-bubble-ai"
+                    }
+                  >
+                    {message.content.startsWith("![") ? (
+                      <img
+                        src={message.content.match(/\((.*?)\)/)?.[1]}
+                        alt={message.content.match(/\[(.*?)\]/)?.[1]}
+                        className="max-w-[200px] rounded-md"
+                      />
+                    ) : (
+                      message.content
+                    )}
+                  </div>
+
+                  {message.role === "assistant" && (
+                    <div className="flex flex-col gap-2 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <span className="mr-1">Was this helpful?</span>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className={`h-7 w-7 border ${
+                            feedback?.rating === "up"
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-transparent"
+                          }`}
+                          onClick={() => handleThumbClick(message.id, "up")}
+                          disabled={isLoading}
+                        >
+                          <ThumbsUp className="h-3 w-3" />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className={`h-7 w-7 border ${
+                            feedback?.rating === "down"
+                              ? "border-destructive bg-destructive/10 text-destructive"
+                              : "border-transparent"
+                          }`}
+                          onClick={() => handleThumbClick(message.id, "down")}
+                          disabled={isLoading}
+                        >
+                          <ThumbsDown className="h-3 w-3" />
+                        </Button>
+                      </div>
+
+                      {feedback?.rating === "down" && (
+                        <div className="flex flex-col gap-2">
+                          <span>Please share what was not helpful:</span>
+                          <Input
+                            value={feedback.comment}
+                            onChange={(e) =>
+                              handleFeedbackChange(message.id, e.target.value)
+                            }
+                            placeholder="Type your feedback here"
+                            className="h-8 text-xs"
+                            disabled={isLoading || feedback.submitted}
+                          />
+                          {feedback.submitted ? (
+                            <span className="text-primary text-xs">
+                              Thank you for your feedback!
+                            </span>
+                          ) : (
+                            <Button
+                              type="button"
+                              size="sm"
+                              className="h-8 w-fit text-xs"
+                              onClick={() => handleSubmitFeedback(message.id)}
+                              disabled={isLoading}
+                            >
+                              Submit
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           {isLoading && messages[messages.length - 1]?.role === "user" && (
             <div className="flex justify-start">
               <div className="chat-bubble-ai max-w-[80%] flex items-center gap-2">
@@ -270,11 +494,16 @@ const ChatView: FC<ChatViewProps> = ({
   );
 };
 
+/**
+ * Container component for the AI Gini chat, toggling between the welcome screen and chat view.
+ */
 const ChatBox = () => {
   const {
     messages,
     input,
     setInput,
+    language,
+    setLanguage,
     isLoading,
     uploadedFile,
     fileInputRef,
@@ -290,6 +519,8 @@ const ChatBox = () => {
           <WelcomeScreen
             input={input}
             setInput={setInput}
+            language={language}
+            setLanguage={setLanguage}
             handleSend={handleSend}
             isLoading={isLoading}
             handleFileChange={handleFileChange}
@@ -312,6 +543,9 @@ const ChatBox = () => {
   );
 };
 
+/**
+ * The main page component for AI Gini, featuring a personalized AI tutor interface.
+ */
 export default function AIGiniPage() {
   return (
     <div className="min-h-screen flex flex-col">
@@ -320,3 +554,4 @@ export default function AIGiniPage() {
     </div>
   );
 }
+

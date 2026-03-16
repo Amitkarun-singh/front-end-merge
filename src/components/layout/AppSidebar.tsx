@@ -69,7 +69,7 @@ const exploreLinks = [
   },
   {
     title: "Support",
-    url: "https://schools2ai.com/contact",
+    url: "/support",
     icon: HelpCircle,
     external: true,
   },
@@ -77,6 +77,7 @@ const exploreLinks = [
     title: "Feedback",
     url: "/feedback",
     icon: MessageSquare,
+    external: true,
   },
 ];
 export function AppSidebar() {

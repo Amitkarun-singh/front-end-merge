@@ -1,6 +1,9 @@
 import { useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 
+/**
+ * Interface representing a single chat message.
+ */
 interface Message {
   id: string;
   role: "user" | "assistant";
@@ -9,17 +12,31 @@ interface Message {
 
 import { config } from "../../app.config.js";
 
+/**
+ * Endpoint for the AI Gini chat service.
+ */
 const CHAT_URL = `${config.server}/gini/ai/gini`;
 
+/**
+ * A custom hook to manage chat state and interactions with the AI assistant.
+ * Handles message history, user input, file uploads, and streaming AI responses.
+ *
+ * @returns {Object} Chat state and handler functions.
+ */
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [language, setLanguage] = useState("English");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { toast } = useToast();
 
+  /**
+   * Sends the current user input and any uploaded file to the AI assistant.
+   * Manages streaming the response and updating the message history.
+   */
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
@@ -37,8 +54,10 @@ export const useChat = () => {
     let assistantContent = "";
 
     try {
+      console.log("language", language);
       const formData = new FormData();
       formData.append("messages", JSON.stringify(newMessages));
+      formData.append("language", language);
       if (uploadedFile) {
         formData.append("file", uploadedFile);
       }
@@ -123,6 +142,12 @@ export const useChat = () => {
     }
   };
 
+  /**
+   * Handles file selection from an input element.
+   * Updates state and adds a placeholder message for the upload to the chat.
+   *
+   * @param {React.ChangeEvent<HTMLInputElement>} e - The change event from the file input.
+   */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (!file) return;
@@ -140,6 +165,9 @@ export const useChat = () => {
     setMessages((prev) => [...prev, fileMessage]);
   };
 
+  /**
+   * Resets the chat history and clears any uploaded files.
+   */
   const resetChat = () => {
     setMessages([]);
     setUploadedFile(null);
@@ -155,5 +183,7 @@ export const useChat = () => {
     handleSend,
     handleFileChange,
     resetChat,
+    language,
+    setLanguage,
   };
 };

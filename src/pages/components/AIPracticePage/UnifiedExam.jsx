@@ -1,48 +1,109 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronLeft, Clock, ArrowRight } from "lucide-react";
+import {
+  ChevronLeft,
+  Clock,
+  ArrowRight,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  AlertCircle,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
-
-// const examData = {
-//   subject: "Mathematics",
-//   chapter: ["Algebra", "Trigonometry"],
-//   questionType: ["MCQ", "SA", "LA"],
-//   questions: {
-//     MCQ: [
-//       {
-//         question: "What is 2 + 2?",
-//         options: ["3", "4", "5", "6"],
-//         answer: "4",
-//       },
-//     ],
-//     SA: [
-//       {
-//         question: "Define Pythagoras theorem.",
-//         answer: "In a right triangle, a² + b² = c².",
-//       },
-//     ],
-//     LA: [
-//       {
-//         question: "Explain quadratic equations with example.",
-//         answer: "A quadratic equation is of the form ax² + bx + c = 0...",
-//       },
-//     ],
-//   },
-// };
+import { config } from "@/../app.config.js";
+import { toast } from "sonner";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const UnifiedExam = ({ examData }) => {
   const questionTypes = examData.questionType;
   const [currentTypeIndex, setCurrentTypeIndex] = useState(0); // Track SA, LA, MCQ
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-  const [showAnswer, setShowAnswer] = useState(false);
-  const [mcqAnswers, setMcqAnswers] = useState({}); // For MCQ
+  const [answers, setAnswers] = useState({}); // Unified state for all answers
+  const [submitting, setSubmitting] = useState(false);
+  const [testResults, setTestResults] = useState(null);
+  const [showResults, setShowResults] = useState(false);
 
   const currentType = questionTypes[currentTypeIndex];
   const questions = examData.questions[currentType] || [];
   const currentQuestion = questions[currentQuestionIndex];
+
+  const isLastQuestion =
+    currentTypeIndex === questionTypes.length - 1 &&
+    currentQuestionIndex === questions.length - 1;
+
+  const handleAnswerChange = (value) => {
+    if (!currentQuestion) return;
+    setAnswers((prev) => ({
+      ...prev,
+      [currentQuestion.id]: value,
+    }));
+  };
+
+  const fetchResults = async () => {
+    try {
+      const response = await fetch(
+        `${config.server}/gini/practice/questions/test/result/${examData.testId}`,
+      );
+      if (!response.ok) throw new Error("Failed to fetch results");
+      const data = await response.json();
+      if (data.isSuccessful) {
+        setTestResults(data.result);
+        setShowResults(true);
+      }
+    } catch (error) {
+      console.error("Error fetching results:", error);
+      toast.error("Failed to load test results.");
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!currentQuestion) return;
+
+    const answer = answers[currentQuestion.id];
+    if (!answer) {
+      toast.error("Please provide an answer before submitting.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const response = await fetch(
+        `${config.server}/gini/practice/questions/answer-submit`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            questionId: currentQuestion.id,
+            testId: examData.testId,
+            answer: answer,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to submit answer");
+      }
+
+      toast.success("Answer submitted successfully!");
+
+      if (isLastQuestion) {
+        await fetchResults();
+      } else {
+        nextQuestion();
+      }
+    } catch (error) {
+      console.error("Submission error:", error);
+      toast.error("Failed to submit answer. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const nextQuestion = () => {
     if (currentQuestionIndex < questions.length - 1) {
@@ -50,7 +111,6 @@ const UnifiedExam = ({ examData }) => {
     } else if (currentTypeIndex < questionTypes.length - 1) {
       setCurrentTypeIndex(currentTypeIndex + 1);
       setCurrentQuestionIndex(0);
-      setShowAnswer(false);
     }
   };
 
@@ -61,9 +121,95 @@ const UnifiedExam = ({ examData }) => {
       const prevType = questionTypes[currentTypeIndex - 1];
       setCurrentTypeIndex(currentTypeIndex - 1);
       setCurrentQuestionIndex((examData.questions[prevType] || []).length - 1);
-      setShowAnswer(false);
     }
   };
+
+  if (showResults && testResults) {
+    // Flatten all questions to compare with results
+    const allQuestions = questionTypes.flatMap(
+      (type) => examData.questions[type] || [],
+    );
+
+    return (
+      <div className="min-h-screen bg-muted/30 p-6">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold text-foreground">Test Results</h1>
+            <Button onClick={() => window.location.reload()}>Try Again</Button>
+          </div>
+
+          <div className="grid gap-4">
+            {allQuestions.map((q, idx) => {
+              const result = testResults.find((r) => r.question_id === q.id);
+              const isCorrect =
+                result && result.student_answer === result.answer;
+              const notAttended = !result;
+
+              return (
+                <Card
+                  key={q.id}
+                  className="border-l-4 overflow-hidden"
+                  style={{
+                    borderLeftColor: notAttended
+                      ? "#eab308"
+                      : isCorrect
+                        ? "#22c55e"
+                        : "#ef4444",
+                  }}
+                >
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <span>Question {idx + 1}</span>
+                      {notAttended ? (
+                        <div className="flex items-center gap-1 text-yellow-500 text-sm">
+                          <AlertCircle className="w-4 h-4" /> Not Attended
+                        </div>
+                      ) : isCorrect ? (
+                        <div className="flex items-center gap-1 text-green-500 text-sm">
+                          <CheckCircle2 className="w-4 h-4" /> Correct
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-1 text-red-500 text-sm">
+                          <XCircle className="w-4 h-4" /> Incorrect
+                        </div>
+                      )}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="font-medium text-foreground">
+                      {q.question.replace(/\*\*/g, "")}
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                      <div className="p-3 bg-muted rounded-lg">
+                        <p className="text-muted-foreground mb-1">
+                          Your Answer:
+                        </p>
+                        <p
+                          className={
+                            notAttended
+                              ? "italic text-muted-foreground"
+                              : "font-semibold"
+                          }
+                        >
+                          {result?.student_answer || "Not attempted"}
+                        </p>
+                      </div>
+                      <div className="p-3 bg-primary/5 rounded-lg">
+                        <p className="text-primary/60 mb-1">Correct Answer:</p>
+                        <p className="font-semibold text-primary">
+                          {q.answer || result?.answer}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -113,7 +259,6 @@ const UnifiedExam = ({ examData }) => {
                   onClick={() => {
                     setCurrentTypeIndex(idx);
                     setCurrentQuestionIndex(0); // reset to first question of that type
-                    setShowAnswer(false);
                   }}
                   className={`px-3 py-1 rounded-lg text-sm font-medium transition ${
                     idx === currentTypeIndex
@@ -147,21 +292,17 @@ const UnifiedExam = ({ examData }) => {
                 <label
                   key={i}
                   className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition ${
-                    mcqAnswers[currentQuestionIndex] === option
+                    answers[currentQuestion?.id] === option
                       ? "border-primary bg-primary/10"
                       : "border-border hover:bg-accent"
                   }`}
                 >
                   <input
                     type="radio"
-                    name={`question-${currentQuestionIndex}`}
-                    checked={mcqAnswers[currentQuestionIndex] === option}
-                    onChange={() =>
-                      setMcqAnswers({
-                        ...mcqAnswers,
-                        [currentQuestionIndex]: option,
-                      })
-                    }
+                    name={`question-${currentQuestion?.id}`}
+                    checked={answers[currentQuestion?.id] === option}
+                    onChange={() => handleAnswerChange(option)}
+                    className="w-4 h-4 text-primary"
                   />
                   <span>{option}</span>
                 </label>
@@ -172,6 +313,8 @@ const UnifiedExam = ({ examData }) => {
               <Textarea
                 placeholder="Write your answer here..."
                 className="min-h-[200px] resize-none"
+                value={answers[currentQuestion?.id] || ""}
+                onChange={(e) => handleAnswerChange(e.target.value)}
               />
             </>
           )}
@@ -198,11 +341,29 @@ const UnifiedExam = ({ examData }) => {
 
           {/* Navigation Buttons */}
           <div className="flex gap-3">
-            <Button variant="outline">Submit</Button>
+            <Button
+              variant="default"
+              className={
+                isLastQuestion
+                  ? "!bg-emerald-600 hover:!bg-emerald-700 !text-white"
+                  : ""
+              }
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : null}
+              {isLastQuestion ? "Finish & Submit" : "Submit Answer"}
+            </Button>
             <Button variant="ghost" onClick={prevQuestion}>
               Previous
             </Button>
-            <Button className="gradient-button" onClick={nextQuestion}>
+            <Button
+              className="gradient-button"
+              onClick={nextQuestion}
+              disabled={isLastQuestion}
+            >
               Next <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
