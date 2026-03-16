@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { config } from "../../app.config.js";
 
 interface User {
   id?: string;
@@ -34,7 +35,7 @@ interface AuthContextType extends AuthState {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_STORAGE_KEY = 'schools2ai_auth';
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_URL || `${config.server}`;
 
 function getStoredAuth(): Partial<AuthState> {
   try {
