@@ -1,6 +1,17 @@
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Upload, FileText, File, X, Sparkles, Download, Copy, Check } from "lucide-react";
+import {
+  Upload,
+  FileText,
+  File,
+  X,
+  Sparkles,
+  Download,
+  Copy,
+  Check,
+  ThumbsUp,
+  ThumbsDown,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -17,64 +28,50 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 
 export default function SummarizerPage() {
-  // -----------------------------
-  // STATE (NO UI CHANGE)
-  // -----------------------------
   const [file, setFile] = useState<File | null>(null);
   const [summary, setSummary] = useState<string>("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [showSummary, setShowSummary] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  // 🔹 Added language state
   const [language, setLanguage] = useState("English");
+
+  // Feedback state: null = not given, "like" | "dislike" = given
+  const [feedback, setFeedback] = useState<"like" | "dislike" | null>(null);
+  const [feedbackSent, setFeedbackSent] = useState(false);
 
   const { token } = useAuth();
 
-  // -----------------------------
-  // DRAG & DROP (UNCHANGED)
-  // -----------------------------
+  // ── Drag & drop ──
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
-      setFile(droppedFile);
-    }
+    if (droppedFile) setFile(droppedFile);
   };
 
-  // -----------------------------
-  // 🔥 BACKEND INTEGRATION
-  // -----------------------------
+  // ── Send summary to backend ──
   const handleSummarize = async () => {
     if (!file) return;
-
     setLoading(true);
     setError("");
+    setFeedback(null);
+    setFeedbackSent(false);
 
     try {
       const formData = new FormData();
-
-      // backend expects these two fields
       formData.append("file", file);
       formData.append("language", language);
 
       const res = await fetch(`${config.server}/api/summarize`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Summarization failed");
-      }
+      if (!res.ok) throw new Error(data.message || "Summarization failed");
 
       setSummary(data.summary);
-
       setShowSummary(true);
     } catch (err: Error | unknown) {
       setError(err instanceof Error ? err.message : "Something went wrong");
@@ -83,36 +80,44 @@ export default function SummarizerPage() {
     }
   };
 
-  const formatSummary = (text: string) => {
-    return text
-      .replace(/•/g, "\n• ")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
+  // ── Send feedback (like / dislike) to backend ──
+  const handleFeedback = async (type: "like" | "dislike") => {
+    if (feedbackSent) return; // don't allow changing after submission
+    setFeedback(type);
+    setFeedbackSent(true);
+
+    try {
+      await fetch(`${config.server}/api/summarize/feedback`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ feedback: type }),
+      });
+    } catch {
+      // silently fail — feedback is best-effort
+    }
   };
 
-  // Copy summary to clipboard
+  const formatSummary = (text: string) =>
+    text.replace(/•/g, "\n• ").replace(/\n{3,}/g, "\n\n").trim();
+
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(formatSummary(summary));
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback for older browsers
-      const textArea = document.createElement('textarea');
+      const textArea = document.createElement("textarea");
       textArea.value = formatSummary(summary);
       document.body.appendChild(textArea);
       textArea.select();
-      document.execCommand('copy');
+      document.execCommand("copy");
       document.body.removeChild(textArea);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
-  };
-
-  // Re-summarize with the same file and language
-  const handleGenerateAgain = () => {
-    if (!file) return;
-    handleSummarize();
   };
 
   return (
@@ -133,7 +138,6 @@ export default function SummarizerPage() {
         {/* Upload Area */}
         {!showSummary ? (
           <div className="edtech-card">
-
             <div className="flex items-center justify-between mb-6">
               <Button variant="default" className="gradient-button">
                 <Upload className="w-4 h-4 mr-2" />
@@ -141,10 +145,7 @@ export default function SummarizerPage() {
               </Button>
 
               {/* Language Select */}
-              <Select
-                value={language}
-                onValueChange={(value) => setLanguage(value)}
-              >
+              <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger className="w-32">
                   <SelectValue placeholder="Language" />
                 </SelectTrigger>
@@ -179,15 +180,10 @@ export default function SummarizerPage() {
                   </div>
 
                   <div className="flex gap-3">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setFile(null)}
-                    >
+                    <Button variant="ghost" size="sm" onClick={() => setFile(null)}>
                       <X className="w-4 h-4 mr-1" />
                       Remove
                     </Button>
-
                     <Button
                       className="gradient-button"
                       onClick={handleSummarize}
@@ -212,10 +208,8 @@ export default function SummarizerPage() {
                   <p className="text-foreground font-medium mb-2">
                     Drag and drop your file here to get instant study notes.
                   </p>
-
                   <p className="text-sm text-muted-foreground mb-4">
-                    Supported Formats: Images, PDF, Doc, Docs, PPT, PPTX; Max
-                    size: 20MB.
+                    Supported Formats: Images, PDF, Doc, Docs, PPT, PPTX; Max size: 20MB.
                   </p>
 
                   <label>
@@ -223,11 +217,8 @@ export default function SummarizerPage() {
                       type="file"
                       className="hidden"
                       accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
-                      onChange={(e) =>
-                        setFile(e.target.files?.[0] || null)
-                      }
+                      onChange={(e) => setFile(e.target.files?.[0] || null)}
                     />
-
                     <Button asChild className="gradient-button cursor-pointer">
                       <span>
                         <FileText className="w-4 h-4 mr-2" />
@@ -239,24 +230,20 @@ export default function SummarizerPage() {
               )}
             </div>
 
-            {/* backend error */}
             {error && (
-              <p className="text-red-500 text-sm mt-4 text-center">
-                {error}
-              </p>
+              <p className="text-red-500 text-sm mt-4 text-center">{error}</p>
             )}
           </div>
         ) : (
           <div className="edtech-card animate-fade-in">
 
+            {/* Summary header */}
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="font-display text-xl font-semibold text-foreground">
                   Document Summary
                 </h2>
-                <p className="text-sm text-muted-foreground">
-                  Generated just now
-                </p>
+                <p className="text-sm text-muted-foreground">Generated just now</p>
               </div>
 
               <div className="flex gap-2">
@@ -276,7 +263,7 @@ export default function SummarizerPage() {
               </div>
             </div>
 
-            {/* AI SUMMARY */}
+            {/* AI Summary */}
             <div className="prose max-w-none prose-headings:font-semibold prose-p:text-muted-foreground">
               <ReactMarkdown
                 remarkPlugins={[remarkGfm, remarkMath]}
@@ -286,25 +273,58 @@ export default function SummarizerPage() {
               </ReactMarkdown>
             </div>
 
-            <div className="mt-6 flex gap-3">
+            {/* Footer: Feedback + Summarize Another */}
+            <div className="mt-6 pt-4 border-t border-border flex items-center justify-between flex-wrap gap-4">
+
+              {/* 👍 / 👎 Feedback */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">
+                  {feedbackSent
+                    ? feedback === "like"
+                      ? "Thanks for the feedback! 🎉"
+                      : "Thanks, we'll improve! 🙏"
+                    : "Was this summary helpful?"}
+                </span>
+                {!feedbackSent && (
+                  <>
+                    <button
+                      onClick={() => handleFeedback("like")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors
+                        ${feedback === "like"
+                          ? "bg-green-500/10 border-green-500 text-green-600"
+                          : "border-border hover:border-green-500 hover:text-green-600 text-muted-foreground"
+                        }`}
+                    >
+                      <ThumbsUp className="w-4 h-4" />
+                      Yes
+                    </button>
+                    <button
+                      onClick={() => handleFeedback("dislike")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors
+                        ${feedback === "dislike"
+                          ? "bg-red-500/10 border-red-500 text-red-600"
+                          : "border-border hover:border-red-500 hover:text-red-600 text-muted-foreground"
+                        }`}
+                    >
+                      <ThumbsDown className="w-4 h-4" />
+                      No
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Summarize Another */}
               <Button
                 variant="outline"
                 onClick={() => {
                   setShowSummary(false);
                   setFile(null);
                   setSummary("");
+                  setFeedback(null);
+                  setFeedbackSent(false);
                 }}
               >
                 Summarize Another
-              </Button>
-
-              <Button
-                className="gradient-button"
-                onClick={handleGenerateAgain}
-                disabled={loading}
-              >
-                <Sparkles className="w-4 h-4 mr-2" />
-                {loading ? "Generating..." : "Generate Again"}
               </Button>
             </div>
 
