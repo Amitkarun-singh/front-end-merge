@@ -19,6 +19,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { config } from "../../app.config.js";
 
 interface ProfileData {
   school_name: string | null;
@@ -46,9 +47,7 @@ export default function ProfilePage() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const API_BASE =
-          import.meta.env.VITE_API_URL || "http://localhost:5000";
-        const res = await fetch(`${API_BASE}/api/auth/profile`, {
+        const res = await fetch(`${config.server}/api/auth/profile`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",

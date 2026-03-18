@@ -447,14 +447,14 @@ const ChatView: FC<ChatViewProps> = ({
           >
             <Paperclip className="w-5 h-5 text-muted-foreground" />
           </Button>
-          <input
+          {/* <input
             type="file"
             disabled={isLoading}
             ref={fileInputRef}
             className="hidden"
             accept="image/*,.pdf"
             onChange={handleFileChange}
-          />
+          /> */}
         </div>
         <div className="flex-1 relative">
           <Input

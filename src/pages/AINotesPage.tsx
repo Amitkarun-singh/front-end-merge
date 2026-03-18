@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Sparkles,
   Search,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,8 +19,8 @@ import {
 } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { config } from "../../app.config.js";
-import 'katex/dist/katex.min.css'
-import { InlineMath, BlockMath } from 'react-katex'
+import "katex/dist/katex.min.css";
+import { InlineMath, BlockMath } from "react-katex";
 import { useAuth } from "@/context/AuthContext";
 
 interface AINote {
@@ -28,149 +29,362 @@ interface AINote {
   full_notes: string;
 }
 
+// ─────────────────────────────────────────────────────────────
+// Helpers to parse and render the short_notes markdown-like text
+// ─────────────────────────────────────────────────────────────
+
+/** Render a single text segment that may contain inline LaTeX \( … \) */
+const renderInlineText = (text: string, key?: number) => {
+  // Split on \( ... \) inline math (non-greedy, single-line)
+  const parts = text.split(/(\\\([\s\S]*?\\\))/g);
+  return (
+    <span key={key}>
+      {parts.map((part, i) => {
+        const match = part.match(/^\\\([\s\S]*?\\\)$/);
+        if (match) {
+          // Strip \displaystyle so KaTeX renders it as inline
+          const formula = part
+            .replace(/^\\\(/, "")
+            .replace(/\\\)$/, "")
+            .replace(/\\displaystyle\s*/g, "")
+            .trim();
+          try {
+            return <InlineMath key={i} math={formula} />;
+          } catch {
+            return <span key={i}>{formula}</span>;
+          }
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </span>
+  );
+};
+
+/**
+ * Split a table row string by "|", but only when the "|" is NOT inside \( … \).
+ * This avoids breaking LaTeX formulas that happen to contain a pipe char.
+ */
+const splitTableCells = (row: string): string[] => {
+  const cells: string[] = [];
+  let current = "";
+  let depth = 0; // >0 means we are inside \( … \)
+  let i = 0;
+  while (i < row.length) {
+    // Detect opening \(
+    if (row[i] === "\\" && row[i + 1] === "(") {
+      depth++;
+      current += "\\(";
+      i += 2;
+      continue;
+    }
+    // Detect closing \)
+    if (row[i] === "\\" && row[i + 1] === ")") {
+      depth = Math.max(0, depth - 1);
+      current += "\\)";
+      i += 2;
+      continue;
+    }
+    // Split on | only when not inside math
+    if (row[i] === "|" && depth === 0) {
+      cells.push(current);
+      current = "";
+      i++;
+      continue;
+    }
+    current += row[i];
+    i++;
+  }
+  cells.push(current);
+  return cells;
+};
+
+/** Render a single line considering bullet, heading, math, or plain text */
+const renderLine = (line: string, idx: number) => {
+  const trimmed = line.trim();
+  if (!trimmed) return null;
+
+  // ### Heading line
+  if (trimmed.startsWith("### ")) {
+    const headingText = trimmed.replace(/^###\s+/, "");
+    return (
+      <h3
+        key={idx}
+        className="text-lg font-bold text-foreground mt-6 mb-2 border-b border-border pb-1"
+      >
+        {headingText}
+      </h3>
+    );
+  }
+
+  // ## Heading
+  if (trimmed.startsWith("## ")) {
+    return (
+      <h2 key={idx} className="text-xl font-bold text-foreground mt-6 mb-3">
+        {trimmed.replace(/^##\s+/, "")}
+      </h2>
+    );
+  }
+
+  // # Heading
+  if (trimmed.startsWith("# ")) {
+    return (
+      <h1 key={idx} className="text-2xl font-bold text-foreground mt-6 mb-3">
+        {trimmed.replace(/^#\s+/, "")}
+      </h1>
+    );
+  }
+
+  // Numbered heading like "1. Introduction" at start of line (no ### prefix)
+  if (/^\d+\.\s+[A-Z]/.test(trimmed) && !trimmed.includes("|")) {
+    return (
+      <h3
+        key={idx}
+        className="text-lg font-bold text-foreground mt-6 mb-2 border-b border-border pb-1"
+      >
+        {trimmed}
+      </h3>
+    );
+  }
+
+  // Block math \[ … \]
+  const blockMatchBracket = trimmed.match(/^\\\[([\s\S]*?)\\\]$/);
+  if (blockMatchBracket) {
+    return (
+      <div key={idx} className="my-3">
+        <BlockMath math={blockMatchBracket[1].trim()} />
+      </div>
+    );
+  }
+
+  // A line that starts with LaTeX block commands (no bullet prefix)
+  if (
+    trimmed.startsWith("\\") &&
+    !trimmed.startsWith("\\(") &&
+    !trimmed.startsWith("• ") &&
+    !trimmed.startsWith("•")
+  ) {
+    try {
+      return (
+        <div key={idx} className="my-3">
+          <BlockMath math={trimmed.replace(/^\\text\{.*?\}\s*/, "")} />
+        </div>
+      );
+    } catch {
+      // fall through to plain text
+    }
+  }
+
+  // Bullet / sub-bullet — detect indentation from the ORIGINAL line
+  if (trimmed.startsWith("•") || trimmed.startsWith("-") || trimmed.startsWith("*")) {
+    const content = trimmed.replace(/^[•\-\*]\s*/, "");
+    const leadingSpaces = line.match(/^(\s+)/)?.[1]?.length ?? 0;
+    const isSubBullet = leadingSpaces >= 2;
+    return (
+      <div
+        key={idx}
+        className={`flex gap-2 py-0.5 ${isSubBullet ? "ml-6" : ""}`}
+      >
+        <span
+          className={`mt-0.5 flex-shrink-0 text-sm ${
+            isSubBullet ? "text-muted-foreground/50" : "text-primary"
+          }`}
+        >
+          {isSubBullet ? "◦" : "•"}
+        </span>
+        <span className="text-muted-foreground">{renderInlineText(content)}</span>
+      </div>
+    );
+  }
+
+  // Table row — handled by table parser
+  if (trimmed.startsWith("|")) {
+    return null;
+  }
+
+  // Plain text / paragraph
+  return (
+    <p key={idx} className="text-muted-foreground leading-relaxed">
+      {renderInlineText(trimmed)}
+    </p>
+  );
+};
+
+/** Full parser: collapses table rows and renders everything else line-by-line */
+const parseShortNotes = (raw: string) => {
+  // Normalize escaped newlines
+  const normalised = raw
+    .replace(/\\n/g, "\n")
+    .replace(/^\)\s*/, "")
+    .replace(/---.*$/gm, "");
+
+  const lines = normalised.split("\n");
+  const elements: React.ReactNode[] = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    // Table detection: collect consecutive | lines
+    if (trimmed.startsWith("|")) {
+      const tableLines: string[] = [];
+      while (i < lines.length && lines[i].trim().startsWith("|")) {
+        tableLines.push(lines[i]);
+        i++;
+      }
+      // Parse table - use math-aware cell splitter
+      const rows = tableLines
+        .filter((l) => !/^\|[\s\-|]+\|$/.test(l.trim())) // skip separator rows
+        .map((l) => {
+          const inner = l.trim().replace(/^\|/, "").replace(/\|$/, "");
+          return splitTableCells(inner).map((cell) => cell.trim());
+        });
+
+      if (rows.length > 0) {
+        const [header, ...body] = rows;
+        elements.push(
+          <div key={`table-${i}`} className="overflow-x-auto my-4">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-primary/10">
+                  {header.map((h, hi) => (
+                    <th
+                      key={hi}
+                      className="text-left p-3 font-semibold text-foreground border border-border"
+                    >
+                      {renderInlineText(h)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {body.map((row, ri) => (
+                  <tr key={ri} className={ri % 2 === 0 ? "bg-muted/30" : ""}>
+                    {row.map((cell, ci) => (
+                      <td
+                        key={ci}
+                        className="p-3 text-muted-foreground border border-border"
+                      >
+                        {renderInlineText(cell)}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      }
+      continue;
+    }
+
+    const rendered = renderLine(line, i);
+    if (rendered !== null) {
+      elements.push(rendered);
+    }
+    i++;
+  }
+
+  return elements;
+};
+
+// ─────────────────────────────────────────────────────────────
+// Main Page Component
+// ─────────────────────────────────────────────────────────────
+
 export default function AINotesPage() {
-  // ===============================
-  // BACKEND DATA STATES
-  // ===============================
   const [languages, setLanguages] = useState<string[]>([]);
   const [classes, setClasses] = useState<string[]>([]);
   const [subjects, setSubjects] = useState<string[]>([]);
   const [chapters, setChapters] = useState<string[]>([]);
 
-  // ===============================
-  // SELECTED VALUES (UI)
-  // ===============================
-  const [language, setLanguage] = useState("English");
-  const [className, setClassName] = useState("10");
-  const [subject, setSubject] = useState("Mathematics");
+  const [language, setLanguage] = useState("");
+  const [className, setClassName] = useState("");
+  const [subject, setSubject] = useState("");
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
 
-  // ===============================
-  // NOTES STATE
-  // ===============================
   const [note, setNote] = useState<AINote | null>(null);
   const [showNotes, setShowNotes] = useState(false);
 
+  // Search
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // PDF preview state
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+
   const { token } = useAuth();
 
-  // ===============================
-  // RESET NOTES (LOGIC ONLY)
-  // ===============================
   const resetNotes = () => {
     setShowNotes(false);
     setNote(null);
+    setShowPdfPreview(false);
   };
 
-  // ===============================
-  // FETCH LANGUAGES
-  // ===============================
+  // ── Fetch languages ──
   useEffect(() => {
     fetch(`${config.server}/api/ainote/languages`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        })
-      .then(res => res.json())
-      .then(data => setLanguages(data.data || []));
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setLanguages(data.data || []));
   }, []);
 
-  // ===============================
-  // FETCH CLASSES
-  // ===============================
+  // ── Fetch classes (requires language) ──
   useEffect(() => {
-    fetch(
-      `${config.server}/api/ainote/classes?language=${language}&board=CBSE`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-      .then(res => res.json())
-      .then(data => setClasses(data.data || []));
+    if (!language) { setClasses([]); return; }
+    fetch(`${config.server}/api/ainote/classes?language=${language}&board=CBSE`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.json())
+      .then((data) => setClasses(data.data || []));
   }, [language]);
 
-  // ===============================
-  // FETCH SUBJECTS
-  // ===============================
+  // ── Fetch subjects (requires language + class) ──
   useEffect(() => {
+    if (!language || !className) { setSubjects([]); return; }
     fetch(
-      `${config.server}/api/ainote/subjects?language=${language}&class=${className}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${config.server}/api/ainote/subjects?language=${language}&class=${className}`,
+      { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     )
-      .then(res => res.json())
-      .then(data => setSubjects(data.data || []));
+      .then((res) => res.json())
+      .then((data) => setSubjects(data.data || []));
   }, [language, className]);
 
-  // ===============================
-  // FETCH CHAPTERS
-  // ===============================
+  // ── Fetch chapters (requires language + class + subject) ──
   useEffect(() => {
+    if (!language || !className || !subject) { setChapters([]); return; }
     fetch(
-      `${config.server}/api/ainote/chapters?language=${language}&class=${className}&subject=${subject}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${config.server}/api/ainote/chapters?language=${language}&class=${className}&subject=${subject}`,
+      { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     )
-      .then(res => res.json())
-      .then(data => setChapters(data.data || []));
+      .then((res) => res.json())
+      .then((data) => setChapters(data.data || []));
   }, [language, className, subject]);
 
-  // ===============================
-  // GENERATE NOTES
-  // ===============================
+  // ── Generate notes ──
   const handleGenerateNotes = async () => {
     if (!selectedChapter) return;
-
     const res = await fetch(
-      `${config.server}/api/ainote?language=${language}&board=CBSE&class=${className}&subject=${subject}&topic=${selectedChapter}`, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${config.server}/api/ainote?language=${language}&board=CBSE&class=${className}&subject=${subject}&topic=${selectedChapter}`,
+      { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     );
-
     const data = await res.json();
+    console.log(data);
     setNote(data.data?.[0]);
     setShowNotes(true);
+    setShowPdfPreview(false);
   };
 
-  const renderLine = (text: string) => {
-    if (!text) return null;
-
-    const cleaned = text.replace("-", "").trim();
-
-    // detect inline math \( ... \)
-    const inlineMatch = cleaned.match(/\\\((.*?)\\\)/);
-
-    if (inlineMatch) {
-      return <InlineMath math={inlineMatch[1]} />;
-    }
-
-    // detect block math
-    if (cleaned.includes("\\")) {
-      const formula = cleaned
-        .replace(/\\\[/g, "")
-        .replace(/\\\]/g, "")
-        .trim();
-
-      return <BlockMath math={formula} />;
-    }
-
-    return <span>{cleaned}</span>;
-  };
-
+  // ── Open Full Notes as inline PDF ──
   const openFullNotes = () => {
     if (!note?.full_notes) return;
+    setShowPdfPreview(true);
+  };
 
-    window.open(note.full_notes, "_blank");
+  const closePdfPreview = () => {
+    setShowPdfPreview(false);
   };
 
   return (
@@ -182,9 +396,7 @@ export default function AINotesPage() {
             <h1 className="font-display text-2xl font-bold text-foreground">
               AI Notes
             </h1>
-            <p className="text-muted-foreground mt-1">
-              Study Guide Generator
-            </p>
+            <p className="text-muted-foreground mt-1">Study Guide Generator</p>
           </div>
           <Button variant="outline">
             <BookOpen className="w-4 h-4 mr-2" />
@@ -194,9 +406,9 @@ export default function AINotesPage() {
 
         {/* Breadcrumb */}
         <div className="text-sm text-muted-foreground mb-6 flex items-center gap-2">
-          <span>Mathematics</span>
+          <span>{subject}</span>
           <ChevronRight className="w-4 h-4" />
-          <span>Default</span>
+          <span>CBSE</span>
           <ChevronRight className="w-4 h-4" />
           <span className="text-foreground font-medium">
             {selectedChapter || "Select Chapter"}
@@ -223,7 +435,7 @@ export default function AINotesPage() {
                   <SelectValue placeholder="Select language" />
                 </SelectTrigger>
                 <SelectContent>
-                  {languages.map(l => (
+                  {languages.map((l) => (
                     <SelectItem key={l} value={l}>
                       {l}
                     </SelectItem>
@@ -246,10 +458,10 @@ export default function AINotesPage() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select class" />
+                  <SelectValue placeholder="Select Class" />
                 </SelectTrigger>
                 <SelectContent>
-                  {classes.map(c => (
+                  {classes.map((c) => (
                     <SelectItem key={c} value={c}>
                       Class {c}
                     </SelectItem>
@@ -272,10 +484,10 @@ export default function AINotesPage() {
                 }}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select subject" />
+                  <SelectValue placeholder="Select Subject" />
                 </SelectTrigger>
                 <SelectContent>
-                  {subjects.map(s => (
+                  {subjects.map((s) => (
                     <SelectItem key={s} value={s}>
                       {s}
                     </SelectItem>
@@ -300,7 +512,7 @@ export default function AINotesPage() {
                   <SelectValue placeholder="Select chapter" />
                 </SelectTrigger>
                 <SelectContent>
-                  {chapters.map(chapter => (
+                  {chapters.map((chapter) => (
                     <SelectItem key={chapter} value={chapter}>
                       {chapter}
                     </SelectItem>
@@ -311,17 +523,56 @@ export default function AINotesPage() {
           </div>
         </div>
 
-        {/* Main content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Chapters list */}
+        {/* ── Full-width PDF Viewer ── renders outside grid to span full content width */}
+        {showNotes && note && showPdfPreview && (
+          <div className="edtech-card relative mb-6">
+            {/* Close button */}
+            <button
+              onClick={closePdfPreview}
+              className="absolute top-3 right-3 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-muted hover:bg-destructive/10 hover:text-destructive transition-colors border border-border"
+              title="Close preview"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="mb-4 pr-10">
+              <h2 className="font-display text-xl font-semibold text-foreground">
+                {note.topic} — Full Notes
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">PDF Preview</p>
+            </div>
+
+            <iframe
+              src={note.full_notes}
+              title="Full Notes PDF"
+              className="w-full rounded-lg border border-border"
+              style={{ height: "75vh" }}
+            />
+          </div>
+        )}
+
+        {/* Main content grid — hidden while PDF is open */}
+        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 ${
+          showNotes && note && showPdfPreview ? "hidden" : ""
+        }`}>
+          {/* Chapter list */}
           <div className="edtech-card lg:col-span-1">
             <div className="relative mb-4">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input placeholder="Search" className="pl-10" />
+              <Input
+                placeholder="Search chapters..."
+                className="pl-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
             </div>
             <ScrollArea className="h-[400px]">
               <div className="space-y-1">
-                {chapters.map((chapter) => (
+                {chapters
+                  .filter((ch) =>
+                    ch.toLowerCase().includes(searchQuery.toLowerCase())
+                  )
+                  .map((chapter) => (
                   <button
                     key={chapter}
                     onClick={() => {
@@ -336,7 +587,7 @@ export default function AINotesPage() {
                   >
                     <span>{chapter}</span>
                     <div
-                      className={`w-4 h-4 rounded-full border-2 ${
+                      className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
                         selectedChapter === chapter
                           ? "border-primary bg-primary"
                           : "border-muted-foreground/30"
@@ -348,81 +599,55 @@ export default function AINotesPage() {
             </ScrollArea>
           </div>
 
-          {/* Notes content */}
+          {/* Notes / PDF preview area */}
           <div className="lg:col-span-2">
             {showNotes && note ? (
-              /* ===== ORIGINAL NOTES UI (UNCHANGED) ===== */
-              <div className="edtech-card">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="font-display text-xl font-semibold text-foreground">
-                      {note.topic} - CBSE Class {className} {subject}
-                    </h2>
-                    {/* <p className="text-sm text-muted-foreground mt-1">
-                      6 marks info
-                    </p> */}
+
+                /* ─── Short Notes ─── */
+                <div className="edtech-card">
+                  {/* Card header */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-display text-xl font-semibold text-foreground">
+                        {note.topic} — CBSE Class {className} {subject}
+                      </h2>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={openFullNotes}
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Full Note Preview
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        asChild
+                      >
+                        <a
+                          href={note.full_notes}
+                          download
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Download
+                        </a>
+                      </Button>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" size="sm" onClick={openFullNotes}>
-                      <FileText className="w-4 h-4 mr-2" />
-                      Full Note Preview
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      <Download className="w-4 h-4 mr-2" />
-                      Download
-                    </Button>
-                  </div>
+
+                  {/* Rendered short notes */}
+                  <ScrollArea className="h-[520px] pr-2">
+                    <div className="space-y-1 text-sm leading-relaxed">
+                      {parseShortNotes(note.short_notes)}
+                    </div>
+                  </ScrollArea>
                 </div>
-
-                {/* <div className="prose prose-sm max-w-none">
-                  <h3>Study Guide: {note.topic}</h3>
-                  <p>{note.short_notes}</p>
-
-                  <h4>Detailed Notes</h4>
-                  <p>{note.full_notes}</p>
-                </div> */}
-                <div className="space-y-6 text-sm leading-relaxed">
-                  {note.short_notes
-                    .replace(/\\n/g, "\n")
-                    .replace(/^\)\s*/, "")
-                    .replace(/---.*/g, "")
-                    .split(/\n(?=\d+\.\s)/)
-                    .map((section, index) => {
-                      const lines = section.split("\n");
-                      const title = lines[0];
-                      const content = lines.slice(1);
-
-                      return (
-                        <div key={index}>
-                          <h3 className="text-lg font-semibold text-foreground mb-2">
-                            {title}
-                          </h3>
-
-                          <div className="space-y-2 text-muted-foreground">
-                            {content.map((line, i) => {
-                              if (line.trim().startsWith("-")) {
-                                return (
-                                  <div key={i} className="flex gap-2">
-                                    <span>•</span>
-                                    {renderLine(line)}
-                                  </div>
-                                );
-                              }
-
-                              return (
-                                <p key={i}>
-                                  {line.trim()}
-                                </p>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
             ) : (
-              /* ===== ORIGINAL EMPTY STATE UI (UNCHANGED) ===== */
+              /* ─── Empty state ─── */
               <div className="edtech-card text-center py-16">
                 <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-accent flex items-center justify-center">
                   <FileText className="w-10 h-10 text-primary" />
