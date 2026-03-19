@@ -15,6 +15,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   BookOpen,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -374,6 +375,18 @@ const ChatView: FC<ChatViewProps> = ({
 
   return (
     <div className="h-[600px] flex flex-col">
+      <div className="flex justify-between items-center mb-4 shrink-0">
+        <h3 className="font-medium text-foreground">Conversation</h3>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={resetChat}
+          className="text-primary hover:text-primary/80 hover:bg-primary/10"
+        >
+          <Plus className="w-4 h-4 mr-1" />
+          New Conversation
+        </Button>
+      </div>
       <ScrollArea className="h-auto pr-4">
         <div className="space-y-4">
           {messages.map((message) => {

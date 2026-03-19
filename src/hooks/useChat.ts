@@ -178,6 +178,7 @@ export const useChat = () => {
   const resetChat = () => {
     setMessages([]);
     setUploadedFile(null);
+    setInput("");
   };
 
   return {
