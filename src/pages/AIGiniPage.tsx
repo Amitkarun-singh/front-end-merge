@@ -406,11 +406,11 @@ const ChatView: FC<ChatViewProps> = ({
               >
                 <div className="max-w-[80%] space-y-1">
                   <div
-                    className={
+                    className={`${
                       message.role === "user"
                         ? "chat-bubble-user"
                         : "chat-bubble-ai"
-                    }
+                    } text-left`}
                   >
                     <div
                       className={`prose prose-sm max-w-none ${
