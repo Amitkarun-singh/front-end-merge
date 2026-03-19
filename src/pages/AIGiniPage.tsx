@@ -35,6 +35,11 @@ import heroBg from "@/assets/hero-bg.jpg";
 import { FC, ChangeEvent, useEffect, useRef, useState } from "react";
 import RecentsSection from "./components/AIPracticePage/RecentsSection";
 import { config } from "../../app.config.js";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 
 /**
  * Interface representing a single chat message.
@@ -407,15 +412,34 @@ const ChatView: FC<ChatViewProps> = ({
                         : "chat-bubble-ai"
                     }
                   >
-                    {message.content.startsWith("![") ? (
-                      <img
-                        src={message.content.match(/\((.*?)\)/)?.[1]}
-                        alt={message.content.match(/\[(.*?)\]/)?.[1]}
-                        className="max-w-[200px] rounded-md"
-                      />
-                    ) : (
-                      message.content
-                    )}
+                    <div
+                      className={`prose prose-sm max-w-none ${
+                        message.role === "user"
+                          ? "prose-invert text-primary-foreground"
+                          : "prose-neutral dark:prose-invert"
+                      }`}
+                    >
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkMath]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={{
+                          img: ({ node, ...props }) => (
+                            <img
+                              {...props}
+                              className="max-w-[200px] rounded-md my-2"
+                            />
+                          ),
+                          p: ({ node, ...props }) => (
+                            <p
+                              {...props}
+                              className="mb-2 last:mb-0 text-left"
+                            />
+                          ),
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
 
                   {message.role === "assistant" && (
@@ -688,4 +712,3 @@ export default function AIGiniPage() {
     </div>
   );
 }
-
