@@ -26,10 +26,10 @@ import { config } from "../../app.config.js";
 
 /**
  * QuestionBankPage Component
- * 
+ *
  * Provides a user interface for browsing and downloading previous year questions (PYQ)
  * and AI-predicted questions based on selected class, subject, and year.
- * 
+ *
  * @returns {JSX.Element} The rendered Question Bank Page.
  */
 export default function QuestionBankPage() {
@@ -42,9 +42,9 @@ export default function QuestionBankPage() {
   const [subjects, setSubjects] = useState<any[]>([]);
 
   const years = [2025, 2024, 2023];
-  const token =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoxLCJyb2xlIjoiQURNSU4iLCJwZXJtaXNzaW9ucyI6WyJNQU5BR0VfUk9MRVMiLCJNQU5BR0VfU0NIT09MIl0sInNjaG9vbF9pZCI6MSwiaWF0IjoxNzcyNzA2MzM5LCJleHAiOjE3NzM1NzAzMzl9.iQ-jqJx4DXMRzeBMjtf99k_r_HP9f0RgNROYgBsOChw";
 
+  const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
+  const token = local.token;
   /**
    * Effect: Fetch available classes from the API on component mount.
    */
@@ -81,9 +81,11 @@ export default function QuestionBankPage() {
       }
 
       const currentClass = classes.find(
-        (cls) => cls.class_id.toString() === selectedClass || cls.class_name === selectedClass
+        (cls) =>
+          cls.class_id.toString() === selectedClass ||
+          cls.class_name === selectedClass,
       );
-      
+
       const className = currentClass ? currentClass.class_name : selectedClass;
 
       try {
@@ -93,7 +95,7 @@ export default function QuestionBankPage() {
             headers: {
               Authorization: `Bearer ${token}`,
             },
-          }
+          },
         );
         const result = await response.json();
         if (result.success) {
@@ -109,13 +111,15 @@ export default function QuestionBankPage() {
 
   /**
    * Fetches Previous Year Questions (PYQ) based on current filter selections.
-   * 
+   *
    * @async
    * @function PYQ
    */
   const PYQ = async () => {
     try {
-      const currentClass = classes.find(cls => cls.class_id.toString() === selectedClass);
+      const currentClass = classes.find(
+        (cls) => cls.class_id.toString() === selectedClass,
+      );
       const className = currentClass ? currentClass.class_name : selectedClass;
 
       const queryParams = new URLSearchParams({
@@ -137,13 +141,15 @@ export default function QuestionBankPage() {
 
   /**
    * Fetches AI-predicted questions based on current class and subject selections.
-   * 
+   *
    * @async
    * @function getPredictQuestions
    */
   const getPredictQuestions = async () => {
     try {
-      const currentClass = classes.find(cls => cls.class_id.toString() === selectedClass);
+      const currentClass = classes.find(
+        (cls) => cls.class_id.toString() === selectedClass,
+      );
       const className = currentClass ? currentClass.class_name : selectedClass;
 
       const queryParams = new URLSearchParams({
@@ -198,7 +204,10 @@ export default function QuestionBankPage() {
               <SelectContent>
                 <SelectItem value="all">All Classes</SelectItem>
                 {classes.map((cls) => (
-                  <SelectItem key={cls.class_id} value={cls.class_id.toString()}>
+                  <SelectItem
+                    key={cls.class_id}
+                    value={cls.class_id.toString()}
+                  >
                     {cls.class_name}
                   </SelectItem>
                 ))}
@@ -277,7 +286,7 @@ export default function QuestionBankPage() {
                       onClick={() =>
                         window.open(
                           `${config.server}/pyq/${q.filePath}`,
-                          "_blank"
+                          "_blank",
                         )
                       }
                     >
@@ -289,9 +298,9 @@ export default function QuestionBankPage() {
                       onClick={() =>
                         window.open(
                           `${config.server}/pyq/papers/download?filePath=${encodeURIComponent(
-                            q.filePath
+                            q.filePath,
                           )}`,
-                          "_blank"
+                          "_blank",
                         )
                       }
                     >
@@ -339,7 +348,7 @@ export default function QuestionBankPage() {
                       onClick={() =>
                         window.open(
                           `${config.server}/predict/${q.filePath}`,
-                          "_blank"
+                          "_blank",
                         )
                       }
                     >
@@ -351,9 +360,9 @@ export default function QuestionBankPage() {
                       onClick={() =>
                         window.open(
                           `${config.server}/predict/papers/download?filePath=${encodeURIComponent(
-                            q.filePath
+                            q.filePath,
                           )}`,
-                          "_blank"
+                          "_blank",
                         )
                       }
                     >

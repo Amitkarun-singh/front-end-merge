@@ -33,7 +33,7 @@ export default function AITutorPage() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [language, setLanguage] = useState("en-US");
+  const [language, setLanguage] = useState("en-IN");
   const { toast } = useToast();
 
   const handleVoiceInput = () => {
