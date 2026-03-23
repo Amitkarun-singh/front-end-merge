@@ -379,7 +379,7 @@ const ChatView: FC<ChatViewProps> = ({
   };
 
   return (
-    <div className="h-[600px] flex flex-col">
+    <div className="h-[800px] flex flex-col">
       <div className="flex justify-between items-center mb-4 shrink-0">
         <h3 className="font-medium text-foreground">Conversation</h3>
         <Button
@@ -423,12 +423,12 @@ const ChatView: FC<ChatViewProps> = ({
                         remarkPlugins={[remarkGfm, remarkMath]}
                         rehypePlugins={[rehypeKatex]}
                         components={{
-                          img: ({ node, ...props }) => (
-                            <img
-                              {...props}
-                              className="max-w-[200px] rounded-md my-2"
-                            />
-                          ),
+                          // img: ({ node, ...props }) => (
+                          //   <img
+                          //     {...props}
+                          //     className="max-w-[200px] rounded-md my-2"
+                          //   />
+                          // ),
                           p: ({ node, ...props }) => (
                             <p
                               {...props}
