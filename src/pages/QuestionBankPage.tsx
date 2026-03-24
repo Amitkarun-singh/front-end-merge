@@ -44,7 +44,56 @@ export default function QuestionBankPage() {
   const years = [2025, 2024, 2023];
 
   const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
-  const token = local.token;
+  const token = local?.token;
+
+  /**
+   * Fetches a preview URL for a paper and opens it in a new tab.
+   * @param type The type of paper ('pyq' or 'predict').
+   * @param filePath The path of the file to preview.
+   */
+  const handlePreview = async (type: "pyq" | "predict", filePath: string) => {
+    try {
+      const response = await fetch(
+        `${config.server}/${type}/papers/preview?filePath=${encodeURIComponent(filePath)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const data = await response.json();
+      if (data.previewUrl) {
+        window.open(data.previewUrl, "_blank");
+      }
+    } catch (error) {
+      console.error("Error fetching preview URL:", error);
+    }
+  };
+
+  /**
+   * Fetches a download URL for a paper and opens it in a new tab.
+   * @param type The type of paper ('pyq' or 'predict').
+   * @param filePath The path of the file to download.
+   */
+  const handleDownload = async (type: "pyq" | "predict", filePath: string) => {
+    try {
+      const response = await fetch(
+        `${config.server}/${type}/papers/download/?filePath=${encodeURIComponent(filePath)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      const data = await response.json();
+      if (data.downloadUrl) {
+        window.open(data.downloadUrl, "_blank");
+      }
+    } catch (error) {
+      console.error("Error fetching download URL:", error);
+    }
+  };
+
   /**
    * Effect: Fetch available classes from the API on component mount.
    */
@@ -122,15 +171,36 @@ export default function QuestionBankPage() {
       );
       const className = currentClass ? currentClass.class_name : selectedClass;
 
+      // Normalize className and subject for the API
+      const classNameValue = className.toLowerCase().includes("class")
+        ? className.toLowerCase().replace("class", "").trim()
+        : className;
+
+      const subjectValue =
+        selectedSubject.toLowerCase() === "mathematics"
+          ? "math"
+          : selectedSubject.toLowerCase();
+
       const queryParams = new URLSearchParams({
         board: "CBSE",
         year: selectedYear,
-        className: className,
-        subject: selectedSubject,
+        className: classNameValue,
+        subject: subjectValue,
       });
 
+      // const queryParams = new URLSearchParams({
+      //   board: "CBSE",
+      //   year: "2025",
+      //   className: "10",
+      //   subject: "math",
+      // });
+
       const url = `${config.server}/pyq/papers?${queryParams.toString()}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!response.ok) throw new Error("Failed to fetch papers");
       const data = await response.json();
       setPreviousYearQuestions(data);
@@ -152,14 +222,28 @@ export default function QuestionBankPage() {
       );
       const className = currentClass ? currentClass.class_name : selectedClass;
 
+      // Normalize className and subject for the API
+      const classNameValue = className.toLowerCase().includes("class")
+        ? className.toLowerCase().replace("class", "").trim()
+        : className;
+
+      const subjectValue =
+        selectedSubject.toLowerCase() === "mathematics"
+          ? "math"
+          : selectedSubject.toLowerCase();
+
       const queryParams = new URLSearchParams({
         board: "CBSE",
-        className: className,
-        subject: selectedSubject,
+        className: classNameValue,
+        subject: subjectValue,
       });
 
       const url = `${config.server}/predict/papers?${queryParams.toString()}`;
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!response.ok) throw new Error("Failed to fetch papers");
       const data = await response.json();
       setPredictYearQuestions(data);
@@ -283,26 +367,14 @@ export default function QuestionBankPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        window.open(
-                          `${config.server}/pyq/${q.filePath}`,
-                          "_blank",
-                        )
-                      }
+                      onClick={() => handlePreview("pyq", q.filePath)}
                     >
                       Preview
                     </Button>
 
                     <Button
                       size="sm"
-                      onClick={() =>
-                        window.open(
-                          `${config.server}/pyq/papers/download?filePath=${encodeURIComponent(
-                            q.filePath,
-                          )}`,
-                          "_blank",
-                        )
-                      }
+                      onClick={() => handleDownload("pyq", q.filePath)}
                     >
                       Download
                     </Button>
@@ -324,9 +396,9 @@ export default function QuestionBankPage() {
                 </p>
               </div>
             </div>
-            {predictQuestions.map((q: any) => (
+            {predictQuestions.map((q: any, id) => (
               <div
-                key={q.id}
+                key={id}
                 className="edtech-card hover:shadow-md transition-shadow p-4"
               >
                 <div className="flex items-center justify-between flex-wrap gap-4">
@@ -336,8 +408,13 @@ export default function QuestionBankPage() {
                         {q.subject}
                       </Badge>
                       <Badge variant="default" className="text-xs">
-                        Class {q?.class || "12th"}
+                        Class {q?.className || q?.class || "12th"}
                       </Badge>
+                      {q.filePath && (
+                        <Badge variant="destructive" className="text-xs">
+                          {q.filePath.split("/").pop()}
+                        </Badge>
+                      )}
                     </div>
                   </div>
 
@@ -345,26 +422,14 @@ export default function QuestionBankPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() =>
-                        window.open(
-                          `${config.server}/predict/${q.filePath}`,
-                          "_blank",
-                        )
-                      }
+                      onClick={() => handlePreview("predict", q.filePath)}
                     >
                       Preview
                     </Button>
 
                     <Button
                       size="sm"
-                      onClick={() =>
-                        window.open(
-                          `${config.server}/predict/papers/download?filePath=${encodeURIComponent(
-                            q.filePath,
-                          )}`,
-                          "_blank",
-                        )
-                      }
+                      onClick={() => handleDownload("predict", q.filePath)}
                     >
                       Download
                     </Button>
