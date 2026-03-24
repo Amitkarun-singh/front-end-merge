@@ -33,32 +33,28 @@ import { config } from "../../app.config.js";
  * @returns {JSX.Element} The rendered Question Bank Page.
  */
 export default function QuestionBankPage() {
+  const [activeTab, setActiveTab] = useState("pyq");
   const [selectedSubject, setSelectedSubject] = useState("all");
   const [selectedClass, setSelectedClass] = useState("all");
-  const [selectedYear, setSelectedYear] = useState("2025");
+  const [selectedYear, setSelectedYear] = useState("");
   const [previousYearQuestions, setPreviousYearQuestions] = useState([]);
   const [predictQuestions, setPredictYearQuestions] = useState([]);
   const [classes, setClasses] = useState<any[]>([]);
   const [subjects, setSubjects] = useState<any[]>([]);
-
-  const years = [2025, 2024, 2023];
+  const [availableYears, setAvailableYears] = useState<string[]>([]);
 
   const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
   const token = local?.token;
 
   /**
    * Fetches a preview URL for a paper and opens it in a new tab.
-   * @param type The type of paper ('pyq' or 'predict').
-   * @param filePath The path of the file to preview.
    */
   const handlePreview = async (type: "pyq" | "predict", filePath: string) => {
     try {
       const response = await fetch(
         `${config.server}/${type}/papers/preview?filePath=${encodeURIComponent(filePath)}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         },
       );
       const data = await response.json();
@@ -72,17 +68,13 @@ export default function QuestionBankPage() {
 
   /**
    * Fetches a download URL for a paper and opens it in a new tab.
-   * @param type The type of paper ('pyq' or 'predict').
-   * @param filePath The path of the file to download.
    */
   const handleDownload = async (type: "pyq" | "predict", filePath: string) => {
     try {
       const response = await fetch(
         `${config.server}/${type}/papers/download/?filePath=${encodeURIComponent(filePath)}`,
         {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         },
       );
       const data = await response.json();
@@ -95,19 +87,57 @@ export default function QuestionBankPage() {
   };
 
   /**
-   * Effect: Fetch available classes from the API on component mount.
+   * Effect: Fetch available years when the tab changes or component mounts.
+   */
+  useEffect(() => {
+    const fetchYears = async () => {
+      if (activeTab === "aiq") {
+        setAvailableYears([]);
+        setSelectedYear("");
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${config.server}/pyq/papers/years?board=CBSE`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          },
+        );
+        const data = await response.json();
+        if (data.years && data.years.length > 0) {
+          setAvailableYears(data.years);
+          setSelectedYear(data.years[0]); // Default to first available year
+        }
+      } catch (error) {
+        console.error("Error fetching years:", error);
+      }
+    };
+
+    fetchYears();
+  }, [activeTab, token]);
+
+  /**
+   * Effect: Fetch available classes based on active tab and selected year.
    */
   useEffect(() => {
     const fetchClasses = async () => {
+      const type = activeTab === "pyq" ? "pyq" : "predict";
+      let url = `${config.server}/${type}/papers/classes?board=CBSE`;
+      
+      if (activeTab === "pyq") {
+        if (!selectedYear) return;
+        url += `&year=${selectedYear}`;
+      }
+
       try {
-        const response = await fetch(`${config.server}/api/classes`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
         });
-        const result = await response.json();
-        if (result.success) {
-          setClasses(result.data);
+        const data = await response.json();
+        if (data.subjects) {
+          setClasses(data.subjects);
+          setSelectedClass("all");
         }
       } catch (error) {
         console.error("Error fetching classes:", error);
@@ -115,11 +145,10 @@ export default function QuestionBankPage() {
     };
 
     fetchClasses();
-  }, []);
+  }, [activeTab, selectedYear, token]);
 
   /**
-   * Effect: Fetch subjects whenever the selected class changes.
-   * If 'all' is selected for class, it clears the subjects list.
+   * Effect: Fetch subjects based on the selected class.
    */
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -129,26 +158,24 @@ export default function QuestionBankPage() {
         return;
       }
 
-      const currentClass = classes.find(
-        (cls) =>
-          cls.class_id.toString() === selectedClass ||
-          cls.class_name === selectedClass,
-      );
-
-      const className = currentClass ? currentClass.class_name : selectedClass;
+      const type = activeTab === "pyq" ? "pyq" : "predict";
+      const classNameValue = selectedClass.replace("class-", "");
+      
+      let url = `${config.server}/${type}/papers/subject?board=CBSE&className=${classNameValue}`;
+      
+      if (activeTab === "pyq") {
+        if (!selectedYear) return;
+        url += `&year=${selectedYear}`;
+      }
 
       try {
-        const response = await fetch(
-          `${config.server}/api/subjects/${className.replace(" ", "")}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
-        );
-        const result = await response.json();
-        if (result.success) {
-          setSubjects(result.data);
+        const response = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+        if (data.subjects) {
+          setSubjects(data.subjects);
+          setSelectedSubject("all");
         }
       } catch (error) {
         console.error("Error fetching subjects:", error);
@@ -156,30 +183,15 @@ export default function QuestionBankPage() {
     };
 
     fetchSubjects();
-  }, [selectedClass, classes]);
+  }, [activeTab, selectedClass, selectedYear, token]);
 
   /**
    * Fetches Previous Year Questions (PYQ) based on current filter selections.
-   *
-   * @async
-   * @function PYQ
    */
   const PYQ = async () => {
     try {
-      const currentClass = classes.find(
-        (cls) => cls.class_id.toString() === selectedClass,
-      );
-      const className = currentClass ? currentClass.class_name : selectedClass;
-
-      // Normalize className and subject for the API
-      const classNameValue = className.toLowerCase().includes("class")
-        ? className.toLowerCase().replace("class", "").trim()
-        : className;
-
-      const subjectValue =
-        selectedSubject.toLowerCase() === "mathematics"
-          ? "math"
-          : selectedSubject.toLowerCase();
+      const classNameValue = selectedClass === "all" ? "" : selectedClass.replace("class-", "");
+      const subjectValue = selectedSubject === "all" ? "" : selectedSubject;
 
       const queryParams = new URLSearchParams({
         board: "CBSE",
@@ -188,18 +200,9 @@ export default function QuestionBankPage() {
         subject: subjectValue,
       });
 
-      // const queryParams = new URLSearchParams({
-      //   board: "CBSE",
-      //   year: "2025",
-      //   className: "10",
-      //   subject: "math",
-      // });
-
       const url = `${config.server}/pyq/papers?${queryParams.toString()}`;
       const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Failed to fetch papers");
       const data = await response.json();
@@ -211,26 +214,11 @@ export default function QuestionBankPage() {
 
   /**
    * Fetches AI-predicted questions based on current class and subject selections.
-   *
-   * @async
-   * @function getPredictQuestions
    */
   const getPredictQuestions = async () => {
     try {
-      const currentClass = classes.find(
-        (cls) => cls.class_id.toString() === selectedClass,
-      );
-      const className = currentClass ? currentClass.class_name : selectedClass;
-
-      // Normalize className and subject for the API
-      const classNameValue = className.toLowerCase().includes("class")
-        ? className.toLowerCase().replace("class", "").trim()
-        : className;
-
-      const subjectValue =
-        selectedSubject.toLowerCase() === "mathematics"
-          ? "math"
-          : selectedSubject.toLowerCase();
+      const classNameValue = selectedClass === "all" ? "" : selectedClass.replace("class-", "");
+      const subjectValue = selectedSubject === "all" ? "" : selectedSubject;
 
       const queryParams = new URLSearchParams({
         board: "CBSE",
@@ -240,9 +228,7 @@ export default function QuestionBankPage() {
 
       const url = `${config.server}/predict/papers?${queryParams.toString()}`;
       const response = await fetch(url, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error("Failed to fetch papers");
       const data = await response.json();
@@ -268,12 +254,16 @@ export default function QuestionBankPage() {
         {/* Filters */}
         <div className="edtech-card mb-6">
           <div className="flex flex-col sm:flex-row gap-3">
-            <Select value={selectedYear} onValueChange={setSelectedYear}>
+            <Select 
+              value={selectedYear} 
+              onValueChange={setSelectedYear}
+              disabled={activeTab === "aiq"}
+            >
               <SelectTrigger className="w-full sm:w-[160px]">
-                <SelectValue placeholder="Select Year" />
+                <SelectValue placeholder={activeTab === "aiq" ? "Year N/A" : "Select Year"} />
               </SelectTrigger>
               <SelectContent>
-                {years.map((year) => (
+                {availableYears.map((year) => (
                   <SelectItem key={year} value={String(year)}>
                     {year}
                   </SelectItem>
@@ -288,11 +278,8 @@ export default function QuestionBankPage() {
               <SelectContent>
                 <SelectItem value="all">All Classes</SelectItem>
                 {classes.map((cls) => (
-                  <SelectItem
-                    key={cls.class_id}
-                    value={cls.class_id.toString()}
-                  >
-                    {cls.class_name}
+                  <SelectItem key={cls} value={cls}>
+                    {cls.replace("-", " ").toUpperCase()}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -305,8 +292,8 @@ export default function QuestionBankPage() {
               <SelectContent>
                 <SelectItem value="all">All Subjects</SelectItem>
                 {subjects.map((sub) => (
-                  <SelectItem key={sub.subject_id} value={sub.subject_name}>
-                    {sub.subject_name}
+                  <SelectItem key={sub} value={sub}>
+                    {sub.charAt(0).toUpperCase() + sub.slice(1)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -315,8 +302,8 @@ export default function QuestionBankPage() {
             <Button
               className="ml-auto"
               onClick={() => {
-                PYQ();
-                getPredictQuestions();
+                if (activeTab === "pyq") PYQ();
+                else getPredictQuestions();
               }}
               size="lg"
             >
@@ -326,7 +313,12 @@ export default function QuestionBankPage() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="pyq" className="space-y-6">
+        <Tabs 
+          defaultValue="pyq" 
+          value={activeTab} 
+          onValueChange={setActiveTab} 
+          className="space-y-6"
+        >
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="pyq" className="gap-2">
               <Calendar className="w-4 h-4" />
