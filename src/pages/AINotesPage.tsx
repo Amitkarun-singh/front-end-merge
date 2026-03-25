@@ -7,6 +7,7 @@ import {
   Sparkles,
   Search,
   X,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,9 @@ import { useAuth } from "@/context/AuthContext";
 interface AINote {
   topic: string;
   short_notes: string;
-  full_notes: string;
+  full_notes: string;   // raw S3 key (kept for reference)
+  pdfUrl: string;       // pre-signed URL for full notes PDF
+  bookUrl: string;      // pre-signed URL for book PDF
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -35,14 +38,12 @@ interface AINote {
 
 /** Render a single text segment that may contain inline LaTeX \( … \) */
 const renderInlineText = (text: string, key?: number) => {
-  // Split on \( ... \) inline math (non-greedy, single-line)
   const parts = text.split(/(\\\([\s\S]*?\\\))/g);
   return (
     <span key={key}>
       {parts.map((part, i) => {
         const match = part.match(/^\\\([\s\S]*?\\\)$/);
         if (match) {
-          // Strip \displaystyle so KaTeX renders it as inline
           const formula = part
             .replace(/^\\\(/, "")
             .replace(/\\\)$/, "")
@@ -60,31 +61,24 @@ const renderInlineText = (text: string, key?: number) => {
   );
 };
 
-/**
- * Split a table row string by "|", but only when the "|" is NOT inside \( … \).
- * This avoids breaking LaTeX formulas that happen to contain a pipe char.
- */
 const splitTableCells = (row: string): string[] => {
   const cells: string[] = [];
   let current = "";
-  let depth = 0; // >0 means we are inside \( … \)
+  let depth = 0;
   let i = 0;
   while (i < row.length) {
-    // Detect opening \(
     if (row[i] === "\\" && row[i + 1] === "(") {
       depth++;
       current += "\\(";
       i += 2;
       continue;
     }
-    // Detect closing \)
     if (row[i] === "\\" && row[i + 1] === ")") {
       depth = Math.max(0, depth - 1);
       current += "\\)";
       i += 2;
       continue;
     }
-    // Split on | only when not inside math
     if (row[i] === "|" && depth === 0) {
       cells.push(current);
       current = "";
@@ -98,12 +92,10 @@ const splitTableCells = (row: string): string[] => {
   return cells;
 };
 
-/** Render a single line considering bullet, heading, math, or plain text */
 const renderLine = (line: string, idx: number) => {
   const trimmed = line.trim();
   if (!trimmed) return null;
 
-  // ### Heading line
   if (trimmed.startsWith("### ")) {
     const headingText = trimmed.replace(/^###\s+/, "");
     return (
@@ -116,7 +108,6 @@ const renderLine = (line: string, idx: number) => {
     );
   }
 
-  // ## Heading
   if (trimmed.startsWith("## ")) {
     return (
       <h2 key={idx} className="text-xl font-bold text-foreground mt-6 mb-3">
@@ -125,7 +116,6 @@ const renderLine = (line: string, idx: number) => {
     );
   }
 
-  // # Heading
   if (trimmed.startsWith("# ")) {
     return (
       <h1 key={idx} className="text-2xl font-bold text-foreground mt-6 mb-3">
@@ -134,7 +124,6 @@ const renderLine = (line: string, idx: number) => {
     );
   }
 
-  // Numbered heading like "1. Introduction" at start of line (no ### prefix)
   if (/^\d+\.\s+[A-Z]/.test(trimmed) && !trimmed.includes("|")) {
     return (
       <h3
@@ -146,7 +135,6 @@ const renderLine = (line: string, idx: number) => {
     );
   }
 
-  // Block math \[ … \]
   const blockMatchBracket = trimmed.match(/^\\\[([\s\S]*?)\\\]$/);
   if (blockMatchBracket) {
     return (
@@ -156,7 +144,6 @@ const renderLine = (line: string, idx: number) => {
     );
   }
 
-  // A line that starts with LaTeX block commands (no bullet prefix)
   if (
     trimmed.startsWith("\\") &&
     !trimmed.startsWith("\\(") &&
@@ -174,7 +161,6 @@ const renderLine = (line: string, idx: number) => {
     }
   }
 
-  // Bullet / sub-bullet — detect indentation from the ORIGINAL line
   if (trimmed.startsWith("•") || trimmed.startsWith("-") || trimmed.startsWith("*")) {
     const content = trimmed.replace(/^[•\-\*]\s*/, "");
     const leadingSpaces = line.match(/^(\s+)/)?.[1]?.length ?? 0;
@@ -196,12 +182,10 @@ const renderLine = (line: string, idx: number) => {
     );
   }
 
-  // Table row — handled by table parser
   if (trimmed.startsWith("|")) {
     return null;
   }
 
-  // Plain text / paragraph
   return (
     <p key={idx} className="text-muted-foreground leading-relaxed">
       {renderInlineText(trimmed)}
@@ -209,9 +193,7 @@ const renderLine = (line: string, idx: number) => {
   );
 };
 
-/** Full parser: collapses table rows and renders everything else line-by-line */
 const parseShortNotes = (raw: string) => {
-  // Normalize escaped newlines
   const normalised = raw
     .replace(/\\n/g, "\n")
     .replace(/^\)\s*/, "")
@@ -225,16 +207,14 @@ const parseShortNotes = (raw: string) => {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Table detection: collect consecutive | lines
     if (trimmed.startsWith("|")) {
       const tableLines: string[] = [];
       while (i < lines.length && lines[i].trim().startsWith("|")) {
         tableLines.push(lines[i]);
         i++;
       }
-      // Parse table - use math-aware cell splitter
       const rows = tableLines
-        .filter((l) => !/^\|[\s\-|]+\|$/.test(l.trim())) // skip separator rows
+        .filter((l) => !/^\|[\s\-|]+\|$/.test(l.trim()))
         .map((l) => {
           const inner = l.trim().replace(/^\|/, "").replace(/\|$/, "");
           return splitTableCells(inner).map((cell) => cell.trim());
@@ -292,6 +272,8 @@ const parseShortNotes = (raw: string) => {
 // Main Page Component
 // ─────────────────────────────────────────────────────────────
 
+type PreviewMode = "notes" | "book" | null;
+
 export default function AINotesPage() {
   const [languages, setLanguages] = useState<string[]>([]);
   const [classes, setClasses] = useState<string[]>([]);
@@ -309,15 +291,19 @@ export default function AINotesPage() {
   // Search
   const [searchQuery, setSearchQuery] = useState("");
 
-  // PDF preview state
-  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  // PDF preview — which panel is open: 'notes', 'book', or null
+  const [previewMode, setPreviewMode] = useState<PreviewMode>(null);
+
+  // Warning shown when user tries to open book before generating notes
+  const [showBookWarning, setShowBookWarning] = useState(false);
 
   const { token } = useAuth();
 
   const resetNotes = () => {
     setShowNotes(false);
     setNote(null);
-    setShowPdfPreview(false);
+    setPreviewMode(null);
+    setShowBookWarning(false);
   };
 
   // ── Fetch languages ──
@@ -374,18 +360,31 @@ export default function AINotesPage() {
     console.log(data);
     setNote(data.data?.[0]);
     setShowNotes(true);
-    setShowPdfPreview(false);
+    setPreviewMode(null);
+    setShowBookWarning(false);
   };
 
-  // ── Open Full Notes as inline PDF ──
-  const openFullNotes = () => {
-    if (!note?.full_notes) return;
-    setShowPdfPreview(true);
+  // ── Open Full Notes PDF inline ──
+  const openFullNotesPdf = () => {
+    if (!note?.pdfUrl) return;
+    setPreviewMode("notes");
   };
 
-  const closePdfPreview = () => {
-    setShowPdfPreview(false);
+  // ── Open Book PDF inline (guard if notes not generated yet) ──
+  const openBookPdf = () => {
+    if (!showNotes || !note) {
+      setShowBookWarning(true);
+      // Auto-dismiss after 4 seconds
+      setTimeout(() => setShowBookWarning(false), 4000);
+      return;
+    }
+    if (!note.bookUrl) return;
+    setPreviewMode("book");
   };
+
+  const closePreview = () => setPreviewMode(null);
+
+  const isPdfOpen = previewMode !== null;
 
   return (
     <div className="min-h-screen p-6 lg:p-8">
@@ -398,26 +397,79 @@ export default function AINotesPage() {
             </h1>
             <p className="text-muted-foreground mt-1">Study Guide Generator</p>
           </div>
-          <Button variant="outline">
+          <Button variant="outline" onClick={openBookPdf}>
             <BookOpen className="w-4 h-4 mr-2" />
             Request Book
           </Button>
         </div>
 
-        {/* Breadcrumb */}
-        <div className="text-sm text-muted-foreground mb-6 flex items-center gap-2">
-          <span>{subject}</span>
-          <ChevronRight className="w-4 h-4" />
-          <span>CBSE</span>
-          <ChevronRight className="w-4 h-4" />
-          <span className="text-foreground font-medium">
-            {selectedChapter || "Select Chapter"}
-          </span>
-        </div>
+        {/* Warning banner — shown when clicking Request Book before generating notes */}
+        {showBookWarning && (
+          <div className="flex items-start gap-3 mb-6 p-4 rounded-xl border border-amber-400/40 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 animate-in fade-in slide-in-from-top-2 duration-300">
+            <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="font-semibold text-sm">Notes not generated yet</p>
+              <p className="text-sm mt-0.5">
+                Please select your Language, Class, Subject and Chapter, then click{" "}
+                <strong>Generate Notes</strong> before accessing the book.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowBookWarning(false)}
+              className="ml-auto flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
-        {/* Filters */}
-        <div className="edtech-card mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* ── PDF Preview: fills the entire content area below the header ── */}
+        {isPdfOpen && note && (
+          <div className="edtech-card relative flex flex-col" style={{ minHeight: "82vh" }}>
+            {/* X close — top-right */}
+            <button
+              onClick={closePreview}
+              className="absolute top-3 right-3 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-muted hover:bg-destructive/10 hover:text-destructive transition-colors border border-border"
+              title="Close preview"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="mb-4 pr-10">
+              <h2 className="font-display text-xl font-semibold text-foreground">
+                {previewMode === "book"
+                  ? `${note.topic} — Book`
+                  : `${note.topic} — Full Notes`}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">PDF Preview</p>
+            </div>
+
+            <iframe
+              src={previewMode === "book" ? note.bookUrl : note.pdfUrl}
+              title={previewMode === "book" ? "Book PDF" : "Full Notes PDF"}
+              className="w-full flex-1 rounded-lg border border-border"
+              style={{ height: "calc(82vh - 90px)" }}
+            />
+          </div>
+        )}
+
+        {/* Breadcrumb — hidden when PDF open */}
+        {!isPdfOpen && (
+          <div className="text-sm text-muted-foreground mb-6 flex items-center gap-2">
+            <span>{subject}</span>
+            <ChevronRight className="w-4 h-4" />
+            <span>CBSE</span>
+            <ChevronRight className="w-4 h-4" />
+            <span className="text-foreground font-medium">
+              {selectedChapter || "Select Chapter"}
+            </span>
+          </div>
+        )}
+
+        {/* Filters — hidden when PDF open */}
+        {!isPdfOpen && (
+          <div className="edtech-card mb-6">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Language */}
             <div>
               <label className="text-sm font-medium text-foreground mb-2 block">
@@ -521,40 +573,12 @@ export default function AINotesPage() {
               </Select>
             </div>
           </div>
-        </div>
-
-        {/* ── Full-width PDF Viewer ── renders outside grid to span full content width */}
-        {showNotes && note && showPdfPreview && (
-          <div className="edtech-card relative mb-6">
-            {/* Close button */}
-            <button
-              onClick={closePdfPreview}
-              className="absolute top-3 right-3 z-10 flex items-center justify-center w-8 h-8 rounded-full bg-muted hover:bg-destructive/10 hover:text-destructive transition-colors border border-border"
-              title="Close preview"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="mb-4 pr-10">
-              <h2 className="font-display text-xl font-semibold text-foreground">
-                {note.topic} — Full Notes
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">PDF Preview</p>
-            </div>
-
-            <iframe
-              src={note.full_notes}
-              title="Full Notes PDF"
-              className="w-full rounded-lg border border-border"
-              style={{ height: "75vh" }}
-            />
           </div>
         )}
 
-        {/* Main content grid — hidden while PDF is open */}
-        <div className={`grid grid-cols-1 lg:grid-cols-3 gap-6 ${
-          showNotes && note && showPdfPreview ? "hidden" : ""
-        }`}>
+        {/* Main content grid — hidden when PDF open */}
+        {!isPdfOpen && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Chapter list */}
           <div className="edtech-card lg:col-span-1">
             <div className="relative mb-4">
@@ -573,79 +597,76 @@ export default function AINotesPage() {
                     ch.toLowerCase().includes(searchQuery.toLowerCase())
                   )
                   .map((chapter) => (
-                  <button
-                    key={chapter}
-                    onClick={() => {
-                      setSelectedChapter(chapter);
-                      resetNotes();
-                    }}
-                    className={`w-full flex items-center justify-between p-3 rounded-lg text-left text-sm transition-colors ${
-                      selectedChapter === chapter
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "hover:bg-muted text-foreground"
-                    }`}
-                  >
-                    <span>{chapter}</span>
-                    <div
-                      className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                    <button
+                      key={chapter}
+                      onClick={() => {
+                        setSelectedChapter(chapter);
+                        resetNotes();
+                      }}
+                      className={`w-full flex items-center justify-between p-3 rounded-lg text-left text-sm transition-colors ${
                         selectedChapter === chapter
-                          ? "border-primary bg-primary"
-                          : "border-muted-foreground/30"
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "hover:bg-muted text-foreground"
                       }`}
-                    />
-                  </button>
-                ))}
+                    >
+                      <span>{chapter}</span>
+                      <div
+                        className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
+                          selectedChapter === chapter
+                            ? "border-primary bg-primary"
+                            : "border-muted-foreground/30"
+                        }`}
+                      />
+                    </button>
+                  ))}
               </div>
             </ScrollArea>
           </div>
 
-          {/* Notes / PDF preview area */}
+          {/* Notes / PDF area — right panel */}
           <div className="lg:col-span-2">
             {showNotes && note ? (
-
-                /* ─── Short Notes ─── */
-                <div className="edtech-card">
-                  {/* Card header */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h2 className="font-display text-xl font-semibold text-foreground">
-                        {note.topic} — CBSE Class {className} {subject}
-                      </h2>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={openFullNotes}
-                      >
-                        <FileText className="w-4 h-4 mr-2" />
-                        Full Note Preview
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                      >
-                        <a
-                          href={note.full_notes}
-                          download
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Download className="w-4 h-4 mr-2" />
-                          Download
-                        </a>
-                      </Button>
-                    </div>
+              /* ─── Short Notes card ─── */
+              <div className="edtech-card">
+                {/* Card header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-display text-xl font-semibold text-foreground">
+                      {note.topic} — CBSE Class {className} {subject}
+                    </h2>
                   </div>
-
-                  {/* Rendered short notes */}
-                  <ScrollArea className="h-[520px] pr-2">
-                    <div className="space-y-1 text-sm leading-relaxed">
-                      {parseShortNotes(note.short_notes)}
-                    </div>
-                  </ScrollArea>
+                  <div className="flex gap-2">
+                    {/* Full Note Preview button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={openFullNotesPdf}
+                    >
+                      <FileText className="w-4 h-4 mr-2" />
+                      Full Note Preview
+                    </Button>
+                    {/* Download button */}
+                    <Button variant="outline" size="sm" asChild>
+                      <a
+                        href={note.pdfUrl}
+                        download
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Download
+                      </a>
+                    </Button>
+                  </div>
                 </div>
+
+                {/* Rendered short notes */}
+                <ScrollArea className="h-[520px] pr-2">
+                  <div className="space-y-1 text-sm leading-relaxed">
+                    {parseShortNotes(note.short_notes)}
+                  </div>
+                </ScrollArea>
+              </div>
             ) : (
               /* ─── Empty state ─── */
               <div className="edtech-card text-center py-16">
@@ -671,6 +692,7 @@ export default function AINotesPage() {
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   );
