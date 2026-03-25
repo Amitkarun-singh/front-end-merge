@@ -14,6 +14,8 @@ import {
   Loader2,
   ThumbsUp,
   ThumbsDown,
+  BookOpen,
+  Plus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +34,12 @@ import { useToast } from "@/hooks/use-toast";
 import heroBg from "@/assets/hero-bg.jpg";
 import { FC, ChangeEvent, useEffect, useRef, useState } from "react";
 import RecentsSection from "./components/AIPracticePage/RecentsSection";
+import { config } from "../../app.config.js";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 
 /**
  * Interface representing a single chat message.
@@ -49,6 +57,16 @@ interface MessageFeedbackState {
   rating: "up" | "down" | null;
   comment: string;
   submitted: boolean;
+}
+
+interface ClassItem {
+  class_id: number;
+  class_name: string;
+}
+
+interface SubjectItem {
+  subject_id: number;
+  subject_name: string;
 }
 
 /**
@@ -93,6 +111,12 @@ interface WelcomeScreenProps {
   setInput: (value: string) => void;
   language: string;
   setLanguage: (value: string) => void;
+  selectedClass: string;
+  setSelectedClass: (value: string) => void;
+  selectedSubject: string;
+  setSelectedSubject: (value: string) => void;
+  classes: ClassItem[];
+  subjects: SubjectItem[];
   handleSend: () => void;
   isLoading: boolean;
   handleFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
@@ -107,6 +131,12 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
   setInput,
   language,
   setLanguage,
+  selectedClass,
+  setSelectedClass,
+  selectedSubject,
+  setSelectedSubject,
+  classes,
+  subjects,
   handleSend,
   isLoading,
   handleFileChange,
@@ -152,10 +182,34 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
             <SelectItem value="Hindi">Hindi</SelectItem>
           </SelectContent>
         </Select>
-        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted text-sm text-muted-foreground h-7">
-          <MonitorSmartphone className="w-3.5 h-3.5" />
-          Subject
-        </span>
+
+        <Select value={selectedClass} onValueChange={setSelectedClass}>
+          <SelectTrigger className="w-fit h-7 border-none bg-muted rounded-full px-3 py-1 text-sm text-muted-foreground gap-1.5 focus:ring-0 focus:ring-offset-0">
+            <MonitorSmartphone className="w-3.5 h-3.5" />
+            <SelectValue placeholder="Class" />
+          </SelectTrigger>
+          <SelectContent>
+            {classes.map((cls) => (
+              <SelectItem key={cls.class_id} value={cls.class_id.toString()}>
+                {cls.class_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+          <SelectTrigger className="w-fit h-7 border-none bg-muted rounded-full px-3 py-1 text-sm text-muted-foreground gap-1.5 focus:ring-0 focus:ring-offset-0">
+            <BookOpen className="w-3.5 h-3.5" />
+            <SelectValue placeholder="Subject" />
+          </SelectTrigger>
+          <SelectContent>
+            {subjects.map((sub) => (
+              <SelectItem key={sub.subject_id} value={sub.subject_name}>
+                {sub.subject_name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="relative ">
         <Input
@@ -325,7 +379,19 @@ const ChatView: FC<ChatViewProps> = ({
   };
 
   return (
-    <div className="h-[600px] flex flex-col">
+    <div className="h-[800px] flex flex-col">
+      <div className="flex justify-between items-center mb-4 shrink-0">
+        <h3 className="font-medium text-foreground">Conversation</h3>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={resetChat}
+          className="text-primary hover:text-primary/80 hover:bg-primary/10"
+        >
+          <Plus className="w-4 h-4 mr-1" />
+          New Conversation
+        </Button>
+      </div>
       <ScrollArea className="h-auto pr-4">
         <div className="space-y-4">
           {messages.map((message) => {
@@ -340,21 +406,40 @@ const ChatView: FC<ChatViewProps> = ({
               >
                 <div className="max-w-[80%] space-y-1">
                   <div
-                    className={
+                    className={`${
                       message.role === "user"
                         ? "chat-bubble-user"
                         : "chat-bubble-ai"
-                    }
+                    } text-left`}
                   >
-                    {message.content.startsWith("![") ? (
-                      <img
-                        src={message.content.match(/\((.*?)\)/)?.[1]}
-                        alt={message.content.match(/\[(.*?)\]/)?.[1]}
-                        className="max-w-[200px] rounded-md"
-                      />
-                    ) : (
-                      message.content
-                    )}
+                    <div
+                      className={`prose prose-sm max-w-none ${
+                        message.role === "user"
+                          ? "prose-invert text-primary-foreground"
+                          : "prose-neutral dark:prose-invert"
+                      }`}
+                    >
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkMath]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={{
+                          // img: ({ node, ...props }) => (
+                          //   <img
+                          //     {...props}
+                          //     className="max-w-[200px] rounded-md my-2"
+                          //   />
+                          // ),
+                          p: ({ node, ...props }) => (
+                            <p
+                              {...props}
+                              className="mb-2 last:mb-0 text-left"
+                            />
+                          ),
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
                   </div>
 
                   {message.role === "assistant" && (
@@ -504,6 +589,10 @@ const ChatBox = () => {
     setInput,
     language,
     setLanguage,
+    selectedClass,
+    setSelectedClass,
+    selectedSubject,
+    setSelectedSubject,
     isLoading,
     uploadedFile,
     fileInputRef,
@@ -511,6 +600,69 @@ const ChatBox = () => {
     handleFileChange,
     resetChat,
   } = useChat();
+
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+
+  const localAuth = localStorage.getItem("schools2ai_auth");
+  const token = localAuth ? JSON.parse(localAuth).token : null;
+
+  useEffect(() => {
+    const fetchClasses = async () => {
+      if (!token) return;
+      try {
+        const response = await fetch(`${config.server}/api/classes`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        const result = await response.json();
+        if (result.success) {
+          setClasses(result.data);
+          if (result.data.length > 0 && !selectedClass) {
+            setSelectedClass(result.data[0].class_id.toString());
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching classes:", error);
+      }
+    };
+
+    fetchClasses();
+  }, [token, setSelectedClass, selectedClass]);
+
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      if (!selectedClass || !token) return;
+
+      const currentClass = classes.find(
+        (cls) => cls.class_id.toString() === selectedClass,
+      );
+      if (!currentClass) return;
+
+      try {
+        const response = await fetch(
+          `${config.server}/api/subjects/${currentClass.class_name.replace(" ", "")}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+        const result = await response.json();
+        if (result.success) {
+          setSubjects(result.data);
+          if (result.data.length > 0) {
+            setSelectedSubject(result.data[0].subject_name);
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching subjects:", error);
+      }
+    };
+
+    fetchSubjects();
+  }, [selectedClass, classes, token, setSelectedSubject]);
 
   return (
     <div className="max-w-3xl mx-auto">
@@ -521,6 +673,12 @@ const ChatBox = () => {
             setInput={setInput}
             language={language}
             setLanguage={setLanguage}
+            selectedClass={selectedClass}
+            setSelectedClass={setSelectedClass}
+            selectedSubject={selectedSubject}
+            setSelectedSubject={setSelectedSubject}
+            classes={classes}
+            subjects={subjects}
             handleSend={handleSend}
             isLoading={isLoading}
             handleFileChange={handleFileChange}
@@ -554,4 +712,3 @@ export default function AIGiniPage() {
     </div>
   );
 }
-

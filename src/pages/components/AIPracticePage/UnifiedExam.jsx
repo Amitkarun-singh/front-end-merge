@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -201,6 +202,18 @@ const UnifiedExam = ({ examData }) => {
                         </p>
                       </div>
                     </div>
+
+                    {(result?.answer_explanation || q.answer_explanation) && (
+                      <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1 text-blue-700 dark:text-blue-400 font-semibold text-xs">
+                          <Info className="w-3.5 h-3.5" />
+                          Explanation
+                        </div>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          {result?.answer_explanation || q.answer_explanation}
+                        </p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );

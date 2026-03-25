@@ -27,6 +27,8 @@ export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [language, setLanguage] = useState("English");
+  const [selectedClass, setSelectedClass] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -54,10 +56,15 @@ export const useChat = () => {
     let assistantContent = "";
 
     try {
-      console.log("language", language);
       const formData = new FormData();
       formData.append("messages", JSON.stringify(newMessages));
       formData.append("language", language);
+      if (selectedClass) {
+        formData.append("class", selectedClass);
+      }
+      if (selectedSubject) {
+        formData.append("subject", selectedSubject);
+      }
       if (uploadedFile) {
         formData.append("file", uploadedFile);
       }
@@ -171,6 +178,7 @@ export const useChat = () => {
   const resetChat = () => {
     setMessages([]);
     setUploadedFile(null);
+    setInput("");
   };
 
   return {
@@ -185,5 +193,9 @@ export const useChat = () => {
     resetChat,
     language,
     setLanguage,
+    selectedClass,
+    setSelectedClass,
+    selectedSubject,
+    setSelectedSubject,
   };
 };
