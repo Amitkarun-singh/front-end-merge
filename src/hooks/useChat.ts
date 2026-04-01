@@ -30,6 +30,9 @@ export const useChat = () => {
   const [selectedClass, setSelectedClass] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [conversationId, setConversationId] = useState<string>(() =>
+    Date.now().toString(),
+  );
   const [isLoading, setIsLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -59,6 +62,7 @@ export const useChat = () => {
       const formData = new FormData();
       formData.append("messages", JSON.stringify(newMessages));
       formData.append("language", language);
+      formData.append("conversation_id", conversationId);
 
       if (selectedClass) {
         formData.append("class", selectedClass);
@@ -180,6 +184,7 @@ export const useChat = () => {
     setMessages([]);
     setUploadedFile(null);
     setInput("");
+    setConversationId(Date.now().toString());
   };
 
   return {
