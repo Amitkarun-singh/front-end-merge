@@ -102,8 +102,11 @@ export default function AIPracticePage() {
       if (!currentClass) return;
 
       try {
+        const board = local?.user?.board || "CBSE";
+        const language =
+          selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1);
         const response = await fetch(
-          `${config.server}/api/subjects/${currentClass.class_name.replace(" ", "")}`,
+          `${config.server}/api/subjects?class_id=${currentClass.class_id}&board=${board}&language=${language}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -142,8 +145,11 @@ export default function AIPracticePage() {
       if (!currentClass || !currentSubject) return;
 
       try {
+        const board = local?.user?.board || "CBSE";
+        const language =
+          selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1);
         const response = await fetch(
-          `${config.server}/api/subjects/${currentClass.class_name.replace(" ", "")}/chapters/${currentSubject.subject_id}`,
+          `${config.server}/api/subjects/${currentClass.class_id}/chapters/${currentSubject.subject_id}?board=${board}&language=${language}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -161,7 +167,14 @@ export default function AIPracticePage() {
     };
 
     fetchChapters();
-  }, [selectedClass, selectedSubject, classes, subjects, token]);
+  }, [
+    selectedClass,
+    selectedSubject,
+    classes,
+    subjects,
+    token,
+    selectedLanguage,
+  ]);
 
   /**
    * Updates the count or configuration for a specific question type.

@@ -641,8 +641,10 @@ const ChatBox = () => {
       if (!currentClass) return;
 
       try {
+        const auth = localAuth ? JSON.parse(localAuth) : null;
+        const board = auth?.user?.board || "CBSE";
         const response = await fetch(
-          `${config.server}/api/subjects/${currentClass.class_name.replace(" ", "")}`,
+          `${config.server}/api/subjects?class_id=${currentClass.class_id}&board=${board}&language=${language}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -662,7 +664,7 @@ const ChatBox = () => {
     };
 
     fetchSubjects();
-  }, [selectedClass, classes, token, setSelectedSubject]);
+  }, [selectedClass, classes, token, setSelectedSubject, language, localAuth]);
 
   return (
     <div className="max-w-3xl mx-auto">
