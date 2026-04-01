@@ -192,7 +192,7 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
           <SelectContent>
             <SelectItem value="all">Class</SelectItem>
             {classes.map((cls) => (
-              <SelectItem key={cls.class_id} value={cls.class_id.toString()}>
+              <SelectItem key={cls.class_id} value={cls.class_name.toString()}>
                 {cls.class_name}
               </SelectItem>
             ))}
@@ -649,6 +649,7 @@ const ChatBox = () => {
       try {
         const auth = localAuth ? JSON.parse(localAuth) : null;
         const board = auth?.user?.board || "CBSE";
+
         const response = await fetch(
           `${config.server}/api/subjects?class_id=${currentClass.class_id}&board=${board}&language=${language}`,
           {
