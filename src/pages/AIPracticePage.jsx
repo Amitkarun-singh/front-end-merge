@@ -9,8 +9,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Exam from "@/pages/components/AIPracticePage/Exam";
-import MCQ from "@/pages/components/AIPracticePage/MCQ";
+// import Exam from "@/pages/components/AIPracticePage/Exam";
+// import MCQ from "@/pages/components/AIPracticePage/MCQ";
 import UnifiedExam from "@/pages/components/AIPracticePage/UnifiedExam";
 import LoadingScreen from "@/pages/components/LoadingScreen";
 
@@ -257,26 +257,6 @@ export default function AIPracticePage() {
     }
   };
 
-  if (step === "SA" || step === "LA" || step === "PYQ" || step === "PQ") {
-    return (
-      <Exam
-        currentQuestion={currentQuestion}
-        setCurrentQuestion={setCurrentQuestion}
-        examData={examData}
-      />
-    );
-  }
-
-  if (step === "MCQ") {
-    return (
-      <MCQ
-        currentQuestion={currentQuestion}
-        setCurrentQuestion={setCurrentQuestion}
-        examData={examData}
-      />
-    );
-  }
-
   if (loading) {
     return <LoadingScreen />;
   }
@@ -316,10 +296,7 @@ export default function AIPracticePage() {
                 </SelectTrigger>
                 <SelectContent>
                   {classes.map((cls) => (
-                    <SelectItem
-                      key={cls.class_id}
-                      value={cls.class_id.toString()}
-                    >
+                    <SelectItem key={cls.class_id} value={cls.class_id.toString()}>
                       {cls.class_name}
                     </SelectItem>
                   ))}

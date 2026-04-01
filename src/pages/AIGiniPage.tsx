@@ -629,7 +629,7 @@ const ChatBox = () => {
     };
 
     fetchClasses();
-  }, [token, setSelectedClass, selectedClass]);
+  }, [token, setSelectedClass]);
 
   useEffect(() => {
     const fetchSubjects = async () => {

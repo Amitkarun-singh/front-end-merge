@@ -59,6 +59,7 @@ export const useChat = () => {
       const formData = new FormData();
       formData.append("messages", JSON.stringify(newMessages));
       formData.append("language", language);
+      console.log("selectedClass -> ", selectedClass);
       if (selectedClass) {
         formData.append("class", selectedClass);
       }
