@@ -641,9 +641,11 @@ const ChatBox = () => {
     const fetchSubjects = async () => {
       if (!selectedClass || !token) return;
 
-      const currentClass = classes.find(
-        (cls) => cls.class_id.toString() === selectedClass,
-      );
+      const currentClass = classes.find((cls) => {
+        if (cls.class_name.toString() === selectedClass) {
+          return cls.class_id;
+        }
+      });
       if (!currentClass) return;
 
       try {
