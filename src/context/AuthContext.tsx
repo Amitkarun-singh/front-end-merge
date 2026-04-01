@@ -4,21 +4,40 @@ import {
   useState,
   useEffect,
   useCallback,
+  useRef,
   ReactNode,
 } from "react";
 import { config } from "../../app.config.js";
 
 interface User {
-  id?: string;
+  // Core identity
+  id?: string | number;
+  user_id?: string | number;
+  full_name?: string;
   name?: string;
-  email?: string;
   username?: string;
+  email?: string;
   phone_number?: string;
-  role?: string;
-  profile_image?: string;
-  class_name?: string;
-  section?: string;
+  number?: string;
+  status?: string;
+  avatar?: string | null;
+  // Role
+  role?: string | Record<string, unknown>;
+  // School
+  school_id?: string | number;
   school_name?: string;
+  board?: string;
+  address?: string;
+  // Student
+  student_id?: string | number;
+  roll_number?: string;
+  class?: string;
+  section?: string;
+  div?: string;
+  gender?: string;
+  dob?: string;
+  language?: string;
+  joining_date?: string;
   [key: string]: unknown;
 }
 
@@ -40,6 +59,7 @@ interface AuthContextType extends AuthState {
   }) => Promise<void>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
+  updateAvatar: (file: File) => Promise<void>;
   clearError: () => void;
 }
 
@@ -48,14 +68,65 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const AUTH_STORAGE_KEY = "schools2ai_auth";
 const API_BASE = config.server;
 
+/**
+ * Flatten the nested profile API response into a single flat User object.
+ * API returns: { user: {...}, school: {...}, student: {...} }
+ */
+function flattenProfile(raw: Record<string, unknown>): User {
+  // Handle case where raw IS the nested object (user/school/student keys)
+  const userObj = (raw.user as Record<string, unknown>) || {};
+  const schoolObj = (raw.school as Record<string, unknown>) || {};
+  const studentObj = (raw.student as Record<string, unknown>) || {};
+
+  // If raw doesn't have user/school/student keys, treat it as already flat
+  const hasNested = raw.user !== undefined || raw.school !== undefined || raw.student !== undefined;
+
+  if (!hasNested) {
+    return raw as User;
+  }
+
+  return {
+    // User fields
+    id: userObj.user_id as string | number,
+    user_id: userObj.user_id as string | number,
+    full_name: userObj.full_name as string,
+    name: userObj.full_name as string, // alias for compatibility
+    email: userObj.email as string,
+    phone_number: userObj.phone_number as string,
+    number: userObj.phone_number as string, // alias
+    username: userObj.username as string,
+    status: userObj.status as string,
+    avatar: userObj.avatar as string | null,
+    // School fields
+    school_id: schoolObj.school_id as string | number,
+    school_name: schoolObj.school_name as string,
+    board: schoolObj.board as string,
+    address: schoolObj.address as string,
+    // Student fields
+    student_id: studentObj.student_id as string | number,
+    roll_number: studentObj.roll_number as string,
+    class: studentObj.class as string,
+    section: studentObj.section as string,
+    div: studentObj.section as string, // alias
+    gender: studentObj.gender as string,
+    dob: studentObj.dob as string,
+    language: studentObj.language as string,
+    joining_date: studentObj.joining_date as string,
+  };
+}
+
 function getStoredAuth(): Partial<AuthState> {
   try {
     const stored = localStorage.getItem(AUTH_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
+      // Re-flatten in case old storage has nested structure
+      const user = parsed.user
+        ? flattenProfile(parsed.user as Record<string, unknown>)
+        : null;
       return {
         isAuthenticated: true,
-        user: parsed.user,
+        user,
         token: parsed.token,
       };
     }
@@ -76,7 +147,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     error: null,
   });
 
-  // Persist auth to localStorage
+  // Keep a ref to the latest token to avoid stale closures in callbacks
+  const tokenRef = useRef<string | null>(authState.token ?? null);
+  useEffect(() => {
+    tokenRef.current = authState.token;
+  }, [authState.token]);
+
+  // Persist auth to localStorage (store flat user object)
   useEffect(() => {
     if (authState.isAuthenticated && authState.token) {
       localStorage.setItem(
@@ -90,10 +167,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /**
    * Fetch user profile from GET /api/auth/profile
-   * Uses the stored token for authorization.
+   * Flattens nested { user, school, student } into a single object.
    */
   const fetchProfile = useCallback(async () => {
-    const currentToken = authState.token;
+    const currentToken = tokenRef.current;
     if (!currentToken) return;
 
     try {
@@ -108,7 +185,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
 
       if (!res.ok) {
-        // Token might be expired – force logout
         if (res.status === 401) {
           setAuthState({
             isAuthenticated: false,
@@ -123,7 +199,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(data.message || "Failed to fetch profile");
       }
 
-      const profile = data.data || data;
+      const raw: Record<string, unknown> = data.data ?? data;
+      const profile = flattenProfile(raw);
 
       setAuthState((prev) => ({
         ...prev,
@@ -132,16 +209,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err: unknown) {
       console.error("Profile fetch error:", err);
     }
-  }, [authState.token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
+   * Upload avatar image — POST /api/auth/update-avatar
+   */
+  const updateAvatar = useCallback(async (file: File) => {
+    const currentToken = tokenRef.current;
+    if (!currentToken) throw new Error("Not authenticated");
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch(`${API_BASE}/api/auth/update-avatar`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${currentToken}`,
+      },
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || "Failed to upload avatar");
+
+    // Refresh profile to get updated avatar URL
+    await fetchProfile();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * On mount, if we have a stored token, fetch fresh profile data.
    */
   useEffect(() => {
-    if (authState.isAuthenticated && authState.token) {
+    if (authState.isAuthenticated && tokenRef.current) {
       fetchProfile();
     }
-    // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -167,15 +270,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const responseData = data.data || data;
       const token = responseData.accessToken || responseData.token;
 
+      // Extract role from login response
+      const role = responseData.role;
+
+      // Set minimal user state from login response first
       setAuthState({
         isAuthenticated: true,
-        user: responseData.profile || responseData.user || responseData,
+        user: {
+          role,
+          ...(responseData.profile ? flattenProfile(responseData.profile as Record<string, unknown>) : {}),
+        },
         token,
         loading: false,
         error: null,
       });
 
-      // Fetch full profile after login
+      // Immediately fetch full profile after login
       try {
         const profileRes = await fetch(`${API_BASE}/api/auth/profile`, {
           method: "GET",
@@ -188,17 +298,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const profileData = await profileRes.json();
 
         if (profileRes.ok) {
-          const profile = profileData.data || profileData;
+          const raw: Record<string, unknown> = profileData.data ?? profileData;
+          const profile = flattenProfile(raw);
+          // Merge role from login into profile
           setAuthState((prev) => ({
             ...prev,
-            user: profile,
+            user: { ...profile, role },
           }));
         }
       } catch {
-        // Profile fetch failed, use login response data
-        console.warn(
-          "Could not fetch profile after login, using login response data.",
-        );
+        console.warn("Could not fetch profile after login, using login response data.");
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Login failed";
@@ -244,7 +353,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Verify OTP — POST /api/auth/login  (same endpoint, with OTP payload)
+   * Verify OTP — POST /api/auth/login
    */
   const verifyOtp = async (payload: {
     phone_number: string;
@@ -268,10 +377,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const responseData = data.data || data;
       const token = responseData.accessToken || responseData.token;
+      const role = responseData.role;
 
       setAuthState({
         isAuthenticated: true,
-        user: responseData.profile || responseData.user || responseData,
+        user: { role },
         token,
         loading: false,
         error: null,
@@ -290,16 +400,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const profileData = await profileRes.json();
 
         if (profileRes.ok) {
-          const profile = profileData.data || profileData;
+          const raw: Record<string, unknown> = profileData.data ?? profileData;
+          const profile = flattenProfile(raw);
           setAuthState((prev) => ({
             ...prev,
-            user: profile,
+            user: { ...profile, role },
           }));
         }
       } catch {
-        console.warn(
-          "Could not fetch profile after OTP login, using login response data.",
-        );
+        console.warn("Could not fetch profile after OTP login.");
       }
     } catch (err: unknown) {
       const message =
@@ -315,13 +424,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /**
    * Logout — POST /api/auth/logout
-   * Calls the backend logout endpoint to invalidate the session/token,
-   * then clears local state.
    */
   const logout = async () => {
     const currentToken = authState.token;
 
-    // Clear local state immediately for instant UI feedback
     setAuthState({
       isAuthenticated: false,
       user: null,
@@ -331,7 +437,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     localStorage.removeItem(AUTH_STORAGE_KEY);
 
-    // Call backend logout endpoint
     if (currentToken) {
       try {
         await fetch(`${API_BASE}/api/auth/logout`, {
@@ -342,7 +447,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         });
       } catch {
-        // Logout API failed, but we already cleared local state
         console.warn("Backend logout call failed, local session cleared.");
       }
     }
@@ -361,6 +465,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         verifyOtp,
         logout,
         fetchProfile,
+        updateAvatar,
         clearError,
       }}
     >
