@@ -6,15 +6,12 @@ import {
   Send,
   MessageSquare,
   HelpCircle,
-  BookOpen,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { GraduationCap } from "lucide-react";
-import { Link } from "react-router-dom";
 
 const faqs = [
   {
@@ -49,44 +46,9 @@ export default function SupportPage() {
   });
 
   return (
-    <div className="min-h-screen">
-      {/* Landing Header */}
-      <header className="border-b border-border bg-card">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-              <GraduationCap className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-display font-bold text-lg">Schools2AI</span>
-          </Link>
-          <nav className="hidden md:flex items-center gap-6 text-sm">
-            <Link to="/" className="text-muted-foreground hover:text-foreground">
-              Home
-            </Link>
-            <a href="#" className="text-muted-foreground hover:text-foreground">
-              About
-            </a>
-            <a href="#" className="text-muted-foreground hover:text-foreground">
-              Features
-            </a>
-            <a href="#" className="text-muted-foreground hover:text-foreground">
-              How It Works
-            </a>
-            <a href="#" className="text-muted-foreground hover:text-foreground">
-              Why Us
-            </a>
-            <a href="#" className="text-muted-foreground hover:text-foreground">
-              Vision
-            </a>
-            <a href="#" className="text-primary font-medium">
-              Contact
-            </a>
-          </nav>
-        </div>
-      </header>
-
+    <div className="min-h-screen bg-background pb-12">
       {/* Hero Section */}
-      <section className="py-16 px-6 gradient-hero text-center">
+      <section className="py-12 px-6 gradient-hero text-center">
         <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-card text-sm text-primary mb-4">
           <MessageSquare className="w-4 h-4" />
           Get in Touch
@@ -247,21 +209,6 @@ export default function SupportPage() {
           </div>
         </div>
       </div>
-
-      {/* Footer */}
-      <footer className="border-t border-border bg-card py-8 px-6">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded gradient-primary flex items-center justify-center">
-              <GraduationCap className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <span className="font-display font-semibold">Schools2AI</span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            © 2026 Schools2AI. All rights reserved.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

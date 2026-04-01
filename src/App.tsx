@@ -34,24 +34,6 @@ const App = () => (
             {/* Public routes */}
             <Route path="/login" element={<StudentLoginPage />} />
 
-            {/* Support page has its own layout */}
-            <Route
-              path="/support"
-              element={
-                <ProtectedRoute>
-                  <SupportPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/feedback"
-              element={
-                <ProtectedRoute>
-                  <SupportPage />
-                </ProtectedRoute>
-              }
-            />
-
             {/* Main app routes with sidebar (protected) */}
             <Route
               path="/*"
@@ -73,6 +55,8 @@ const App = () => (
                       <Route path="/new-course" element={<HomePage />} />
                       <Route path="/history" element={<HistoryPage />} />
                       <Route path="/tools/*" element={<MoreToolsPage />} />
+                      <Route path="/support" element={<SupportPage />} />
+                      <Route path="/feedback" element={<SupportPage />} />
                       <Route path="*" element={<NotFound />} />
                     </Routes>
                   </MainLayout>

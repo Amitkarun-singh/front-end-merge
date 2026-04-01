@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import schools2aiIcon from "@/assets/schools2ai-icon.png";
+
 const studyTools = [
   {
     title: "AI Gini",
@@ -61,6 +62,7 @@ const studyTools = [
     icon: Grid3X3,
   },
 ];
+
 const exploreLinks = [
   {
     title: "History",
@@ -68,39 +70,49 @@ const exploreLinks = [
     icon: BarChart3,
   },
   {
-    title: "Support",
+    title: "Support and Feedback",
     url: "/support",
     icon: HelpCircle,
-    external: true,
   },
-  {
-    title: "Feedback",
-    url: "/feedback",
-    icon: MessageSquare,
-    external: true,
-  },
+  // {
+  //   title: "Feedback",
+  //   url: "/feedback",
+  //   icon: MessageSquare,
+  // },
 ];
+
 export function AppSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const currentPath = location.pathname;
+
+  const isSupportPage = currentPath === "/support" || currentPath === "/feedback";
+
+  useEffect(() => {
+    if (isSupportPage) {
+      setCollapsed(false);
+    }
+  }, [isSupportPage]);
+
   const isActive = (path: string) => currentPath === path;
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login', { replace: true });
+    navigate("/login", { replace: true });
   };
 
-  const displayName = user?.name || user?.Student_name || user?.username || 'Student';
+  const displayName =
+    user?.name || user?.Student_name || user?.username || "Student";
   const initials = displayName.charAt(0).toUpperCase();
 
   // role can be a string OR an object { role_id, role_name, description, permissions }
   const roleName =
-    typeof user?.role === 'string'
+    typeof user?.role === "string"
       ? user.role
-      : (user?.role as { role_name?: string })?.role_name || 'Student';
+      : (user?.role as { role_name?: string })?.role_name || "Student";
+
   return (
     <aside
       className={cn(
@@ -123,18 +135,20 @@ export function AppSidebar() {
       </div>
 
       {/* Toggle button */}
-      <Button
-        variant="ghost"
-        size="icon"
-        className="absolute top-4 right-2 h-6 w-6"
-        onClick={() => setCollapsed(!collapsed)}
-      >
-        {collapsed ? (
-          <ChevronRight className="h-4 w-4" />
-        ) : (
-          <ChevronLeft className="h-4 w-4" />
-        )}
-      </Button>
+      {!isSupportPage && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-4 right-2 h-6 w-6"
+          onClick={() => setCollapsed(!collapsed)}
+        >
+          {collapsed ? (
+            <ChevronRight className="h-4 w-4" />
+          ) : (
+            <ChevronLeft className="h-4 w-4" />
+          )}
+        </Button>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto custom-scrollbar px-2 py-2">
@@ -231,14 +245,6 @@ export function AppSidebar() {
           )}
         </div>
       </nav>
-
-      {/* Bottom section */}
-      {/* <div className="p-3 border-t border-sidebar-border">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Globe className="w-4 h-4" />
-          {!collapsed && <span>English</span>}
-        </div>
-      </div> */}
 
       {/* User profile & Logout */}
       <div className="p-3 border-t border-sidebar-border">
