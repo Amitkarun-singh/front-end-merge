@@ -58,24 +58,35 @@ export default function PerformancePage() {
 
   useEffect(() => {
     async function fetchData() {
+      const localValue = JSON.parse(
+        localStorage.getItem("schools2ai_auth"),
+      ).user;
+
+      const userId = localValue.user_id;
+
       try {
-        const res = await fetch(`${config.server}/student/performance/1`);
+        const res = await fetch(
+          `${config.server}/student/performance/${userId}`,
+        );
         const json = await res.json();
 
         if (json.success) {
           const data = json.data;
 
+          const value = data.data;
+
           // Summary
           setSummary({
-            overallScore: data.summary.overallScore,
-            totalTimeMinutes: data.summary.totalTimeMinutes,
-            totalQuestions: data.summary.totalQuestions,
-            totalTests: data.summary.totalTests,
+            overallScore: value.summary.overallScore,
+            totalTimeMinutes: value.summary.totalTimeMinutes,
+            totalQuestions: value.summary.totalQuestions,
+            totalTests: value.summary.totalTests,
           });
 
           // Progress Chart
           const monthMap = {};
-          data.progressChart.forEach((item) => {
+
+          value?.progressChart.forEach((item) => {
             const month = MONTH_NAMES[item.month - 1] || `Month ${item.month}`;
             if (!monthMap[month]) monthMap[month] = {};
             monthMap[month][item.subject_name.toLowerCase()] = Number(
@@ -94,7 +105,7 @@ export default function PerformancePage() {
 
           // Subject Mastery
           setSubjectMastery(
-            data.subjectMastery.map((item) => ({
+            value?.subjectMastery.map((item) => ({
               name: item.label,
               value: Number(item.value),
               color: SUBJECT_COLORS[item.label] || "gray",
@@ -102,8 +113,9 @@ export default function PerformancePage() {
           );
 
           // Latest Tests
+          console.log("data -> ", value);
           setLatestTests(
-            data.latestTests.map((test) => {
+            value.latestTests.map((test) => {
               let colorClass = "bg-primary";
               if (test.score >= 70) colorClass = "bg-primary";
               else if (test.score >= 40) colorClass = "bg-secondary";
@@ -152,13 +164,13 @@ export default function PerformancePage() {
             iconBg="bg-primary/10"
             iconColor="text-primary"
           />
-          <StatsCard
+          {/* <StatsCard
             title="Time Spent"
             value={`${totalHours}h ${totalMinutes}m`}
             icon={Clock}
             iconBg="bg-secondary/10"
             iconColor="text-secondary"
-          />
+          /> */}
           <StatsCard
             title="Questions"
             value={summary.totalQuestions}
@@ -306,7 +318,7 @@ export default function PerformancePage() {
             </div>
           </div>
 
-          {/* Time Spent */}
+          {/* Time Spent
           <div className="edtech-card">
             <h3 className="font-semibold text-foreground mb-4">
               Time Spent per Week
@@ -326,7 +338,7 @@ export default function PerformancePage() {
               <TrendingUp className="w-4 h-4" />
               <span>+{weeklyTime.percentageChange}% from last week</span>
             </div>
-          </div>
+          </div> */}
         </div>
       </div>
     </div>
