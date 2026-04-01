@@ -424,13 +424,14 @@ const ChatView: FC<ChatViewProps> = ({
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkMath]}
                         rehypePlugins={[rehypeKatex]}
+                        urlTransform={(url) => url}
                         components={{
-                          // img: ({ node, ...props }) => (
-                          //   <img
-                          //     {...props}
-                          //     className="max-w-[200px] rounded-md my-2"
-                          //   />
-                          // ),
+                          img: ({ node, ...props }) => (
+                            <img
+                              {...props}
+                              className="max-w-[200px] rounded-md my-2"
+                            />
+                          ),
                           p: ({ node, ...props }) => (
                             <p
                               {...props}
