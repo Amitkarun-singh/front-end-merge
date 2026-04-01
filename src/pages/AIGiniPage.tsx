@@ -188,7 +188,9 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
             <MonitorSmartphone className="w-3.5 h-3.5" />
             <SelectValue placeholder="Class" />
           </SelectTrigger>
+
           <SelectContent>
+            <SelectItem value="all">Class</SelectItem>
             {classes.map((cls) => (
               <SelectItem key={cls.class_id} value={cls.class_id.toString()}>
                 {cls.class_name}
@@ -203,6 +205,7 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
             <SelectValue placeholder="Subject" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="all">Subject</SelectItem>
             {subjects.map((sub) => (
               <SelectItem key={sub.subject_id} value={sub.subject_name}>
                 {sub.subject_name}
@@ -623,7 +626,7 @@ const ChatBox = () => {
         if (result.success) {
           setClasses(result.data);
           if (result.data.length > 0 && !selectedClass) {
-            setSelectedClass(result.data[0].class_id.toString());
+            setSelectedClass("all");
           }
         }
       } catch (error) {
@@ -658,7 +661,7 @@ const ChatBox = () => {
         if (result.success) {
           setSubjects(result.data);
           if (result.data.length > 0) {
-            setSelectedSubject(result.data[0].subject_name);
+            setSelectedSubject("all");
           }
         }
       } catch (error) {
