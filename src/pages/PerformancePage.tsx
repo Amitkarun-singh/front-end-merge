@@ -30,6 +30,12 @@ const SUBJECT_COLORS = {
   English: "hsl(330, 80%, 65%)",
   Other: "hsl(160, 60%, 50%)",
 };
+const getRandomColor = () => {
+  const hue = Math.floor(Math.random() * 360);
+  const saturation = 70;
+  const lightness = 60;
+  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+};
 
 const MONTH_NAMES = [
   "Jan",
@@ -97,7 +103,7 @@ export default function PerformancePage() {
           setProgressData(
             Object.keys(monthMap).map((month) => ({
               month,
-              math: monthMap[month].math || 0,
+              math: monthMap[month].mathematics || 0,
               science: monthMap[month].science || 0,
               english: monthMap[month].english || 0,
             })),
@@ -108,10 +114,9 @@ export default function PerformancePage() {
             value?.subjectMastery.map((item) => ({
               name: item.label,
               value: Number(item.value),
-              color: SUBJECT_COLORS[item.label] || "gray",
+              color: getRandomColor(),
             })),
           );
-
           // Latest Tests
           console.log("data -> ", value);
           setLatestTests(
