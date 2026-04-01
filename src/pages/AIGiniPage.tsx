@@ -222,7 +222,7 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
       </div>
       <Button
         onClick={handleSend}
-        disabled={!input.trim() || isLoading}
+        disabled={(!input.trim() && !uploadedFile) || isLoading}
         className="w-full h-12 gradient-button text-primary-foreground font-medium text-base shadow-edtech hover:shadow-edtech-lg transition-shadow"
       >
         {isLoading ? (
@@ -253,6 +253,7 @@ interface ChatViewProps {
   handleFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   fileInputRef: React.RefObject<HTMLInputElement>;
   resetChat: () => void;
+  uploadedFile: File | null;
 }
 
 /**
@@ -267,6 +268,7 @@ const ChatView: FC<ChatViewProps> = ({
   handleFileChange,
   fileInputRef,
   resetChat,
+  uploadedFile,
 }) => {
   const { toast } = useToast();
   const [feedbackByMessageId, setFeedbackByMessageId] = useState<
@@ -532,14 +534,14 @@ const ChatView: FC<ChatViewProps> = ({
           >
             <Paperclip className="w-5 h-5 text-muted-foreground" />
           </Button>
-          {/* <input
+          <input
             type="file"
             disabled={isLoading}
             ref={fileInputRef}
             className="hidden"
             accept="image/*,.pdf"
             onChange={handleFileChange}
-          /> */}
+          />
         </div>
         <div className="flex-1 relative">
           <Input
@@ -555,7 +557,7 @@ const ChatView: FC<ChatViewProps> = ({
               onClick={handleSend}
               size="icon"
               className="h-8 w-8 gradient-button"
-              disabled={!input.trim() || isLoading}
+              disabled={(!input.trim() && !uploadedFile) || isLoading}
             >
               {isLoading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
@@ -696,6 +698,7 @@ const ChatBox = () => {
             handleFileChange={handleFileChange}
             fileInputRef={fileInputRef}
             resetChat={resetChat}
+            uploadedFile={uploadedFile}
           />
         )}
       </div>

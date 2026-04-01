@@ -43,17 +43,21 @@ export const useChat = () => {
    * Manages streaming the response and updating the message history.
    */
   const handleSend = async () => {
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !uploadedFile) || isLoading) return;
 
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: "user",
-      content: input,
-    };
+    let newMessages = messages;
 
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
-    setInput("");
+    if (input.trim()) {
+      const userMessage: Message = {
+        id: Date.now().toString(),
+        role: "user",
+        content: input,
+      };
+      newMessages = [...messages, userMessage];
+      setMessages(newMessages);
+      setInput("");
+    }
+
     setIsLoading(true);
 
     let assistantContent = "";
