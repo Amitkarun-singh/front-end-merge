@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { DotLottieReact } from "@lottiefiles/dotlottie-react";
 import {
   GraduationCap,
   Mic,
@@ -188,12 +189,12 @@ export default function AITutorPage() {
           {/* Visual area */}
           <div className="relative h-64 md:h-80 gradient-hero flex items-center justify-center">
             <div
-              className={`${isListening ? "animate-pulse scale-110" : "animate-float"} transition-all duration-300`}
+              className={`${isListening ? "animate-pulse scale-110" : "animate-float"} transition-all duration-300 w-48 h-48 md:w-64 md:h-64`}
             >
-              <img
-                alt="AI Tutor"
-                className="w-48 h-48 md:w-64 md:h-64 object-contain"
-                src="/lovable-uploads/1fbf5827-3da3-4ba7-86f8-3aec96f1ca47.png"
+              <DotLottieReact
+                src="/Aigini_final_trimmed_video.lottie"
+                loop
+                autoplay
               />
             </div>
 
