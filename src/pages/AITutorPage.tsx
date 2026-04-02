@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { DotLottieReact } from "@lottiefiles/dotlottie-react";
+import { useState, useEffect, useRef } from "react";
+import { DotLottieReact, DotLottie } from "@lottiefiles/dotlottie-react";
 import {
   GraduationCap,
   Mic,
@@ -35,7 +35,23 @@ export default function AITutorPage() {
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [language, setLanguage] = useState("en-IN");
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const { toast } = useToast();
+  const dotLottieRef = useRef<DotLottie | null>(null);
+
+  const dotLottieCallback = (dotLottie: DotLottie) => {
+    dotLottieRef.current = dotLottie;
+  };
+
+  useEffect(() => {
+    if (dotLottieRef.current) {
+      if (isSpeaking) {
+        dotLottieRef.current.play();
+      } else {
+        dotLottieRef.current.pause();
+      }
+    }
+  }, [isSpeaking]);
 
   const handleVoiceInput = () => {
     const SpeechRecognition =
@@ -51,7 +67,7 @@ export default function AITutorPage() {
     }
 
     // Stop any ongoing speech immediately
-    window.speechSynthesis.cancel();
+    stopSpeaking();
 
     // If already listening, stop recognition
     if (isListening) {
@@ -95,13 +111,24 @@ export default function AITutorPage() {
     }
   };
 
+  const stopSpeaking = () => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      setIsSpeaking(false);
+    }
+  };
+
   const speak = (text: string) => {
     if ("speechSynthesis" in window) {
       // Cancel any ongoing speech
-      window.speechSynthesis.cancel();
+      stopSpeaking();
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = language;
+
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
 
       // Optional: find a voice that matches the language
       const voices = window.speechSynthesis.getVoices();
@@ -117,6 +144,9 @@ export default function AITutorPage() {
   const handleAsk = async (textOverride?: string) => {
     const query = textOverride || question;
     if (!query.trim()) return;
+
+    // Stop speaking if a new question is asked
+    stopSpeaking();
 
     setIsLoading(true);
     setShowAnswer(true);
@@ -161,7 +191,7 @@ export default function AITutorPage() {
     setQuestion("");
     setAnswer("");
     setShowAnswer(false);
-    window.speechSynthesis.cancel();
+    stopSpeaking();
   };
 
   // Pre-load voices for TTS
@@ -169,6 +199,9 @@ export default function AITutorPage() {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.getVoices();
     }
+    return () => {
+      stopSpeaking();
+    };
   }, []);
 
   return (
@@ -189,12 +222,12 @@ export default function AITutorPage() {
           {/* Visual area */}
           <div className="relative h-64 md:h-80 gradient-hero flex items-center justify-center">
             <div
-              className={`${isListening ? "animate-pulse scale-110" : "animate-float"} transition-all duration-300 w-48 h-48 md:w-64 md:h-64`}
+              className={`${isListening ? "animate-pulse scale-110" : ""} transition-all duration-300 w-48 h-48 md:w-64 md:h-4`}
             >
               <DotLottieReact
                 src="/Aigini_final_trimmed_video.lottie"
                 loop
-                autoplay
+                dotLottieRefCallback={dotLottieCallback}
               />
             </div>
 
