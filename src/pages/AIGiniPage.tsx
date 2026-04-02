@@ -284,6 +284,24 @@ const ChatView: FC<ChatViewProps> = ({
   }, [messages, isLoading]);
 
   /**
+   * Pre-processes content to ensure LaTeX math is correctly identified by remark-math.
+   * It converts \( ... \) to $ ... $ and \[ ... \] to $$ ... $$.
+   */
+  const preprocessContent = (content: string) => {
+    return content
+      .replace(/\\\( /g, "$")
+      .replace(/\\\(/g, "$")
+      .replace(/ \\\) /g, "$")
+      .replace(/ \\\)/g, "$")
+      .replace(/\\\)/g, "$")
+      .replace(/\\\[ /g, "$$")
+      .replace(/\\\[/g, "$$")
+      .replace(/ \\\] /g, "$$")
+      .replace(/ \\\]/g, "$$")
+      .replace(/\\\]/g, "$$");
+  };
+
+  /**
    * Helper to retrieve the user's message and the corresponding AI assistant response.
    */
   const getUserMessageAndResponse = (assistantMessageId: string) => {
@@ -443,7 +461,7 @@ const ChatView: FC<ChatViewProps> = ({
                           ),
                         }}
                       >
-                        {message.content}
+                        {preprocessContent(message.content)}
                       </ReactMarkdown>
                     </div>
                   </div>
