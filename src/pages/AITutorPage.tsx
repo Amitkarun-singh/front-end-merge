@@ -220,9 +220,9 @@ export default function AITutorPage() {
         {/* Tutor Interface */}
         <div className="edtech-card overflow-hidden">
           {/* Visual area */}
-          <div className="relative h-64 md:h-80 gradient-hero flex items-center justify-center">
+          <div className="relative h-80 md:h-80 gradient-hero flex items-center justify-center">
             <div
-              className={`${isListening ? "animate-pulse scale-110" : ""} transition-all duration-300 w-48 h-48 md:w-64 md:h-4`}
+              className={`${isListening ? "animate-pulse scale-105" : ""} transition-all duration-300 w-72 h-72 md:w-[400px] md:h-[400px]`}
             >
               <DotLottieReact
                 src="/Aigini_final_trimmed_video.lottie"
