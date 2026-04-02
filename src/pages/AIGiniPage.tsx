@@ -278,11 +278,28 @@ const ChatView: FC<ChatViewProps> = ({
     Record<string, MessageFeedbackState>
   >({});
 
+  // WITH this:
   const bottomRef = useRef<HTMLDivElement | null>(null);
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, isLoading]);
 
+  // useEffect(() => {
+  //   // Delay scroll to allow KaTeX math to finish rendering first
+  //   const timeout = setTimeout(() => {
+  //     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  //   }, 150);
+  //   return () => clearTimeout(timeout);
+  // }, [messages, isLoading]);
+
+  useEffect(() => {
+    const container = bottomRef.current?.parentElement;
+    if (!container) return;
+
+    const observer = new ResizeObserver(() => {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [messages, isLoading]);
   /**
    * Pre-processes content to ensure LaTeX math is correctly identified by remark-math.
    * It converts \( ... \) to $ ... $ and \[ ... \] to $$ ... $$.
