@@ -173,9 +173,6 @@ export default function ProfilePage() {
                 <p className="text-xs text-destructive mb-2">{uploadError}</p>
               )}
 
-              <p className="text-xs text-muted-foreground mb-2">
-                Click avatar to upload photo
-              </p>
 
               <h2 className="font-display text-xl font-semibold text-foreground">
                 {displayName}

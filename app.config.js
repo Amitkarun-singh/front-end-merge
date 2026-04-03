@@ -1,7 +1,7 @@
 export const config = {
+  // Production server — used for auth, profile, etc.
   server: "https://app-api.schools2ai.com",
-};
 
-// export const config = {
-//   server: "http://localhost:3000",
-// };
+  // Local history backend (GET /api/history/*)
+  historyServer: "http://localhost:5000",
+};

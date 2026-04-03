@@ -120,6 +120,7 @@
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: "Inter", "Plus Jakarta Sans", system-ui, sans-serif;
+    overflow-x: hidden;
   }
 
   h1,
@@ -203,6 +204,58 @@
 
   .chat-bubble-ai {
     @apply bg-accent text-accent-foreground rounded-2xl rounded-bl-md px-4 py-3;
+  }
+
+  /* ─── Suppress excessive prose spacing inside chat bubbles ─────────────────── */
+  .chat-bubble-ai .prose p,
+  .chat-bubble-user .prose p {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+  .chat-bubble-ai .prose p:first-child,
+  .chat-bubble-user .prose p:first-child {
+    margin-top: 0;
+  }
+  .chat-bubble-ai .prose p:last-child,
+  .chat-bubble-user .prose p:last-child {
+    margin-bottom: 0;
+  }
+  .chat-bubble-ai .prose h1,
+  .chat-bubble-ai .prose h2,
+  .chat-bubble-ai .prose h3,
+  .chat-bubble-ai .prose h4,
+  .chat-bubble-ai .prose h5,
+  .chat-bubble-ai .prose h6 {
+    margin-top: 0.5rem;
+    margin-bottom: 0.25rem;
+  }
+  .chat-bubble-ai .prose h1:first-child,
+  .chat-bubble-ai .prose h2:first-child,
+  .chat-bubble-ai .prose h3:first-child {
+    margin-top: 0;
+  }
+  .chat-bubble-ai .prose ul,
+  .chat-bubble-ai .prose ol {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+    padding-left: 1.25rem;
+  }
+  .chat-bubble-ai .prose li {
+    margin-top: 0.1rem;
+    margin-bottom: 0.1rem;
+  }
+  .chat-bubble-ai .prose pre,
+  .chat-bubble-ai .prose blockquote {
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  .chat-bubble-ai .prose code {
+    font-size: 0.8em;
+  }
+  /* KaTeX math inside bubbles */
+  .chat-bubble-ai .katex-display {
+    margin: 0.25rem 0;
+    overflow-x: auto;
   }
 
   /* Custom scrollbar */

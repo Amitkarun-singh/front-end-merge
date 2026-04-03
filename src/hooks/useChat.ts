@@ -1,5 +1,8 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import { config } from "../../app.config.js";
+import { fetchConversation } from "@/api/historyApi";
 
 /**
  * Interface representing a single chat message.
@@ -10,18 +13,13 @@ interface Message {
   content: string;
 }
 
-import { config } from "../../app.config.js";
-
-/**
- * Endpoint for the AI Gini chat service.
- */
+/** Endpoint for the AI Gini chat service. */
 const CHAT_URL = `${config.server}/gini/ai/gini`;
 
 /**
  * A custom hook to manage chat state and interactions with the AI assistant.
- * Handles message history, user input, file uploads, and streaming AI responses.
- *
- * @returns {Object} Chat state and handler functions.
+ * If the URL contains ?conversation_id=xxx it pre-loads that conversation
+ * from history so it renders in the same chat format and can be continued.
  */
 export const useChat = () => {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -34,13 +32,53 @@ export const useChat = () => {
     Date.now().toString(),
   );
   const [isLoading, setIsLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const { toast } = useToast();
+  const [searchParams] = useSearchParams();
+
+  // ── Pre-load a past conversation when URL contains ?conversation_id=xxx ──
+  useEffect(() => {
+    const urlConvId = searchParams.get("conversation_id");
+    const source    = searchParams.get("source") ?? undefined;
+    if (!urlConvId) return;
+
+    const localAuth = localStorage.getItem("schools2ai_auth");
+    const token = localAuth ? JSON.parse(localAuth).token : null;
+    if (!token) return;
+
+    setHistoryLoading(true);
+    // Reuse the same ID so any new messages continue the same thread
+    setConversationId(urlConvId);
+
+    fetchConversation(token, urlConvId, source)
+      .then((conv) => {
+        const mapped: Message[] = conv.messages.map((m, i) => ({
+          id: `history-${i}`,
+          role: m.role === "user" ? "user" : "assistant",
+          content: m.content,
+        }));
+        console.log(
+          `[useChat] Loaded ${mapped.length} messages from conversation ${urlConvId}`,
+        );
+        setMessages(mapped);
+      })
+      .catch((err) => {
+        console.warn("[useChat] Failed to load history:", err.message);
+        toast({
+          title: "Could not load conversation",
+          description: err.message,
+          variant: "destructive",
+        });
+      })
+      .finally(() => setHistoryLoading(false));
+  // run once on mount only
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /**
    * Sends the current user input and any uploaded file to the AI assistant.
-   * Manages streaming the response and updating the message history.
    */
   const handleSend = async () => {
     if ((!input.trim() && !uploadedFile) || isLoading) return;
@@ -68,15 +106,9 @@ export const useChat = () => {
       formData.append("language", language);
       formData.append("conversation_id", conversationId);
 
-      if (selectedClass) {
-        formData.append("class", selectedClass);
-      }
-      if (selectedSubject) {
-        formData.append("subject", selectedSubject);
-      }
-      if (uploadedFile) {
-        formData.append("file", uploadedFile);
-      }
+      if (selectedClass)   formData.append("class",   selectedClass);
+      if (selectedSubject) formData.append("subject", selectedSubject);
+      if (uploadedFile)    formData.append("file",    uploadedFile);
 
       const resp = await fetch(CHAT_URL, {
         method: "POST",
@@ -158,12 +190,7 @@ export const useChat = () => {
     }
   };
 
-  /**
-   * Handles file selection from an input element.
-   * Updates state and adds a placeholder message for the upload to the chat.
-   *
-   * @param {React.ChangeEvent<HTMLInputElement>} e - The change event from the file input.
-   */
+  /** Handles file selection from an input element. */
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] || null;
     if (!file) return;
@@ -181,9 +208,7 @@ export const useChat = () => {
     setMessages((prev) => [...prev, fileMessage]);
   };
 
-  /**
-   * Resets the chat history and clears any uploaded files.
-   */
+  /** Resets the chat history and clears any uploaded files. */
   const resetChat = () => {
     setMessages([]);
     setUploadedFile(null);
@@ -196,6 +221,7 @@ export const useChat = () => {
     input,
     setInput,
     isLoading,
+    historyLoading,
     uploadedFile,
     fileInputRef,
     handleSend,

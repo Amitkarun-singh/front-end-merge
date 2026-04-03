@@ -73,30 +73,43 @@ const API_BASE = config.server;
  * API returns: { user: {...}, school: {...}, student: {...} }
  */
 function flattenProfile(raw: Record<string, unknown>): User {
-  // Handle case where raw IS the nested object (user/school/student keys)
   const userObj = (raw.user as Record<string, unknown>) || {};
   const schoolObj = (raw.school as Record<string, unknown>) || {};
   const studentObj = (raw.student as Record<string, unknown>) || {};
 
-  // If raw doesn't have user/school/student keys, treat it as already flat
   const hasNested = raw.user !== undefined || raw.school !== undefined || raw.student !== undefined;
 
+  console.log("[flattenProfile] raw keys:", Object.keys(raw));
+  console.log("[flattenProfile] hasNested:", hasNested);
+
   if (!hasNested) {
-    return raw as User;
+    // Already flat — avatarUrl at top level takes priority over avatar key
+    const avatarFlat = (raw.avatarUrl as string | null) || (raw.avatar as string | null);
+    console.log("[flattenProfile] flat path — avatarUrl:", raw.avatarUrl, "| avatar:", raw.avatar, "→ using:", avatarFlat);
+    return { ...raw, avatar: avatarFlat } as User;
   }
+
+  // ✅ KEY FIX: backend returns signed S3 URL in raw.avatarUrl (top-level on data object)
+  //    raw.user.avatar is just the S3 key path (e.g. "avatars/1-xxx.undefined") — not usable as <img src>
+  const avatarUrl = (raw.avatarUrl as string | null)   // full signed URL  ← use this
+                 || (userObj.avatar as string | null);   // fallback: raw key (may not render)
+
+  console.log("[flattenProfile] raw.avatarUrl:", raw.avatarUrl);
+  console.log("[flattenProfile] userObj.avatar:", userObj.avatar);
+  console.log("[flattenProfile] → using avatar:", avatarUrl);
 
   return {
     // User fields
     id: userObj.user_id as string | number,
     user_id: userObj.user_id as string | number,
     full_name: userObj.full_name as string,
-    name: userObj.full_name as string, // alias for compatibility
+    name: userObj.full_name as string,
     email: userObj.email as string,
     phone_number: userObj.phone_number as string,
-    number: userObj.phone_number as string, // alias
+    number: userObj.phone_number as string,
     username: userObj.username as string,
     status: userObj.status as string,
-    avatar: userObj.avatar as string | null,
+    avatar: avatarUrl,
     // School fields
     school_id: schoolObj.school_id as string | number,
     school_name: schoolObj.school_name as string,
@@ -107,7 +120,7 @@ function flattenProfile(raw: Record<string, unknown>): User {
     roll_number: studentObj.roll_number as string,
     class: studentObj.class as string,
     section: studentObj.section as string,
-    div: studentObj.section as string, // alias
+    div: studentObj.section as string,
     gender: studentObj.gender as string,
     dob: studentObj.dob as string,
     language: studentObj.language as string,
@@ -171,10 +184,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    */
   const fetchProfile = useCallback(async () => {
     const currentToken = tokenRef.current;
-    if (!currentToken) return;
+    if (!currentToken) {
+      console.warn("[fetchProfile] No token, skipping.");
+      return;
+    }
+
+    const url = `${API_BASE}/api/auth/profile`;
+    console.log("[fetchProfile] GET", url);
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/profile`, {
+      const res = await fetch(url, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -183,6 +202,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       const data = await res.json();
+      console.log("[fetchProfile] status:", res.status, "| response:", data);
 
       if (!res.ok) {
         if (res.status === 401) {
@@ -200,16 +220,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const raw: Record<string, unknown> = data.data ?? data;
+      console.log("[fetchProfile] raw data:", raw);
       const profile = flattenProfile(raw);
+      console.log("[fetchProfile] flattened profile avatar:", profile.avatar);
 
+      // Preserve existing role — profile endpoint may not return role
       setAuthState((prev) => ({
         ...prev,
-        user: profile,
+        user: {
+          ...profile,
+          role: profile.role ?? prev.user?.role,
+        },
       }));
     } catch (err: unknown) {
-      console.error("Profile fetch error:", err);
+      console.error("[fetchProfile] error:", err);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -219,24 +245,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const currentToken = tokenRef.current;
     if (!currentToken) throw new Error("Not authenticated");
 
+    console.log("[updateAvatar] File name:", file.name, "| type:", file.type, "| size:", file.size, "bytes");
+    console.log("[updateAvatar] POST", `${API_BASE}/api/auth/update-avatar`);
+
     const formData = new FormData();
     formData.append("file", file);
+
+    // Log FormData entries
+    for (const [key, val] of formData.entries()) {
+      console.log("[updateAvatar] FormData entry:", key, "->", val instanceof File ? `File(${val.name}, ${val.type})` : val);
+    }
 
     const res = await fetch(`${API_BASE}/api/auth/update-avatar`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${currentToken}`,
+        // DO NOT set Content-Type — browser sets multipart/form-data with boundary automatically
       },
       body: formData,
     });
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.message || "Failed to upload avatar");
+    const data = await res.json().catch(() => ({}));
+    console.log("[updateAvatar] Response status:", res.status);
+    console.log("[updateAvatar] Response body:", data);
 
-    // Refresh profile to get updated avatar URL
+    if (!res.ok) {
+      const errMsg = (data as { message?: string }).message || `Upload failed (HTTP ${res.status})`;
+      console.error("[updateAvatar] FAILED:", errMsg);
+      throw new Error(errMsg);
+    }
+
+    console.log("[updateAvatar] Upload successful — refreshing profile...");
     await fetchProfile();
+    console.log("[updateAvatar] Profile refresh complete.");
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchProfile]);
 
   /**
    * On mount, if we have a stored token, fetch fresh profile data.
