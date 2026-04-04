@@ -8,6 +8,7 @@ import {
   RotateCcw,
   Loader2,
   MicOff,
+  Square,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,9 +36,10 @@ export default function AITutorPage() {
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [language, setLanguage] = useState("en-IN");
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(true);
   const { toast } = useToast();
   const dotLottieRef = useRef<DotLottie | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const dotLottieCallback = (dotLottie: DotLottie) => {
     dotLottieRef.current = dotLottie;
@@ -114,6 +116,32 @@ export default function AITutorPage() {
   const stopSpeaking = () => {
     if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
+    }
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    setIsSpeaking(false);
+  };
+
+  const playBase64Audio = (base64Data: string) => {
+    stopSpeaking();
+
+    try {
+      const audioSrc = `data:audio/wav;base64,${base64Data}`;
+      const audio = new Audio(audioSrc);
+      audioRef.current = audio;
+
+      audio.onplay = () => setIsSpeaking(true);
+      audio.onended = () => setIsSpeaking(false);
+      audio.onerror = () => setIsSpeaking(false);
+
+      audio.play().catch((err) => {
+        console.error("Error playing audio:", err);
+        setIsSpeaking(false);
+      });
+    } catch (error) {
+      console.error("Error creating audio object:", error);
       setIsSpeaking(false);
     }
   };
@@ -169,8 +197,15 @@ export default function AITutorPage() {
 
       const data = await response.json();
       const botResponse = data.response.content;
+      const audioData = data.response.audio;
+
       setAnswer(botResponse);
-      speak(botResponse);
+
+      if (audioData) {
+        playBase64Audio(audioData);
+      } else {
+        speak(botResponse);
+      }
     } catch (error) {
       console.error("Error asking AI Tutor:", error);
       setAnswer(
@@ -221,8 +256,19 @@ export default function AITutorPage() {
         <div className="edtech-card overflow-hidden">
           {/* Visual area */}
           <div className="relative h-80 md:h-80 gradient-hero flex items-center justify-center">
+            {isSpeaking && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={stopSpeaking}
+                className="absolute top-4 right-4 z-10 backdrop-blur-md transition-all animate-in fade-in zoom-in"
+              >
+                <Square className="w-3 h-3 mr-2 fill-red-600" />
+                Stop
+              </Button>
+            )}
             <div
-              className={`${isListening ? "animate-pulse scale-105" : ""} transition-all duration-300 w-72 h-72 md:w-[400px] md:h-[400px]`}
+              className={`${isListening ? "animate-pulse scale-105" : ""} transition-all duration-300 w-72 h-72 md:w-[500px] md:h-[500px]`}
             >
               <DotLottieReact
                 src="/Aigini_final_trimmed_video.lottie"
