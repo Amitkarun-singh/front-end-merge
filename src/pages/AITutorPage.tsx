@@ -9,6 +9,7 @@ import {
   Loader2,
   MicOff,
   Square,
+  Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +37,8 @@ export default function AITutorPage() {
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [language, setLanguage] = useState("en-IN");
-  const [isSpeaking, setIsSpeaking] = useState(true);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [lastAudio, setLastAudio] = useState<string | null>(null);
   const { toast } = useToast();
   const dotLottieRef = useRef<DotLottie | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -169,6 +171,14 @@ export default function AITutorPage() {
     }
   };
 
+  const handleReplay = () => {
+    if (lastAudio) {
+      playBase64Audio(lastAudio);
+    } else if (answer) {
+      speak(answer);
+    }
+  };
+
   const handleAsk = async (textOverride?: string) => {
     const query = textOverride || question;
     if (!query.trim()) return;
@@ -179,6 +189,7 @@ export default function AITutorPage() {
     setIsLoading(true);
     setShowAnswer(true);
     setAnswer(""); // Clear previous answer
+    setLastAudio(null);
 
     try {
       const response = await fetch(`${config.server}/gini/voice-bot`, {
@@ -200,6 +211,7 @@ export default function AITutorPage() {
       const audioData = data.response.audio;
 
       setAnswer(botResponse);
+      setLastAudio(audioData || null);
 
       if (audioData) {
         playBase64Audio(audioData);
@@ -226,6 +238,7 @@ export default function AITutorPage() {
     setQuestion("");
     setAnswer("");
     setShowAnswer(false);
+    setLastAudio(null);
     stopSpeaking();
   };
 
@@ -256,7 +269,7 @@ export default function AITutorPage() {
         <div className="edtech-card overflow-hidden">
           {/* Visual area */}
           <div className="relative h-80 md:h-80 gradient-hero flex items-center justify-center">
-            {isSpeaking && (
+            {isSpeaking ? (
               <Button
                 variant="outline"
                 size="sm"
@@ -266,6 +279,19 @@ export default function AITutorPage() {
                 <Square className="w-3 h-3 mr-2 fill-red-600" />
                 Stop
               </Button>
+            ) : (
+              showAnswer &&
+              !isLoading && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReplay}
+                  className="absolute top-4 right-4 z-10  backdrop-blur-md transition-all animate-in fade-in zoom-in"
+                >
+                  <Play className="w-3 h-3 mr-2 fill-green-600" />
+                  Replay
+                </Button>
+              )
             )}
             <div
               className={`${isListening ? "animate-pulse scale-105" : ""} transition-all duration-300 w-72 h-72 md:w-[500px] md:h-[500px]`}
