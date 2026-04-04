@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import {
   Home,
   User,
-  Plus,
   MessageCircle,
   FileText,
   ClipboardList,
@@ -13,10 +12,8 @@ import {
   BarChart3,
   Grid3X3,
   HelpCircle,
-  MessageSquare,
   ChevronLeft,
   ChevronRight,
-  Globe,
   GraduationCap,
   FileQuestion,
   LogOut,
@@ -25,64 +22,39 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import schools2aiIcon from "@/assets/schools2ai-icon.png";
 
+export const MobileSidebarContext = createContext<{
+  mobileOpen: boolean;
+  setMobileOpen: (v: boolean) => void;
+}>({
+  mobileOpen: false,
+  setMobileOpen: () => {},
+});
+
+export function useMobileSidebar() {
+  return useContext(MobileSidebarContext);
+}
+
 const studyTools = [
-  {
-    title: "AI Gini",
-    url: "/ai-gini",
-    icon: MessageCircle,
-  },
-  {
-    title: "AI Notes",
-    url: "/ai-notes",
-    icon: FileText,
-  },
-  {
-    title: "AI Tutor",
-    url: "/ai-tutor",
-    icon: GraduationCap,
-  },
-  {
-    title: "AI Practice",
-    url: "/ai-practice",
-    icon: ClipboardList,
-  },
-  {
-    title: "Doc Summariser",
-    url: "/summarizer",
-    icon: FileSearch,
-  },
-  {
-    title: "Question Bank",
-    url: "/question-bank",
-    icon: FileQuestion,
-  },
-  {
-    title: "More Tools",
-    url: "/more-tools",
-    icon: Grid3X3,
-  },
+  { title: "AI Gini", url: "/ai-gini", icon: MessageCircle },
+  { title: "AI Notes", url: "/ai-notes", icon: FileText },
+  { title: "AI Tutor", url: "/ai-tutor", icon: GraduationCap },
+  { title: "AI Practice", url: "/ai-practice", icon: ClipboardList },
+  { title: "Doc Summariser", url: "/summarizer", icon: FileSearch },
+  { title: "Question Bank", url: "/question-bank", icon: FileQuestion },
+  { title: "More Tools", url: "/more-tools", icon: Grid3X3 },
 ];
 
 const exploreLinks = [
-  {
-    title: "History",
-    url: "/history",
-    icon: BarChart3,
-  },
-  {
-    title: "Support and Feedback",
-    url: "/support",
-    icon: HelpCircle,
-  },
-  // {
-  //   title: "Feedback",
-  //   url: "/feedback",
-  //   icon: MessageSquare,
-  // },
+  { title: "History", url: "/history", icon: BarChart3 },
+  { title: "Support and Feedback", url: "/support", icon: HelpCircle },
 ];
 
 export function AppSidebar() {
+  // Desktop: collapsed state (starts expanded)
   const [collapsed, setCollapsed] = useState(false);
+  // Mobile: overlay open state (starts closed — only icon strip shows)
+  const { mobileOpen, setMobileOpen } = useMobileSidebar();
+
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
@@ -90,10 +62,13 @@ export function AppSidebar() {
 
   const isSupportPage = currentPath === "/support" || currentPath === "/feedback";
 
+  // Close mobile overlay on route change
   useEffect(() => {
-    if (isSupportPage) {
-      setCollapsed(false);
-    }
+    setMobileOpen(false);
+  }, [currentPath]);
+
+  useEffect(() => {
+    if (isSupportPage) setCollapsed(false);
   }, [isSupportPage]);
 
   const isActive = (path: string) => currentPath === path;
@@ -103,32 +78,24 @@ export function AppSidebar() {
     navigate("/login", { replace: true });
   };
 
-  const displayName =
-    user?.name || user?.Student_name || user?.username || "Student";
+  const displayName = user?.name || user?.Student_name || user?.username || "Student";
   const initials = displayName.charAt(0).toUpperCase();
-
-  // role can be a string OR an object { role_id, role_name, description, permissions }
   const roleName =
     typeof user?.role === "string"
       ? user.role
       : (user?.role as { role_name?: string })?.role_name || "Student";
 
-  return (
-    <aside
-      className={cn(
-        "h-screen sticky top-0 bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 overflow-hidden",
-        collapsed ? "w-16" : "w-64",
-      )}
-    >
+  // On desktop: showLabel = !collapsed
+  // On mobile: always render sidebar with showLabel = mobileOpen (icon strip when closed, full when open)
+  const desktopShowLabel = !collapsed;
+
+  const sidebarInner = (showLabel: boolean) => (
+    <>
       {/* Logo */}
       <div className="flex items-center gap-2 p-4 h-16">
-        <img
-          src={schools2aiIcon}
-          alt="Schools2AI"
-          className="w-8 h-8 flex-shrink-0"
-        />
-        {!collapsed && (
-          <span className="font-display font-bold text-lg text-foreground">
+        <img src={schools2aiIcon} alt="Schools2AI" className="w-8 h-8 flex-shrink-0" />
+        {showLabel && (
+          <span className="font-display font-bold text-lg text-foreground whitespace-nowrap">
             Schools2AI
           </span>
         )}
@@ -140,126 +107,110 @@ export function AppSidebar() {
           variant="ghost"
           size="icon"
           className="absolute top-4 right-2 h-6 w-6"
-          onClick={() => setCollapsed(!collapsed)}
+          onClick={() => {
+            // On mobile: toggle overlay open/closed
+            // On desktop: toggle collapsed
+            const isMobile = window.innerWidth < 768;
+            if (isMobile) setMobileOpen(!mobileOpen);
+            else setCollapsed(!collapsed);
+          }}
         >
-          {collapsed ? (
-            <ChevronRight className="h-4 w-4" />
-          ) : (
+          {showLabel ? (
             <ChevronLeft className="h-4 w-4" />
+          ) : (
+            <ChevronRight className="h-4 w-4" />
           )}
         </Button>
       )}
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto custom-scrollbar px-2 py-2">
-        {/* Main links */}
         <div className="space-y-1">
-          <Link
-            to="/"
-            className={cn("sidebar-link", isActive("/") && "active")}
-          >
+          <Link to="/" className={cn("sidebar-link", isActive("/") && "active")}>
             <Home className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>Home</span>}
+            {showLabel && <span>Home</span>}
           </Link>
-          <Link
-            to="/profile"
-            className={cn("sidebar-link", isActive("/profile") && "active")}
-          >
+          <Link to="/profile" className={cn("sidebar-link", isActive("/profile") && "active")}>
             <User className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>Profile</span>}
+            {showLabel && <span>Profile</span>}
           </Link>
         </div>
 
-        {/* Student Dashboard section */}
-        {!collapsed && (
+        {showLabel ? (
           <div className="mt-6 mb-2">
             <span className="text-xs font-medium text-muted-foreground px-3 uppercase tracking-wider">
-              STUDENT DASHBOARD
+              Student Dashboard
             </span>
           </div>
-        )}
+        ) : <Separator className="my-4" />}
         <div className="space-y-1">
-          <Link
-            to="/performance"
-            className={cn("sidebar-link", isActive("/performance") && "active")}
-          >
+          <Link to="/performance" className={cn("sidebar-link", isActive("/performance") && "active")}>
             <BarChart3 className="w-5 h-5 flex-shrink-0" />
-            {!collapsed && <span>Student Performance</span>}
+            {showLabel && <span>Student Performance</span>}
           </Link>
         </div>
 
-        {/* Study Tools section */}
-        {!collapsed && (
+        {showLabel ? (
           <div className="mt-6 mb-2">
             <span className="text-xs font-medium text-muted-foreground px-3 uppercase tracking-wider">
               Study Tools
             </span>
           </div>
-        )}
-        {collapsed && <Separator className="my-4" />}
+        ) : <Separator className="my-4" />}
         <div className="space-y-1">
           {studyTools.map((item) => (
-            <Link
-              key={item.title}
-              to={item.url}
-              className={cn("sidebar-link", isActive(item.url) && "active")}
-            >
+            <Link key={item.title} to={item.url} className={cn("sidebar-link", isActive(item.url) && "active")}>
               <item.icon className="w-5 h-5 flex-shrink-0" />
-              {!collapsed && <span>{item.title}</span>}
+              {showLabel && <span>{item.title}</span>}
             </Link>
           ))}
         </div>
 
-        {/* Explore & Help section */}
-        {!collapsed && (
+        {showLabel ? (
           <div className="mt-6 mb-2">
             <span className="text-xs font-medium text-muted-foreground px-3 uppercase tracking-wider">
               Explore & Help
             </span>
           </div>
-        )}
-        {collapsed && <Separator className="my-4" />}
+        ) : <Separator className="my-4" />}
         <div className="space-y-1">
-          {exploreLinks.map((item) =>
-            item.external ? (
-              <a
-                key={item.title}
-                href={item.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="sidebar-link"
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>{item.title}</span>}
-              </a>
-            ) : (
-              <Link
-                key={item.title}
-                to={item.url}
-                className={cn("sidebar-link", isActive(item.url) && "active")}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {!collapsed && <span>{item.title}</span>}
-              </Link>
-            ),
-          )}
+          {exploreLinks.map((item) => (
+            <Link key={item.title} to={item.url} className={cn("sidebar-link", isActive(item.url) && "active")}>
+              <item.icon className="w-5 h-5 flex-shrink-0" />
+              {showLabel && <span>{item.title}</span>}
+            </Link>
+          ))}
         </div>
       </nav>
 
       {/* User profile & Logout */}
       <div className="p-3 border-t border-sidebar-border">
-        <Link
-          to="/profile"
-          className="flex items-center gap-3 p-2 rounded-lg hover:bg-sidebar-accent transition-colors"
-        >
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-primary-foreground font-medium text-sm">
-            {initials}
+        <Link to="/profile" className="flex items-center gap-3 p-2 rounded-lg hover:bg-sidebar-accent transition-colors">
+          <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden">
+            {user?.avatar ? (
+              <img
+                src={user.avatar}
+                alt={displayName}
+                className="w-8 h-8 rounded-full object-cover"
+                onError={(e) => {
+                  console.warn("[Sidebar] Avatar image failed to load:", user.avatar);
+                  // Swap to the initials div on broken URL
+                  e.currentTarget.style.display = "none";
+                  const sibling = e.currentTarget.nextElementSibling as HTMLElement | null;
+                  if (sibling) sibling.style.display = "flex";
+                }}
+              />
+            ) : null}
+            <div
+              style={{ display: user?.avatar ? "none" : "flex" }}
+              className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary items-center justify-center text-primary-foreground font-medium text-sm"
+            >
+              {initials}
+            </div>
           </div>
-          {!collapsed && (
+          {showLabel && (
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-foreground truncate">
-                {displayName}
-              </p>
+              <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
               <p className="text-xs text-muted-foreground">{roleName}</p>
             </div>
           )}
@@ -270,9 +221,50 @@ export function AppSidebar() {
           title="Logout"
         >
           <LogOut className="w-5 h-5 flex-shrink-0" />
-          {!collapsed && <span>Logout</span>}
+          {showLabel && <span>Logout</span>}
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* ── DESKTOP: sticky in normal flex flow, collapses/expands pushing content ── */}
+      <aside
+        className={cn(
+          "hidden md:flex h-screen flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 overflow-hidden relative flex-shrink-0 sticky top-0",
+          collapsed ? "md:w-16" : "md:w-64"
+        )}
+      >
+        {sidebarInner(desktopShowLabel)}
+      </aside>
+
+      {/* ── MOBILE: all fixed, zero-width in flex layout ── */}
+      <div className="md:hidden w-0 h-0 overflow-visible">
+        {/* Always-visible icon strip (w-16, fixed left) */}
+        <aside className="fixed top-0 left-0 z-50 h-screen w-16 bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 overflow-hidden">
+          {sidebarInner(false)}
+        </aside>
+
+        {/* Backdrop — only when mobile overlay is open */}
+        <div
+          className={cn(
+            "fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm transition-opacity duration-300",
+            mobileOpen ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          )}
+          onClick={() => setMobileOpen(false)}
+        />
+
+        {/* Full expanded overlay sidebar */}
+        <aside
+          className={cn(
+            "fixed top-0 left-0 z-[70] h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-300 overflow-hidden",
+            mobileOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          {sidebarInner(true)}
+        </aside>
+      </div>
+    </>
   );
 }

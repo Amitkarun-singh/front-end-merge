@@ -20,6 +20,7 @@ import ProfilePage from "./pages/ProfilePage";
 import SupportPage from "./pages/SupportPage";
 import NotFound from "./pages/NotFound";
 import QuestionBankPage from "./pages/QuestionBankPage";
+import ConversationPage from "./pages/ConversationPage";
 
 const queryClient = new QueryClient();
 
@@ -54,6 +55,7 @@ const App = () => (
                       <Route path="/profile" element={<ProfilePage />} />
                       <Route path="/new-course" element={<HomePage />} />
                       <Route path="/history" element={<HistoryPage />} />
+                      <Route path="/history/conversation/:conversation_id" element={<ConversationPage />} />
                       <Route path="/tools/*" element={<MoreToolsPage />} />
                       <Route path="/support" element={<SupportPage />} />
                       <Route path="/feedback" element={<SupportPage />} />

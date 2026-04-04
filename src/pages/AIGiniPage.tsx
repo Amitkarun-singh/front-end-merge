@@ -74,7 +74,7 @@ interface SubjectItem {
  */
 const HeroSection = () => (
   <section
-    className="relative h-screen py-12 px-6 lg:px-12 overflow-hidden"
+    className="relative min-h-screen py-10 px-6 lg:px-12 overflow-y-auto"
     style={{
       backgroundImage: `url(${heroBg})`,
       backgroundSize: "cover",
@@ -82,21 +82,17 @@ const HeroSection = () => (
     }}
   >
     <div className="max-w-5xl mx-auto text-center">
-      <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 animate-fade-in">
+      <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-3 animate-fade-in">
         Study Partner <span className="text-gradient">Anytime Anywhere</span>
       </h1>
-      <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
+      <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto animate-fade-in">
         All your study in one place — learn faster, stress less, score higher
       </p>
-      <div className="flex flex-wrap justify-center gap-3 mb-10">
+      <div className="flex flex-wrap justify-center gap-3 mb-8">
         <QuickTool title="Doc Summariser" icon={HomeIcon} href="/summarizer" />
         <QuickTool title="AI Notes" icon={FileText} href="/ai-notes" />
         <QuickTool title="AI Tutor" icon={GraduationCap} href="/ai-tutor" />
-        <QuickTool
-          title="AI Practice"
-          icon={ClipboardList}
-          href="/ai-practice"
-        />
+        <QuickTool title="AI Practice" icon={ClipboardList} href="/ai-practice" />
       </div>
       <ChatBox />
     </div>
@@ -142,39 +138,41 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
   handleFileChange,
   uploadedFile,
 }) => (
-  <div className="flex flex-col md:flex-row items-center gap-6">
-    <div className="w-32  md:w-40 md:h-40 flex-shrink-0 animate-float">
+  <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-8 text-left">
+    {/* Mascot */}
+    <div className="w-28 sm:w-36 flex-shrink-0 animate-float self-center">
       <img
         alt="AI Gini"
-        className="w-full h-full object-contain"
+        className="w-full h-full object-contain drop-shadow-lg"
         src="/lovable-uploads/b1136e5e-34ad-4526-9763-27d3381c9bed.png"
       />
     </div>
-    <div className="flex-1 w-full space-y-4">
-      <div className="flex flex-col gap-2">
-        <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
-          <Upload className="w-4 h-4" />
-          <span>
-            Upload <span className="text-secondary font-medium">Image</span> or{" "}
-            <span className="text-primary font-medium">PDF</span>
-          </span>
-          <input
-            type="file"
-            className="hidden"
-            accept="image/*,.pdf"
-            onChange={handleFileChange}
-          />
-        </label>
-        {uploadedFile && (
-          <div className="text-sm text-foreground">
-            Uploaded: {uploadedFile.name}
-          </div>
-        )}
-      </div>
+
+    {/* Form — explicitly left-aligned so hero section text-center doesn't bleed in */}
+    <div className="flex-1 w-full space-y-3 text-left">
+      {/* Upload row */}
+      <label className="inline-flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+        <Upload className="w-3.5 h-3.5" />
+        <span>
+          Upload <span className="text-secondary font-semibold">Image</span> or{" "}
+          <span className="text-primary font-semibold">PDF</span>
+        </span>
+        <input
+          type="file"
+          className="hidden"
+          accept="image/*,.pdf"
+          onChange={handleFileChange}
+        />
+      </label>
+      {uploadedFile && (
+        <p className="text-xs text-foreground/70 -mt-1">📎 {uploadedFile.name}</p>
+      )}
+
+      {/* Dropdowns */}
       <div className="flex flex-wrap gap-2">
         <Select value={language} onValueChange={setLanguage}>
-          <SelectTrigger className="w-fit h-7 border-none bg-muted rounded-full px-3 py-1 text-sm text-muted-foreground gap-1.5 focus:ring-0 focus:ring-offset-0">
-            <Globe className="w-3.5 h-3.5" />
+          <SelectTrigger className="w-fit h-7 border border-border/40 bg-muted/60 rounded-full px-3 text-xs text-muted-foreground gap-1 focus:ring-0 focus:ring-offset-0">
+            <Globe className="w-3 h-3" />
             <SelectValue placeholder="Language" />
           </SelectTrigger>
           <SelectContent>
@@ -184,11 +182,10 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
         </Select>
 
         <Select value={selectedClass} onValueChange={setSelectedClass}>
-          <SelectTrigger className="w-fit h-7 border-none bg-muted rounded-full px-3 py-1 text-sm text-muted-foreground gap-1.5 focus:ring-0 focus:ring-offset-0">
-            <MonitorSmartphone className="w-3.5 h-3.5" />
+          <SelectTrigger className="w-fit h-7 border border-border/40 bg-muted/60 rounded-full px-3 text-xs text-muted-foreground gap-1 focus:ring-0 focus:ring-offset-0">
+            <MonitorSmartphone className="w-3 h-3" />
             <SelectValue placeholder="Class" />
           </SelectTrigger>
-
           <SelectContent>
             <SelectItem value="all">Class</SelectItem>
             {classes.map((cls) => (
@@ -200,8 +197,8 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
         </Select>
 
         <Select value={selectedSubject} onValueChange={setSelectedSubject}>
-          <SelectTrigger className="w-fit h-7 border-none bg-muted rounded-full px-3 py-1 text-sm text-muted-foreground gap-1.5 focus:ring-0 focus:ring-offset-0">
-            <BookOpen className="w-3.5 h-3.5" />
+          <SelectTrigger className="w-fit h-7 border border-border/40 bg-muted/60 rounded-full px-3 text-xs text-muted-foreground gap-1 focus:ring-0 focus:ring-offset-0">
+            <BookOpen className="w-3 h-3" />
             <SelectValue placeholder="Subject" />
           </SelectTrigger>
           <SelectContent>
@@ -214,28 +211,30 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
           </SelectContent>
         </Select>
       </div>
-      <div className="relative ">
-        <Input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-          placeholder="Paste or type your question to get answers"
-          className="h-12 pr-4 text-base bg-background/80 border-border/50"
-        />
-      </div>
+
+      {/* Text input */}
+      <Input
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && handleSend()}
+        placeholder="Paste or type your question to get answers"
+        className="h-11 text-sm bg-white/60 border-border/40 focus-visible:ring-primary/30"
+      />
+
+      {/* Get answer button */}
       <Button
         onClick={handleSend}
         disabled={(!input.trim() && !uploadedFile) || isLoading}
-        className="w-full h-12 gradient-button text-primary-foreground font-medium text-base shadow-edtech hover:shadow-edtech-lg transition-shadow"
+        className="w-full h-11 gradient-button text-white font-semibold text-sm tracking-wide shadow-edtech hover:shadow-edtech-lg transition-all duration-200"
       >
         {isLoading ? (
           <>
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             Thinking...
           </>
         ) : (
           <>
-            <Sparkles className="w-5 h-5 mr-2" />
+            <Sparkles className="w-4 h-4 mr-2" />
             Get answer
           </>
         )}
@@ -419,21 +418,24 @@ const ChatView: FC<ChatViewProps> = ({
   };
 
   return (
-    <div className="h-[800px] flex flex-col">
-      <div className="flex justify-between items-center mb-4 shrink-0">
-        <h3 className="font-medium text-foreground">Conversation</h3>
+    <div className="flex flex-col h-full">
+      {/* ── Conversation header ── */}
+      <div className="flex justify-between items-center mb-3 px-1 flex-shrink-0">
+        <h3 className="font-semibold text-foreground text-sm">Conversation</h3>
         <Button
           variant="ghost"
           size="sm"
           onClick={resetChat}
-          className="text-primary hover:text-primary/80 hover:bg-primary/10"
+          className="text-primary hover:text-primary/80 hover:bg-primary/10 h-8 text-xs"
         >
-          <Plus className="w-4 h-4 mr-1" />
+          <Plus className="w-3.5 h-3.5 mr-1" />
           New Conversation
         </Button>
       </div>
-      <ScrollArea className="h-auto pr-4">
-        <div className="space-y-4">
+
+      {/* ── Messages ── */}
+      <ScrollArea className="flex-1 min-h-0 pr-2">
+        <div className="space-y-3 pb-2">
           {messages.map((message) => {
             const feedback = feedbackByMessageId[message.id];
 
@@ -444,7 +446,7 @@ const ChatView: FC<ChatViewProps> = ({
                   message.role === "user" ? "justify-end" : "justify-start"
                 }`}
               >
-                <div className="max-w-[80%] space-y-1">
+                <div className="max-w-[82%] space-y-1">
                   <div
                     className={`${
                       message.role === "user"
@@ -453,7 +455,7 @@ const ChatView: FC<ChatViewProps> = ({
                     } text-left`}
                   >
                     <div
-                      className={`prose prose-sm max-w-none ${
+                      className={`prose prose-sm max-w-none leading-snug ${
                         message.role === "user"
                           ? "prose-invert text-primary-foreground"
                           : "prose-neutral dark:prose-invert"
@@ -467,13 +469,13 @@ const ChatView: FC<ChatViewProps> = ({
                           img: ({ node, ...props }) => (
                             <img
                               {...props}
-                              className="max-w-[200px] rounded-md my-2"
+                              className="max-w-[200px] rounded-md my-1"
                             />
                           ),
                           p: ({ node, ...props }) => (
                             <p
                               {...props}
-                              className="mb-2 last:mb-0 text-left"
+                              className="mb-1 last:mb-0 text-left"
                             />
                           ),
                         }}
@@ -484,14 +486,14 @@ const ChatView: FC<ChatViewProps> = ({
                   </div>
 
                   {message.role === "assistant" && (
-                    <div className="flex flex-col gap-2 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-2">
-                        <span className="mr-1">Was this helpful?</span>
+                    <div className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[11px]">Was this helpful?</span>
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className={`h-7 w-7 border ${
+                          className={`h-6 w-6 border ${
                             feedback?.rating === "up"
                               ? "border-primary bg-primary/10 text-primary"
                               : "border-transparent"
@@ -505,7 +507,7 @@ const ChatView: FC<ChatViewProps> = ({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className={`h-7 w-7 border ${
+                          className={`h-6 w-6 border ${
                             feedback?.rating === "down"
                               ? "border-destructive bg-destructive/10 text-destructive"
                               : "border-transparent"
@@ -518,7 +520,7 @@ const ChatView: FC<ChatViewProps> = ({
                       </div>
 
                       {feedback?.rating === "down" && (
-                        <div className="flex flex-col gap-2">
+                        <div className="flex flex-col gap-1.5">
                           <span>Please share what was not helpful:</span>
                           <Input
                             value={feedback.comment}
@@ -526,7 +528,7 @@ const ChatView: FC<ChatViewProps> = ({
                               handleFeedbackChange(message.id, e.target.value)
                             }
                             placeholder="Type your feedback here"
-                            className="h-8 text-xs"
+                            className="h-7 text-xs"
                             disabled={isLoading || feedback.submitted}
                           />
                           {feedback.submitted ? (
@@ -537,7 +539,7 @@ const ChatView: FC<ChatViewProps> = ({
                             <Button
                               type="button"
                               size="sm"
-                              className="h-8 w-fit text-xs"
+                              className="h-7 w-fit text-xs"
                               onClick={() => handleSubmitFeedback(message.id)}
                               disabled={isLoading}
                             >
@@ -554,8 +556,8 @@ const ChatView: FC<ChatViewProps> = ({
           })}
           {isLoading && messages[messages.length - 1]?.role === "user" && (
             <div className="flex justify-start">
-              <div className="chat-bubble-ai max-w-[80%] flex items-center gap-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
+              <div className="chat-bubble-ai flex items-center gap-2 text-sm">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 Thinking...
               </div>
             </div>
@@ -563,45 +565,45 @@ const ChatView: FC<ChatViewProps> = ({
           <div ref={bottomRef} />
         </div>
       </ScrollArea>
-      <div className="flex items-center gap-3 pt-4 border-t border-border mt-auto">
-        <div className="flex flex-col gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="flex-shrink-0"
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <Paperclip className="w-5 h-5 text-muted-foreground" />
-          </Button>
-          <input
-            type="file"
-            disabled={isLoading}
-            ref={fileInputRef}
-            className="hidden"
-            accept="image/*,.pdf"
-            onChange={handleFileChange}
-          />
-        </div>
+
+      {/* ── Input bar ── */}
+      <div className="flex items-center gap-2 pt-3 border-t border-white/20 mt-2 flex-shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="flex-shrink-0 h-9 w-9 rounded-full hover:bg-white/20"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <Paperclip className="w-4 h-4 text-muted-foreground" />
+        </Button>
+        <input
+          type="file"
+          disabled={isLoading}
+          ref={fileInputRef}
+          className="hidden"
+          accept="image/*,.pdf"
+          onChange={handleFileChange}
+        />
         <div className="flex-1 relative">
           <Input
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Type your question here..."
-            className="pr-24 h-12 text-base"
+            className="pr-20 h-10 text-sm bg-white/70 dark:bg-black/30 border-white/40 backdrop-blur-sm rounded-full px-4 focus-visible:ring-primary/40"
             disabled={isLoading}
           />
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
             <Button
               onClick={handleSend}
               size="icon"
-              className="h-8 w-8 gradient-button"
+              className="h-7 w-7 rounded-full gradient-button shadow-sm"
               disabled={(!input.trim() && !uploadedFile) || isLoading}
             >
               {isLoading ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
               ) : (
-                <Send className="w-4 h-4" />
+                <Send className="w-3.5 h-3.5" />
               )}
             </Button>
           </div>
@@ -610,10 +612,10 @@ const ChatView: FC<ChatViewProps> = ({
           variant="ghost"
           size="icon"
           onClick={resetChat}
-          className="flex-shrink-0"
+          className="flex-shrink-0 h-9 w-9 rounded-full hover:bg-white/20"
           disabled={isLoading}
         >
-          <RotateCcw className="w-5 h-5 text-muted-foreground" />
+          <RotateCcw className="w-4 h-4 text-muted-foreground" />
         </Button>
       </div>
     </div>
@@ -635,6 +637,7 @@ const ChatBox = () => {
     selectedSubject,
     setSelectedSubject,
     isLoading,
+    historyLoading,
     uploadedFile,
     fileInputRef,
     handleSend,
@@ -710,39 +713,69 @@ const ChatBox = () => {
     fetchSubjects();
   }, [selectedClass, classes, token, setSelectedSubject, language, localAuth]);
 
+  // In chat mode, give a taller card; in welcome mode, auto-height compact card
+  const isInChat = messages.length > 0 || historyLoading;
+
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="edtech-card glass p-6 md:p-8">
-        {messages.length === 0 ? (
-          <WelcomeScreen
-            input={input}
-            setInput={setInput}
-            language={language}
-            setLanguage={setLanguage}
-            selectedClass={selectedClass}
-            setSelectedClass={setSelectedClass}
-            selectedSubject={selectedSubject}
-            setSelectedSubject={setSelectedSubject}
-            classes={classes}
-            subjects={subjects}
-            handleSend={handleSend}
-            isLoading={isLoading}
-            handleFileChange={handleFileChange}
-            uploadedFile={uploadedFile}
-          />
-        ) : (
-          <ChatView
-            messages={messages}
-            isLoading={isLoading}
-            input={input}
-            setInput={setInput}
-            handleSend={handleSend}
-            handleFileChange={handleFileChange}
-            fileInputRef={fileInputRef}
-            resetChat={resetChat}
-            uploadedFile={uploadedFile}
-          />
-        )}
+      <div
+        className={`rounded-2xl overflow-hidden transition-all duration-300 ${
+          isInChat ? "flex flex-col" : ""
+        }`}
+        style={{
+          background: "rgba(255,255,255,0.88)",
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          boxShadow: "0 8px 40px rgba(0,0,0,0.10), 0 1px 0 rgba(255,255,255,0.7) inset",
+          ...(isInChat
+            ? { height: "calc(100vh - 320px)", minHeight: "420px" }
+            : {}),
+        }}
+      >
+        <div
+          className={`${
+            isInChat
+              ? "flex-1 flex flex-col p-5 min-h-0 h-full"
+              : "p-6 md:p-8"
+          }`}
+        >
+          {/* History loading spinner */}
+          {historyLoading ? (
+            <div className="flex flex-col items-center justify-center flex-1 gap-3 text-muted-foreground py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+              <p className="text-sm">Loading conversation…</p>
+            </div>
+          ) : messages.length === 0 ? (
+            <WelcomeScreen
+              input={input}
+              setInput={setInput}
+              language={language}
+              setLanguage={setLanguage}
+              selectedClass={selectedClass}
+              setSelectedClass={setSelectedClass}
+              selectedSubject={selectedSubject}
+              setSelectedSubject={setSelectedSubject}
+              classes={classes}
+              subjects={subjects}
+              handleSend={handleSend}
+              isLoading={isLoading}
+              handleFileChange={handleFileChange}
+              uploadedFile={uploadedFile}
+            />
+          ) : (
+            <ChatView
+              messages={messages}
+              isLoading={isLoading}
+              input={input}
+              setInput={setInput}
+              handleSend={handleSend}
+              handleFileChange={handleFileChange}
+              fileInputRef={fileInputRef}
+              resetChat={resetChat}
+              uploadedFile={uploadedFile}
+            />
+          )}
+        </div>
       </div>
     </div>
   );
