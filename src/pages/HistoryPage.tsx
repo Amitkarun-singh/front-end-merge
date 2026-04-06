@@ -16,7 +16,6 @@ import {
   ChevronRight,
   BookOpen,
   Award,
-  Timer,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
@@ -24,9 +23,11 @@ import {
   fetchRecentQueries,
   fetchFeaturesExplored,
   fetchLoginHistory,
+  fetchLatestTests,          // ← new
   RecentQuery,
   FeatureExplored,
   LoginRecord,
+  LatestTest,                // ← new
 } from "@/api/historyApi";
 
 // ─── Tool → Icon map ──────────────────────────────────────────────────────────
@@ -119,13 +120,7 @@ function Section({
       )}
 
       {!loading && !error && !empty && (
-        <div
-          className={
-            scrollable
-              ? "overflow-y-auto max-h-[320px] pr-1 custom-scrollbar"
-              : ""
-          }
-        >
+        <div className={scrollable ? "overflow-y-auto max-h-[320px] pr-1 custom-scrollbar" : ""}>
           {children}
         </div>
       )}
@@ -133,49 +128,32 @@ function Section({
   );
 }
 
-// ─── Exam result badge color ─────────────────────────────────────────────────
-function scoreColor(score: number, total: number): string {
-  const pct = total > 0 ? (score / total) * 100 : 0;
+// ─── Score colour helper ──────────────────────────────────────────────────────
+function scoreColor(pct: number): string {
   if (pct >= 80) return "text-green-600 dark:text-green-400";
   if (pct >= 50) return "text-yellow-600 dark:text-yellow-400";
   return "text-red-500";
 }
 
-// ─── Mock exam record type (replace with real API type when available) ────────
-interface ExamRecord {
-  title: string;
-  subject: string;
-  score: number;
-  total: number;
-  duration: string;
-  date: string;
-}
-
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function HistoryPage() {
   const { token } = useAuth();
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
 
   const [queries,  setQueries]  = useState<RecentQuery[]>([]);
   const [features, setFeatures] = useState<FeatureExplored[]>([]);
   const [logins,   setLogins]   = useState<LoginRecord[]>([]);
-
-  // Placeholder exam records — swap with real API call when endpoint is ready
-  const [exams] = useState<ExamRecord[]>([
-    { title: "Chapter 5 Quiz",       subject: "Mathematics", score: 18, total: 20, duration: "15 min", date: new Date(Date.now() - 86400000 * 2).toISOString() },
-    { title: "Science Unit Test",    subject: "Physics",     score: 34, total: 50, duration: "30 min", date: new Date(Date.now() - 86400000 * 5).toISOString() },
-    { title: "English Grammar Test", subject: "English",     score: 12, total: 25, duration: "20 min", date: new Date(Date.now() - 86400000 * 8).toISOString() },
-    { title: "History MCQ",          subject: "History",     score: 28, total: 30, duration: "25 min", date: new Date(Date.now() - 86400000 * 12).toISOString() },
-    { title: "Chemistry Practical",  subject: "Chemistry",   score: 40, total: 50, duration: "45 min", date: new Date(Date.now() - 86400000 * 15).toISOString() },
-  ]);
+  const [exams,    setExams]    = useState<LatestTest[]>([]);    // ← real data
 
   const [loadingQ, setLoadingQ] = useState(true);
   const [loadingF, setLoadingF] = useState(true);
   const [loadingL, setLoadingL] = useState(true);
+  const [loadingE, setLoadingE] = useState(true);               // ← new
 
   const [errorQ, setErrorQ] = useState<string | null>(null);
   const [errorF, setErrorF] = useState<string | null>(null);
   const [errorL, setErrorL] = useState<string | null>(null);
+  const [errorE, setErrorE] = useState<string | null>(null);    // ← new
 
   useEffect(() => {
     if (!token) return;
@@ -194,10 +172,17 @@ export default function HistoryPage() {
       .then(setLogins)
       .catch((e) => setErrorL(e.message))
       .finally(() => setLoadingL(false));
+
+    // ← real exam history
+    fetchLatestTests(token)
+      .then(setExams)
+      .catch((e) => setErrorE(e.message))
+      .finally(() => setLoadingE(false));
+
   }, [token]);
 
-  const TOP = 5;
-  const visibleLogins   = logins.slice(0, TOP);
+  const TOP           = 5;
+  const visibleLogins = logins.slice(0, TOP);
 
   return (
     <div className="min-h-full p-6 lg:p-8">
@@ -226,11 +211,10 @@ export default function HistoryPage() {
           >
             <div className="space-y-2">
               {queries.map((item, index) => {
-                const Icon = getToolIcon(item.tool);
-                const hasConversation = item.conversation_id !== undefined && item.conversation_id !== null;
-                const toolSource = item.tool?.toLowerCase().includes("practice") ? "practice" : "gini";
-                // Navigate to the actual AI feature page with ?conversation_id so it pre-loads there
-                const destination = hasConversation
+                const Icon            = getToolIcon(item.tool);
+                const hasConversation = item.conversation_id != null;
+                const toolSource      = item.tool?.toLowerCase().includes("practice") ? "practice" : "gini";
+                const destination     = hasConversation
                   ? `${item.url || "/ai-gini"}?conversation_id=${item.conversation_id}&source=${toolSource}`
                   : (item.url || "/ai-gini");
                 return (
@@ -248,17 +232,14 @@ export default function HistoryPage() {
                       </p>
                       <div className="flex items-center flex-wrap gap-1.5 mt-1">
                         <Badge variant="secondary" className="text-xs">{item.tool}</Badge>
-                        {/* subject badge if available */}
                         {item.subject && item.subject !== "all" && (
                           <Badge variant="outline" className="text-xs">{String(item.subject)}</Badge>
                         )}
-                        {/* turn count */}
                         {item.turn_count && Number(item.turn_count) > 0 && (
                           <span className="text-xs text-muted-foreground">
                             {Number(item.turn_count)} turn{Number(item.turn_count) !== 1 ? "s" : ""}
                           </span>
                         )}
-                        {/* time — already human-readable from API */}
                         <span className="text-xs text-muted-foreground">{item.time as string}</span>
                       </div>
                     </div>
@@ -311,14 +292,14 @@ export default function HistoryPage() {
             title="Exam History"
             icon={BookOpen}
             iconColor="text-chart-4"
-            loading={false}
-            error={null}
+            loading={loadingE}
+            error={errorE}
             empty={exams.length === 0}
             scrollable={exams.length > TOP}
           >
             <div className="space-y-2">
               {exams.map((exam, index) => {
-                const pct = exam.total > 0 ? Math.round((exam.score / exam.total) * 100) : 0;
+                const pct = Math.round(exam.score); // score is already a percentage from API
                 return (
                   <div
                     key={index}
@@ -327,24 +308,24 @@ export default function HistoryPage() {
                     <div className="p-2 rounded-lg bg-chart-4/10 flex-shrink-0">
                       <Award className="w-4 h-4 text-chart-4" />
                     </div>
+
+                    {/* Subject + progress bar */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">{exam.title}</p>
-                      <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className="text-xs">{exam.subject}</Badge>
-                        <span className="text-xs text-muted-foreground flex items-center gap-1">
-                          <Timer className="w-3 h-3" />
-                          {exam.duration}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {relativeTime(exam.date)}
-                        </span>
+                      <p className="text-sm font-medium text-foreground truncate">
+                        {exam.subject}
+                      </p>
+                      <div className="mt-1.5 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                        <div
+                          className="h-full rounded-full bg-chart-4 transition-all"
+                          style={{ width: `${Math.min(pct, 100)}%` }}
+                        />
                       </div>
                     </div>
-                    <div className="text-right flex-shrink-0">
-                      <p className={`text-sm font-bold ${scoreColor(exam.score, exam.total)}`}>
-                        {exam.score}/{exam.total}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{pct}%</p>
+
+                    {/* Score badge */}
+                    <div className="text-right flex-shrink-0 ml-3">
+                      <p className={`text-sm font-bold ${scoreColor(pct)}`}>{pct}%</p>
+                      <p className="text-xs text-muted-foreground">score</p>
                     </div>
                   </div>
                 );
