@@ -11,6 +11,9 @@ interface Message {
   role: "user" | "assistant";
   content: string;
 }
+
+const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
+const token = local.token;
 export async function submitThumbsUp(
   userMessage: Message,
   response: Message,
@@ -19,6 +22,7 @@ export async function submitThumbsUp(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ userMessage, response }),
   });
@@ -41,6 +45,7 @@ export async function submitFeedback(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({ userMessage, response, feedback }),
   });

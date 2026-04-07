@@ -41,7 +41,7 @@ export const useChat = () => {
   // ── Pre-load a past conversation when URL contains ?conversation_id=xxx ──
   useEffect(() => {
     const urlConvId = searchParams.get("conversation_id");
-    const source    = searchParams.get("source") ?? undefined;
+    const source = searchParams.get("source") ?? undefined;
     if (!urlConvId) return;
 
     const localAuth = localStorage.getItem("schools2ai_auth");
@@ -73,8 +73,8 @@ export const useChat = () => {
         });
       })
       .finally(() => setHistoryLoading(false));
-  // run once on mount only
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // run once on mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -106,13 +106,19 @@ export const useChat = () => {
       formData.append("language", language);
       formData.append("conversation_id", conversationId);
 
-      if (selectedClass)   formData.append("class",   selectedClass);
+      if (selectedClass) formData.append("class", selectedClass);
       if (selectedSubject) formData.append("subject", selectedSubject);
-      if (uploadedFile)    formData.append("file",    uploadedFile);
+      if (uploadedFile) formData.append("file", uploadedFile);
+
+      const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
+      const token = local.token;
 
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         body: formData,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       if (!resp.ok) {

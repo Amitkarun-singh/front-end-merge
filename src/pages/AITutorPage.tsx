@@ -30,6 +30,9 @@ declare global {
   }
 }
 
+const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
+const token = local.token;
+
 export default function AITutorPage() {
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
@@ -196,6 +199,7 @@ export default function AITutorPage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           message: [{ role: "user", content: query }],

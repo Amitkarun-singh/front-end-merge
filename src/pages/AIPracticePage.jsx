@@ -296,7 +296,10 @@ export default function AIPracticePage() {
                 </SelectTrigger>
                 <SelectContent>
                   {classes.map((cls) => (
-                    <SelectItem key={cls.class_id} value={cls.class_id.toString()}>
+                    <SelectItem
+                      key={cls.class_id}
+                      value={cls.class_id.toString()}
+                    >
                       {cls.class_name}
                     </SelectItem>
                   ))}
