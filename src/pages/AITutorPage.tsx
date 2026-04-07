@@ -182,28 +182,89 @@ export default function AITutorPage() {
     }
   };
 
+  const [conversation, setConversation] = useState<
+    { role: "user" | "assistant"; content: string }[]
+  >([]);
+
+  // const handleAsk = async (textOverride?: string) => {
+  //   const query = textOverride || question;
+  //   if (!query.trim()) return;
+
+  //   // Stop speaking if a new question is asked
+  //   stopSpeaking();
+
+  //   setIsLoading(true);
+  //   setShowAnswer(true);
+  //   setAnswer(""); // Clear previous answer
+  //   setLastAudio(null);
+
+  //   try {
+  //     const response = await fetch(`${config.server}/gini/voice-bot`, {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //         Authorization: `Bearer ${token}`,
+  //       },
+  //       body: JSON.stringify({
+  //         message: [{ role: "user", content: query }],
+  //       }),
+  //     });
+
+  //     if (!response.ok) {
+  //       throw new Error("Failed to get response from AI Tutor");
+  //     }
+
+  //     const data = await response.json();
+  //     const botResponse = data.response.content;
+  //     const audioData = data.response.audio;
+
+  //     setAnswer(botResponse);
+  //     setLastAudio(audioData || null);
+
+  //     if (audioData) {
+  //       playBase64Audio(audioData);
+  //     } else {
+  //       speak(botResponse);
+  //     }
+  //   } catch (error) {
+  //     console.error("Error asking AI Tutor:", error);
+  //     setAnswer(
+  //       "Sorry, I encountered an error while processing your request. Please try again.",
+  //     );
+  //     toast({
+  //       title: "Error",
+  //       description:
+  //         "Failed to connect to the AI Tutor. Please check if the server is running.",
+  //       variant: "destructive",
+  //     });
+  //   } finally {
+  //     setIsLoading(false);
+  //   }
+  // };
+
   const handleAsk = async (textOverride?: string) => {
     const query = textOverride || question;
     if (!query.trim()) return;
 
-    // Stop speaking if a new question is asked
     stopSpeaking();
-
     setIsLoading(true);
     setShowAnswer(true);
     setAnswer(""); // Clear previous answer
     setLastAudio(null);
 
     try {
+      // Include previous conversation
+      const bodyPayload = {
+        message: [...conversation, { role: "user", content: query }],
+      };
+
       const response = await fetch(`${config.server}/gini/voice-bot`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          message: [{ role: "user", content: query }],
-        }),
+        body: JSON.stringify(bodyPayload),
       });
 
       if (!response.ok) {
@@ -212,13 +273,21 @@ export default function AITutorPage() {
 
       const data = await response.json();
       const botResponse = data.response.content;
-      const audioData = data.response.audio;
 
+      // Update UI
       setAnswer(botResponse);
-      setLastAudio(audioData || null);
 
-      if (audioData) {
-        playBase64Audio(audioData);
+      // Update conversation history without audio
+      setConversation((prev) => [
+        ...prev,
+        { role: "user", content: query },
+        { role: "assistant", content: botResponse },
+      ]);
+
+      // Optional: play audio if present
+      if (data.response.audio) {
+        setLastAudio(data.response.audio);
+        playBase64Audio(data.response.audio);
       } else {
         speak(botResponse);
       }
