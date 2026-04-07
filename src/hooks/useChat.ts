@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { config } from "../../app.config.js";
 import { fetchConversation } from "@/api/historyApi";
@@ -37,19 +37,34 @@ export const useChat = () => {
 
   const { toast } = useToast();
   const [searchParams] = useSearchParams();
+  const location = useLocation();
 
-  // ── Pre-load a past conversation when URL contains ?conversation_id=xxx ──
+  // ── Pre-load a past conversation ─────────────────────────────────────────────
+  // Priority: location.state.conversationId  →  ?conversation_id URL param
+  // After reading the URL param we immediately clean the URL (no visible ID).
   useEffect(() => {
-    const urlConvId = searchParams.get("conversation_id");
-    const source = searchParams.get("source") ?? undefined;
+    // 1. Try state (passed via navigate(path, { state: { conversationId } }))
+    const stateConvId: string | undefined =
+      (location.state as Record<string, string> | null)?.conversationId;
+    // 2. Fall back to URL search param (e.g., bookmarked links)
+    const urlConvId = stateConvId ?? searchParams.get("conversation_id") ?? null;
+    const source   = (location.state as Record<string, string> | null)?.source
+      ?? searchParams.get("source")
+      ?? undefined;
+
     if (!urlConvId) return;
+
+    // Remove ?conversation_id from the address bar so it's never visible
+    if (searchParams.get("conversation_id")) {
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, "", cleanUrl);
+    }
 
     const localAuth = localStorage.getItem("schools2ai_auth");
     const token = localAuth ? JSON.parse(localAuth).token : null;
     if (!token) return;
 
     setHistoryLoading(true);
-    // Reuse the same ID so any new messages continue the same thread
     setConversationId(urlConvId);
 
     fetchConversation(token, urlConvId, source)
@@ -222,6 +237,37 @@ export const useChat = () => {
     setConversationId(Date.now().toString());
   };
 
+  /** Loads a past conversation by ID directly into the chat state. */
+  const loadConversation = async (convId: string, source?: string) => {
+    const localAuth = localStorage.getItem("schools2ai_auth");
+    const token = localAuth ? JSON.parse(localAuth).token : null;
+    if (!token) return;
+
+    setHistoryLoading(true);
+    setMessages([]);
+    setConversationId(convId);
+
+    try {
+      const conv = await fetchConversation(token, convId, source);
+      const mapped: Message[] = conv.messages.map((m, i) => ({
+        id: `history-${i}`,
+        role: m.role === "user" ? "user" : "assistant",
+        content: m.content,
+      }));
+      setMessages(mapped);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      console.warn("[useChat] Failed to load history:", msg);
+      toast({
+        title: "Could not load conversation",
+        description: msg,
+        variant: "destructive",
+      });
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
   return {
     messages,
     input,
@@ -239,5 +285,6 @@ export const useChat = () => {
     setSelectedClass,
     selectedSubject,
     setSelectedSubject,
+    loadConversation,
   };
 };

@@ -16,6 +16,10 @@ import {
   ThumbsDown,
   BookOpen,
   Plus,
+  MessageSquare,
+  MessageCircle,
+  ChevronRight,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,8 +36,11 @@ import { useChat } from "@/hooks/useChat";
 import { submitThumbsUp, submitFeedback } from "@/api/giniFeedback";
 import { useToast } from "@/hooks/use-toast";
 import heroBg from "@/assets/hero-bg.jpg";
-import { FC, ChangeEvent, useEffect, useRef, useState } from "react";
-import RecentsSection from "./components/AIPracticePage/RecentsSection";
+import { FC, ChangeEvent, useEffect, useRef, useState, useCallback } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { fetchRecentQueries, RecentQuery } from "@/api/historyApi";
+import { Badge } from "@/components/ui/badge";
 import { config } from "../../app.config.js";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -72,29 +79,34 @@ interface SubjectItem {
 /**
  * Hero section of the AI Gini page, featuring the main title and quick access tools.
  */
-const HeroSection = () => (
+interface HeroSectionProps {
+  setLoadConversation: (fn: (convId: string, source?: string) => void) => void;
+}
+
+const HeroSection = ({ setLoadConversation }: HeroSectionProps) => (
   <section
-    className="relative min-h-screen py-10 px-6 lg:px-12 overflow-y-auto"
+    className="relative py-12 pb-20 px-6 lg:px-12 overflow-hidden"
     style={{
       backgroundImage: `url(${heroBg})`,
       backgroundSize: "cover",
       backgroundPosition: "center",
+      minHeight: "100vh",
     }}
   >
     <div className="max-w-5xl mx-auto text-center">
-      <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-3 animate-fade-in">
+      <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-4 animate-fade-in">
         Study Partner <span className="text-gradient">Anytime Anywhere</span>
       </h1>
-      <p className="text-lg text-muted-foreground mb-6 max-w-2xl mx-auto animate-fade-in">
+      <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto animate-fade-in">
         All your study in one place — learn faster, stress less, score higher
       </p>
-      <div className="flex flex-wrap justify-center gap-3 mb-8">
+      <div className="flex flex-wrap justify-center gap-3 mb-10">
         <QuickTool title="Doc Summariser" icon={HomeIcon} href="/summarizer" />
         <QuickTool title="AI Notes" icon={FileText} href="/ai-notes" />
         <QuickTool title="AI Tutor" icon={GraduationCap} href="/ai-tutor" />
         <QuickTool title="AI Practice" icon={ClipboardList} href="/ai-practice" />
       </div>
-      <ChatBox />
+      <ChatBox setLoadConversation={setLoadConversation} />
     </div>
   </section>
 );
@@ -138,24 +150,28 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
   handleFileChange,
   uploadedFile,
 }) => (
-  <div className="flex flex-col sm:flex-row items-center gap-5 sm:gap-8 text-left">
-    {/* Mascot */}
-    <div className="w-28 sm:w-36 flex-shrink-0 animate-float self-center">
+  <div className="flex flex-col md:flex-row items-center gap-6">
+    {/* Mascot — width-only, no fixed height, so the image keeps its natural proportions
+        and the background of the card shows through (no white box effect) */}
+    <div className="w-32 md:w-40 flex-shrink-0 animate-float">
       <img
         alt="AI Gini"
-        className="w-full h-full object-contain drop-shadow-lg"
+        className="w-full object-contain"
         src="/lovable-uploads/b1136e5e-34ad-4526-9763-27d3381c9bed.png"
       />
     </div>
 
-    {/* Form — explicitly left-aligned so hero section text-center doesn't bleed in */}
-    <div className="flex-1 w-full space-y-3 text-left">
-      {/* Upload row */}
-      <label className="inline-flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
-        <Upload className="w-3.5 h-3.5" />
+    {/* Input area */}
+    <div className="flex-1 w-full space-y-4">
+      {/* Upload hint */}
+      <label className="inline-flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+        <Upload className="w-4 h-4" />
         <span>
-          Upload <span className="text-secondary font-semibold">Image</span> or{" "}
-          <span className="text-primary font-semibold">PDF</span>
+          Upload{" "}
+          <span className="text-secondary font-medium">Image</span>{" "}
+          or{" "}
+          <span className="text-primary font-medium">PDF</span> to
+          solve questions in it
         </span>
         <input
           type="file"
@@ -165,7 +181,7 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
         />
       </label>
       {uploadedFile && (
-        <p className="text-xs text-foreground/70 -mt-1">📎 {uploadedFile.name}</p>
+        <p className="text-xs text-foreground/70 -mt-2">📎 {uploadedFile.name}</p>
       )}
 
       {/* Dropdowns */}
@@ -212,29 +228,31 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
         </Select>
       </div>
 
-      {/* Text input */}
-      <Input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => e.key === "Enter" && handleSend()}
-        placeholder="Paste or type your question to get answers"
-        className="h-11 text-sm bg-white/60 border-border/40 focus-visible:ring-primary/30"
-      />
+      {/* Text input — matches home page style */}
+      <div className="relative">
+        <Input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleSend()}
+          placeholder="Paste or type your question to get answers"
+          className="h-12 pr-4 text-base bg-background/80 border-border/50"
+        />
+      </div>
 
-      {/* Get answer button */}
+      {/* CTA — matches home page gradient button */}
       <Button
         onClick={handleSend}
         disabled={(!input.trim() && !uploadedFile) || isLoading}
-        className="w-full h-11 gradient-button text-white font-semibold text-sm tracking-wide shadow-edtech hover:shadow-edtech-lg transition-all duration-200"
+        className="w-full h-12 gradient-button text-primary-foreground font-medium text-base shadow-edtech hover:shadow-edtech-lg transition-shadow"
       >
         {isLoading ? (
           <>
-            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
             Thinking...
           </>
         ) : (
           <>
-            <Sparkles className="w-4 h-4 mr-2" />
+            <Sparkles className="w-5 h-5 mr-2" />
             Get answer
           </>
         )}
@@ -622,10 +640,14 @@ const ChatView: FC<ChatViewProps> = ({
   );
 };
 
+interface ChatBoxProps {
+  setLoadConversation: (fn: (convId: string, source?: string) => void) => void;
+}
+
 /**
  * Container component for the AI Gini chat, toggling between the welcome screen and chat view.
  */
-const ChatBox = () => {
+const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
   const {
     messages,
     input,
@@ -643,7 +665,13 @@ const ChatBox = () => {
     handleSend,
     handleFileChange,
     resetChat,
+    loadConversation,
   } = useChat();
+
+  // Expose loadConversation to parent so RecentsSection can call it directly
+  useEffect(() => {
+    setLoadConversation(loadConversation);
+  }, [loadConversation, setLoadConversation]);
 
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
@@ -718,25 +746,20 @@ const ChatBox = () => {
 
   return (
     <div className="max-w-3xl mx-auto">
+      {/* Glass card — identical structure to HomePage's edtech-card glass */}
       <div
-        className={`rounded-2xl overflow-hidden transition-all duration-300 ${
+        className={`edtech-card glass p-6 md:p-8 transition-all duration-300 ${
           isInChat ? "flex flex-col" : ""
         }`}
-        style={{
-          background: "rgba(255,255,255,0.88)",
-          backdropFilter: "blur(20px)",
-          WebkitBackdropFilter: "blur(20px)",
-          boxShadow: "0 8px 40px rgba(0,0,0,0.10), 0 1px 0 rgba(255,255,255,0.7) inset",
-          ...(isInChat
+        style={
+          isInChat
             ? { height: "calc(100vh - 320px)", minHeight: "420px" }
-            : {}),
-        }}
+            : {}
+        }
       >
         <div
           className={`${
-            isInChat
-              ? "flex-1 flex flex-col p-5 min-h-0 h-full"
-              : "p-6 md:p-8"
+            isInChat ? "flex-1 flex flex-col min-h-0 h-full" : ""
           }`}
         >
           {/* History loading spinner */}
@@ -784,11 +807,186 @@ const ChatBox = () => {
 /**
  * The main page component for AI Gini, featuring a personalized AI tutor interface.
  */
-export default function AIGiniPage() {
+// ─── Tool icon helper (mirrors HistoryPage) ──────────────────────────────────
+const toolIconMap: Record<string, React.ElementType> = {
+  "AI Gini":        MessageCircle,
+  "AI Notes":       FileText,
+  "AI Tutor":       GraduationCap,
+  "AI Practice":    ClipboardList,
+  "Doc Summariser": FileText,
+  default:          MessageCircle,
+};
+function getToolIcon(tool: string): React.ElementType {
+  for (const key of Object.keys(toolIconMap)) {
+    if (key !== "default" && tool?.toLowerCase().includes(key.toLowerCase()))
+      return toolIconMap[key];
+  }
+  return toolIconMap.default;
+}
+
+// ─── RecentsSection: live data, matches HistoryPage card rows ────────────────
+interface RecentsSectionProps {
+  loadConversation?: (convId: string, source?: string) => void;
+}
+
+function RecentsSection({ loadConversation }: RecentsSectionProps) {
+  const { token } = useAuth();
+  const navigate  = useNavigate();
+  const [queries,  setQueries]  = useState<RecentQuery[]>([]);
+  const [loading,  setLoading]  = useState(true);
+  const [error,    setError]    = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token) { setLoading(false); return; }
+    fetchRecentQueries(token)
+      .then(setQueries)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [token]);
+
   return (
-    <div className="min-h-screen flex flex-col">
-      <HeroSection />
-      {/* <RecentsSection /> */}
+    <section className="py-10 px-6 lg:px-12">
+      <div className="max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="font-display text-xl font-semibold text-foreground">
+            Recents
+          </h2>
+          <Link
+            to="/history"
+            className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline"
+          >
+            Go to Recent History
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+        </div>
+
+        {/* Card */}
+        <div className="edtech-card">
+          {/* Loading */}
+          {loading && (
+            <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground">
+              <Loader2 className="w-5 h-5 animate-spin" />
+              <span className="text-sm">Loading recent activity…</span>
+            </div>
+          )}
+
+          {/* Error */}
+          {!loading && error && (
+            <div className="flex items-start gap-2 p-4 rounded-lg bg-destructive/10 text-destructive text-sm">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Empty */}
+          {!loading && !error && queries.length === 0 && (
+            <div className="p-12 text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
+                <MessageSquare className="w-8 h-8 text-muted-foreground" />
+              </div>
+              <h3 className="font-semibold text-foreground mb-2">No recent activity</h3>
+              <p className="text-sm text-muted-foreground mb-4">
+                Start learning with AI Gini to see your recent activity here
+              </p>
+              <Button variant="outline">
+                <Sparkles className="w-4 h-4 mr-2" />
+                Explore AI Tools
+              </Button>
+            </div>
+          )}
+
+          {/* Query rows — identical to HistoryPage's Recent Queries rows */}
+          {!loading && !error && queries.length > 0 && (
+            <div className="space-y-2">
+              {queries.map((item, index) => {
+                const Icon = getToolIcon(item.tool);
+                const hasConversation = item.conversation_id != null;
+                const toolSource = item.tool?.toLowerCase().includes("practice") ? "practice" : "gini";
+                const targetPath = item.url || "/ai-gini";
+                return (
+                  <button
+                    key={index}
+                    onClick={() => {
+                      if (hasConversation && loadConversation) {
+                        // If already on AIGini: directly load into chat (no re-mount needed)
+                        loadConversation(
+                          String(item.conversation_id),
+                          toolSource,
+                        );
+                        // Scroll to top so the user sees the chat open
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                      } else if (hasConversation) {
+                        // Fallback: navigate with state (e.g. from another page)
+                        navigate(targetPath, {
+                          state: {
+                            conversationId: String(item.conversation_id),
+                            source: toolSource,
+                          },
+                        });
+                      } else {
+                        navigate(targetPath);
+                      }
+                    }}
+                    className="w-full flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-left cursor-pointer group"
+                  >
+                    <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
+                      <Icon className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                        {item.query}
+                      </p>
+                      <div className="flex items-center flex-wrap gap-1.5 mt-1">
+                        <Badge variant="secondary" className="text-xs">{item.tool}</Badge>
+                        {item.subject && item.subject !== "all" && (
+                          <Badge variant="outline" className="text-xs">{String(item.subject)}</Badge>
+                        )}
+                        {item.turn_count && Number(item.turn_count) > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            {Number(item.turn_count)} turn{Number(item.turn_count) !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                        <span className="text-xs text-muted-foreground">{item.time as string}</span>
+                      </div>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+export default function AIGiniPage() {
+  // Shared ref so RecentsSection can call loadConversation from useChat
+  // (which lives inside ChatBox) without prop-drilling through HeroSection
+  const loadConversationRef = useRef<
+    ((convId: string, source?: string) => void) | undefined
+  >(undefined);
+
+  const setLoadConversation = useCallback(
+    (fn: (convId: string, source?: string) => void) => {
+      loadConversationRef.current = fn;
+    },
+    [],
+  );
+
+  const handleLoadConversation = useCallback(
+    (convId: string, source?: string) => {
+      loadConversationRef.current?.(convId, source);
+    },
+    [],
+  );
+
+  return (
+    <div className="min-h-screen">
+      <HeroSection setLoadConversation={setLoadConversation} />
+      <RecentsSection loadConversation={handleLoadConversation} />
     </div>
   );
 }
