@@ -13,7 +13,6 @@ export interface RecentQuery {
   [key: string]: unknown;
 }
 
-// ─── Conversation types ───────────────────────────────────────────────────────
 export interface ConversationMessage {
   role: "user" | "assistant" | "ai";
   content: string;
@@ -58,6 +57,14 @@ export interface HistoryStats {
   [key: string]: unknown;
 }
 
+// ─── Exam / Latest Tests ─────────────────────────────────────────────────────
+/** Shape returned by GET /api/history/latest-tests */
+export interface LatestTest {
+  subject: string;
+  /** percentage 0-100, already ROUND(AVG(is_correct)*100) from SQL */
+  score: number;
+}
+
 // ─── Tool → Route map ────────────────────────────────────────────────────────
 const toolRouteMap: Record<string, string> = {
   "ai gini": "/ai-gini",
@@ -82,7 +89,6 @@ function getToolRoute(tool: string): string {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseQuery(raw: any): RecentQuery {
-  // Real API shape: { title, source, redirect_to, conversation_id, time, subject, class, turn_count }
   const query =
     raw.title || // ← "what is fractional formula"
     raw.query ||
@@ -112,7 +118,6 @@ function normaliseQuery(raw: any): RecentQuery {
     raw.session_id ??
     undefined;
 
-  // Use redirect_to from API directly (already the correct route)
   const url = raw.redirect_to || getToolRoute(tool);
 
   return { ...raw, query, tool, time, conversation_id, url };
@@ -174,8 +179,6 @@ function normaliseLogin(raw: any): LoginRecord {
   return { ...raw, date, time, device, location };
 }
 
-// ─── Normalise stats ─────────────────────────────────────────────────────────
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseStats(raw: any): HistoryStats {
   return {
@@ -207,7 +210,7 @@ function normaliseStats(raw: any): HistoryStats {
   };
 }
 
-// ─── API helpers ─────────────────────────────────────────────────────────────
+// ─── API helper ───────────────────────────────────────────────────────────────
 
 async function apiFetch<T>(endpoint: string, token: string): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
@@ -222,8 +225,6 @@ async function apiFetch<T>(endpoint: string, token: string): Promise<T> {
   });
 
   const json = await res.json().catch(() => ({}));
-
-  // Log raw response for debugging
   console.log(`[historyApi] ${endpoint} raw response:`, json);
 
   if (!res.ok) {
@@ -231,7 +232,6 @@ async function apiFetch<T>(endpoint: string, token: string): Promise<T> {
     throw new Error((json as any).message || `HTTP ${res.status}`);
   }
 
-  // Unwrap common envelope shapes: { data: [...] } or { data: { ... } }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const unwrapped = (json as any).data ?? json;
   console.log(`[historyApi] ${endpoint} unwrapped:`, unwrapped);
@@ -273,7 +273,6 @@ export async function fetchWeekActivity(
   token: string,
 ): Promise<WeekActivity[]> {
   const raw = await apiFetch<unknown>("/api/history/week-activity", token);
-  // Accept array or object with various keys
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const r = raw as any;
   const arr = Array.isArray(raw)
@@ -298,10 +297,14 @@ export async function fetchHistoryStats(token: string): Promise<HistoryStats> {
   return normaliseStats(raw as any);
 }
 
-/**
- * Fetch full conversation messages for a given conversation_id.
- * Pass ?source=gini or ?source=practice as needed.
- */
+/** GET /api/history/latest-tests — returns last 3 practice test results */
+export async function fetchLatestTests(token: string): Promise<LatestTest[]> {
+  const raw = await apiFetch<unknown[]>("/api/history/latest-tests", token);
+  const arr = Array.isArray(raw) ? raw : [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return arr.map((r: any) => normaliseLatestTest(r));
+}
+
 export async function fetchConversation(
   token: string,
   conversationId: string | number,
@@ -314,21 +317,21 @@ export async function fetchConversation(
     token,
   );
 
-  // Normalise messages array from various shapes
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const rawMessages: any[] =
     raw.messages ?? raw.conversation ?? raw.chats ?? raw.data ?? [];
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const messages: ConversationMessage[] = rawMessages.map((m: any) => ({
-    role: m.role === "user" || m.role === "human" ? "user" : "assistant",
-    content: m.content ?? m.message ?? m.text ?? m.response ?? "",
+    role:      m.role === "user" || m.role === "human" ? "user" : "assistant",
+    content:   m.content ?? m.message ?? m.text ?? m.response ?? "",
     timestamp: m.timestamp ?? m.created_at ?? m.time ?? undefined,
   }));
 
   return {
-    id: conversationId,
-    title: raw.title ?? raw.name ?? "Conversation",
-    tool: raw.tool ?? raw.source ?? raw.feature ?? "AI Gini",
+    id:         conversationId,
+    title:      raw.title      ?? raw.name    ?? "Conversation",
+    tool:       raw.tool       ?? raw.source  ?? raw.feature ?? "AI Gini",
     messages,
     created_at: raw.created_at ?? raw.started_at ?? raw.date ?? undefined,
     turn_count: raw.turn_count ?? raw.turnCount ?? undefined,
