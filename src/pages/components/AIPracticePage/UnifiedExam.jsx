@@ -19,6 +19,9 @@ import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
+const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
+const token = local.token;
+
 const UnifiedExam = ({ examData }) => {
   const questionTypes = examData.questionType;
   const [currentTypeIndex, setCurrentTypeIndex] = useState(0); // Track SA, LA, MCQ
@@ -48,6 +51,11 @@ const UnifiedExam = ({ examData }) => {
     try {
       const response = await fetch(
         `${config.server}/gini/practice/questions/test/result/${examData.testId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       );
       if (!response.ok) throw new Error("Failed to fetch results");
       const data = await response.json();
@@ -78,6 +86,7 @@ const UnifiedExam = ({ examData }) => {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({
             questionId: currentQuestion.id,
@@ -126,6 +135,18 @@ const UnifiedExam = ({ examData }) => {
   };
 
   if (showResults && testResults) {
+    // Calculate total score and max marks
+    const totalScore = testResults.reduce(
+      (acc, curr) => acc + (Number(curr.is_correct) || 0),
+      0,
+    );
+    const totalMaxMarks = testResults.reduce(
+      (acc, curr) => acc + (Number(curr.marks) || 0),
+      0,
+    );
+    const percentage =
+      totalMaxMarks > 0 ? Math.round((totalScore / totalMaxMarks) * 100) : 0;
+
     // Flatten all questions to compare with results
     const allQuestions = questionTypes.flatMap(
       (type) => examData.questions[type] || [],
@@ -139,12 +160,88 @@ const UnifiedExam = ({ examData }) => {
             <Button onClick={() => window.location.reload()}>Try Again</Button>
           </div>
 
+          {/* Score Summary Card */}
+          <Card className="bg-gradient-to-br from-primary/10 via-background to-background border-primary/20">
+            <CardContent className="pt-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+                <div className="text-center md:text-left space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
+                    Overall Score
+                  </p>
+                  <div className="flex items-baseline justify-center md:justify-start gap-1">
+                    <span className="text-4xl font-bold text-primary">
+                      {totalScore}
+                    </span>
+                    <span className="text-xl text-muted-foreground">
+                      /{totalMaxMarks}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center justify-center space-y-2">
+                  <div className="relative w-24 h-24">
+                    <svg className="w-full h-full" viewBox="0 0 100 100">
+                      <circle
+                        className="text-muted/20 stroke-current"
+                        strokeWidth="8"
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="transparent"
+                      ></circle>
+                      <circle
+                        className="text-primary stroke-current"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        cx="50"
+                        cy="50"
+                        r="40"
+                        fill="transparent"
+                        strokeDasharray="251.2"
+                        strokeDashoffset={251.2 - (251.2 * percentage) / 100}
+                        transform="rotate(-90 50 50)"
+                      ></circle>
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-xl font-bold">{percentage}%</span>
+                    </div>
+                  </div>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    Accuracy Rate
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Status</span>
+                    <span
+                      className={cn(
+                        "font-bold",
+                        percentage >= 80
+                          ? "text-green-500"
+                          : percentage >= 50
+                            ? "text-yellow-500"
+                            : "text-red-500",
+                      )}
+                    >
+                      {percentage >= 80
+                        ? "Excellent"
+                        : percentage >= 50
+                          ? "Good"
+                          : "Needs Improvement"}
+                    </span>
+                  </div>
+                  <Progress value={percentage} className="h-2" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="grid gap-4">
             {allQuestions.map((q, idx) => {
               const result = testResults.find((r) => r.question_id === q.id);
-              const isCorrect =
-                result && result.student_answer === result.answer;
-              const notAttended = !result;
+              const isCorrect = result && Number(result.is_correct) > 0;
+              const notAttended = !result || result.student_answer === null;
 
               return (
                 <Card
@@ -160,7 +257,12 @@ const UnifiedExam = ({ examData }) => {
                 >
                   <CardHeader className="pb-2">
                     <CardTitle className="text-lg flex items-center justify-between">
-                      <span>Question {idx + 1}</span>
+                      <div className="flex items-center gap-2">
+                        <span>Question {idx + 1}</span>
+                        <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                          {result?.marks || 1} Marks
+                        </span>
+                      </div>
                       {notAttended ? (
                         <div className="flex items-center gap-1 text-yellow-500 text-sm">
                           <AlertCircle className="w-4 h-4" /> Not Attended
