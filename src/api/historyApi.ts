@@ -8,8 +8,8 @@ export interface RecentQuery {
   query: string;
   tool: string;
   time: string;
-  conversation_id?: string | number;
-  url?: string;
+  conversation_id?: string | number; // used to open full conversation view
+  url?: string; // route to navigate to when clicked
   [key: string]: unknown;
 }
 
@@ -67,14 +67,14 @@ export interface LatestTest {
 
 // ─── Tool → Route map ────────────────────────────────────────────────────────
 const toolRouteMap: Record<string, string> = {
-  "ai gini":       "/ai-gini",
-  "ai notes":      "/ai-notes",
-  "ai tutor":      "/ai-tutor",
-  "ai practice":   "/ai-practice",
-  "doc summariser":"/summarizer",
-  "summarizer":    "/summarizer",
+  "ai gini": "/ai-gini",
+  "ai notes": "/ai-notes",
+  "ai tutor": "/ai-tutor",
+  "ai practice": "/ai-practice",
+  "doc summariser": "/summarizer",
+  summarizer: "/summarizer",
   "question bank": "/question-bank",
-  "more tools":    "/more-tools",
+  "more tools": "/more-tools",
 };
 
 function getToolRoute(tool: string): string {
@@ -90,22 +90,33 @@ function getToolRoute(tool: string): string {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseQuery(raw: any): RecentQuery {
   const query =
-    raw.title     || raw.query    || raw.question ||
-    raw.message   || raw.content  || raw.text     ||
-    raw.user_query || "Unknown query";
+    raw.title || // ← "what is fractional formula"
+    raw.query ||
+    raw.question ||
+    raw.message ||
+    raw.content ||
+    raw.text ||
+    raw.user_query ||
+    "Unknown query";
 
   const tool =
-    raw.source       || raw.tool         || raw.feature ||
-    raw.feature_name || raw.tool_name    || raw.category ||
+    raw.source || // ← "AI Gini" / "AI Practice"
+    raw.tool ||
+    raw.feature ||
+    raw.feature_name ||
+    raw.tool_name ||
+    raw.category ||
     "AI Gini";
 
-  const time =
-    raw.time       || raw.created_at || raw.timestamp ||
-    raw.date       || "";
+  // time already human-readable ("9 hours ago", "Yesterday") – use as-is
+  const time = raw.time || raw.created_at || raw.timestamp || raw.date || "";
 
   const conversation_id =
-    raw.conversation_id ?? raw.conversationId ??
-    raw.chat_id         ?? raw.session_id     ?? undefined;
+    raw.conversation_id ??
+    raw.conversationId ??
+    raw.chat_id ??
+    raw.session_id ??
+    undefined;
 
   const url = raw.redirect_to || getToolRoute(tool);
 
@@ -115,16 +126,29 @@ function normaliseQuery(raw: any): RecentQuery {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseFeature(raw: any): FeatureExplored {
   const name =
-    raw.name         || raw.feature_name || raw.feature ||
-    raw.tool         || raw.tool_name    || "Feature";
+    raw.name ||
+    raw.feature_name ||
+    raw.feature ||
+    raw.tool ||
+    raw.tool_name ||
+    "Feature";
 
   const usageCount =
-    raw.usageCount  ?? raw.usage_count ?? raw.count ??
-    raw.total       ?? raw.uses        ?? 0;
+    raw.usageCount ??
+    raw.usage_count ??
+    raw.count ??
+    raw.total ??
+    raw.uses ??
+    0;
 
   const lastUsed =
-    raw.lastUsed      || raw.last_used     || raw.last_accessed ||
-    raw.time          || raw.updated_at    || raw.created_at    || "";
+    raw.lastUsed ||
+    raw.last_used ||
+    raw.last_accessed ||
+    raw.time ||
+    raw.updated_at ||
+    raw.created_at ||
+    "";
 
   return { ...raw, name, usageCount, lastUsed };
 }
@@ -132,19 +156,25 @@ function normaliseFeature(raw: any): FeatureExplored {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseLogin(raw: any): LoginRecord {
   const date =
-    raw.date       || raw.login_date  || raw.created_at ||
-    raw.logged_at  || raw.timestamp   || "";
+    raw.date ||
+    raw.login_date ||
+    raw.created_at ||
+    raw.logged_at ||
+    raw.timestamp ||
+    "";
 
-  const time =
-    raw.time       || raw.login_time  || raw.logged_time || "";
+  const time = raw.time || raw.login_time || raw.logged_time || "";
 
   const device =
-    raw.device     || raw.device_type || raw.user_agent  ||
-    raw.browser    || "Unknown";
+    raw.device || raw.device_type || raw.user_agent || raw.browser || "Unknown";
 
   const location =
-    raw.location   || raw.ip_address  || raw.ip     ||
-    raw.city       || raw.country     || "Unknown";
+    raw.location ||
+    raw.ip_address ||
+    raw.ip ||
+    raw.city ||
+    raw.country ||
+    "Unknown";
 
   return { ...raw, date, time, device, location };
 }
@@ -153,19 +183,30 @@ function normaliseLogin(raw: any): LoginRecord {
 function normaliseStats(raw: any): HistoryStats {
   return {
     ...raw,
-    totalQueries: raw.totalQueries  ?? raw.total_queries ?? raw.queries      ?? raw.query_count  ?? undefined,
-    totalLogins:  raw.totalLogins   ?? raw.total_logins  ?? raw.logins       ?? raw.login_count  ?? undefined,
-    activeDays:   raw.activeDays    ?? raw.active_days   ?? raw.days         ?? raw.day_count    ?? undefined,
-    featuresUsed: raw.featuresUsed  ?? raw.features_used ?? raw.features     ?? raw.feature_count ?? undefined,
-  };
-}
-
-// ─── Normalise latest test ────────────────────────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function normaliseLatestTest(raw: any): LatestTest {
-  return {
-    subject: raw.subject ?? raw.name ?? raw.topic ?? "Unknown Subject",
-    score:   Number(raw.score ?? raw.percentage ?? raw.avg_score ?? 0),
+    totalQueries:
+      raw.totalQueries ??
+      raw.total_queries ??
+      raw.queries ??
+      raw.query_count ??
+      undefined,
+    totalLogins:
+      raw.totalLogins ??
+      raw.total_logins ??
+      raw.logins ??
+      raw.login_count ??
+      undefined,
+    activeDays:
+      raw.activeDays ??
+      raw.active_days ??
+      raw.days ??
+      raw.day_count ??
+      undefined,
+    featuresUsed:
+      raw.featuresUsed ??
+      raw.features_used ??
+      raw.features ??
+      raw.feature_count ??
+      undefined,
   };
 }
 
@@ -200,15 +241,22 @@ async function apiFetch<T>(endpoint: string, token: string): Promise<T> {
 
 // ─── Public API functions ─────────────────────────────────────────────────────
 
-export async function fetchRecentQueries(token: string): Promise<RecentQuery[]> {
+export async function fetchRecentQueries(
+  token: string,
+): Promise<RecentQuery[]> {
   const raw = await apiFetch<unknown[]>("/api/history/recent-queries", token);
   const arr = Array.isArray(raw) ? raw : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return arr.map((r: any) => normaliseQuery(r));
 }
 
-export async function fetchFeaturesExplored(token: string): Promise<FeatureExplored[]> {
-  const raw = await apiFetch<unknown[]>("/api/history/features-explored", token);
+export async function fetchFeaturesExplored(
+  token: string,
+): Promise<FeatureExplored[]> {
+  const raw = await apiFetch<unknown[]>(
+    "/api/history/features-explored",
+    token,
+  );
   const arr = Array.isArray(raw) ? raw : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return arr.map((r: any) => normaliseFeature(r));
@@ -221,7 +269,9 @@ export async function fetchLoginHistory(token: string): Promise<LoginRecord[]> {
   return arr.map((r: any) => normaliseLogin(r));
 }
 
-export async function fetchWeekActivity(token: string): Promise<WeekActivity[]> {
+export async function fetchWeekActivity(
+  token: string,
+): Promise<WeekActivity[]> {
   const raw = await apiFetch<unknown>("/api/history/week-activity", token);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const r = raw as any;
@@ -229,11 +279,16 @@ export async function fetchWeekActivity(token: string): Promise<WeekActivity[]> 
     ? raw
     : r.days || r.activity || r.week || r.data || [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return arr.map((item: any): WeekActivity => ({
-    day:    item.day ?? item.name ?? item.label ?? "",
-    active: item.active !== undefined ? Boolean(item.active) : (item.count ?? 0) > 0,
-    count:  item.count ?? item.sessions ?? 0,
-  }));
+  return arr.map(
+    (item: any): WeekActivity => ({
+      day: item.day ?? item.name ?? item.label ?? "",
+      active:
+        item.active !== undefined
+          ? Boolean(item.active)
+          : (item.count ?? 0) > 0,
+      count: item.count ?? item.sessions ?? 0,
+    }),
+  );
 }
 
 export async function fetchHistoryStats(token: string): Promise<HistoryStats> {
@@ -257,10 +312,14 @@ export async function fetchConversation(
 ): Promise<Conversation> {
   const qs = source ? `?source=${encodeURIComponent(source)}` : "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const raw = await apiFetch<any>(`/api/history/conversation/${conversationId}${qs}`, token);
+  const raw = await apiFetch<any>(
+    `/api/history/conversation/${conversationId}${qs}`,
+    token,
+  );
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawMessages: any[] = raw.messages ?? raw.conversation ?? raw.chats ?? raw.data ?? [];
+  const rawMessages: any[] =
+    raw.messages ?? raw.conversation ?? raw.chats ?? raw.data ?? [];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const messages: ConversationMessage[] = rawMessages.map((m: any) => ({
