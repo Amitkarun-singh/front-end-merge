@@ -214,13 +214,20 @@ export default function HistoryPage() {
                 const Icon            = getToolIcon(item.tool);
                 const hasConversation = item.conversation_id != null;
                 const toolSource      = item.tool?.toLowerCase().includes("practice") ? "practice" : "gini";
-                const destination     = hasConversation
-                  ? `${item.url || "/ai-gini"}?conversation_id=${item.conversation_id}&source=${toolSource}`
-                  : (item.url || "/ai-gini");
+                const targetPath      = item.url || "/ai-gini";
                 return (
                   <button
                     key={index}
-                    onClick={() => navigate(destination)}
+                    onClick={() =>
+                      hasConversation
+                        ? navigate(targetPath, {
+                            state: {
+                              conversationId: String(item.conversation_id),
+                              source: toolSource,
+                            },
+                          })
+                        : navigate(targetPath)
+                    }
                     className="w-full flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-left cursor-pointer group"
                   >
                     <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">

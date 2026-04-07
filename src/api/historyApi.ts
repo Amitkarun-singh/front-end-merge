@@ -297,6 +297,32 @@ export async function fetchHistoryStats(token: string): Promise<HistoryStats> {
   return normaliseStats(raw as any);
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normaliseLatestTest(raw: any): LatestTest {
+  const subject =
+    raw.subject ||
+    raw.subject_name ||
+    raw.name ||
+    raw.title ||
+    "Unknown Subject";
+
+  // score may come as percentage (0-100) or fraction (0-1)
+  const rawScore =
+    raw.score ??
+    raw.percentage ??
+    raw.avg_score ??
+    raw.pct ??
+    raw.accuracy ??
+    0;
+
+  // Normalise to percentage 0-100
+  const score = rawScore <= 1 && rawScore > 0
+    ? Math.round(rawScore * 100)
+    : Math.round(rawScore);
+
+  return { subject, score };
+}
+
 /** GET /api/history/latest-tests — returns last 3 practice test results */
 export async function fetchLatestTests(token: string): Promise<LatestTest[]> {
   const raw = await apiFetch<unknown[]>("/api/history/latest-tests", token);
