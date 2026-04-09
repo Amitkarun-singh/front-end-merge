@@ -258,6 +258,7 @@ export default function AITutorPage() {
 
       const data = await response.json();
       const botResponse = data.response.content;
+      const userQuery = data.response.userQuery;
 
       // Update UI
       setAnswer(botResponse);
@@ -265,7 +266,7 @@ export default function AITutorPage() {
       // Update conversation history without audio
       setConversation((prev) => [
         ...prev,
-        { role: "user", content: query },
+        { role: "user", content: userQuery !== null ? userQuery : query },
         { role: "assistant", content: botResponse },
       ]);
 
