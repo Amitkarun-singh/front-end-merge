@@ -45,6 +45,9 @@ export default function AITutorPage() {
   const { toast } = useToast();
   const dotLottieRef = useRef<DotLottie | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   const dotLottieCallback = (dotLottie: DotLottie) => {
     dotLottieRef.current = dotLottie;
@@ -60,61 +63,90 @@ export default function AITutorPage() {
     }
   }, [isSpeaking]);
 
-  const handleVoiceInput = () => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      toast({
-        title: "Not Supported",
-        description: "Speech recognition is not supported in your browser.",
-        variant: "destructive",
-      });
+  const stopVoiceRecording = () => {
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
       return;
     }
+    setIsListening(false);
+  };
 
-    // Stop any ongoing speech immediately
+  const handleVoiceInput = async () => {
     stopSpeaking();
 
-    // If already listening, stop recognition
     if (isListening) {
-      setIsListening(false);
+      stopVoiceRecording();
       return;
     }
 
-    const recognition = new SpeechRecognition();
-    recognition.lang = language;
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    recognition.onstart = () => {
-      setIsListening(true);
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error", event.error);
-      setIsListening(false);
+    if (!navigator.mediaDevices?.getUserMedia) {
       toast({
-        title: "Error",
-        description: `Speech recognition error: ${event.error}`,
+        title: "Not Supported",
+        description: "Audio recording is not supported in your browser.",
         variant: "destructive",
       });
-    };
-
-    recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setQuestion(transcript);
-      handleAsk(transcript);
-    };
+      return;
+    }
 
     try {
-      recognition.start();
-    } catch (e) {
-      console.error("Failed to start recognition", e);
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      recordedChunksRef.current = [];
+
+      recorder.onstart = () => {
+        setIsListening(true);
+      };
+
+      recorder.ondataavailable = (event: BlobEvent) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onerror = () => {
+        setIsListening(false);
+        toast({
+          title: "Error",
+          description: "Audio recording failed.",
+          variant: "destructive",
+        });
+      };
+
+      recorder.onstop = async () => {
+        setIsListening(false);
+        mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
+        mediaStreamRef.current = null;
+
+        const audioBlob = new Blob(recordedChunksRef.current, {
+          type: recorder.mimeType || "audio/webm",
+        });
+
+        if (audioBlob.size === 0) {
+          return;
+        }
+
+        try {
+          await handleAsk(undefined, audioBlob);
+        } catch (error) {
+          console.error("Audio send error:", error);
+          toast({
+            title: "Error",
+            description: "Failed to send recorded audio.",
+            variant: "destructive",
+          });
+        }
+      };
+
+      recorder.start();
+    } catch (error) {
+      console.error("Microphone access error:", error);
+      toast({
+        title: "Microphone Error",
+        description: "Unable to access your microphone.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -186,65 +218,11 @@ export default function AITutorPage() {
     { role: "user" | "assistant"; content: string }[]
   >([]);
 
-  // const handleAsk = async (textOverride?: string) => {
-  //   const query = textOverride || question;
-  //   if (!query.trim()) return;
-
-  //   // Stop speaking if a new question is asked
-  //   stopSpeaking();
-
-  //   setIsLoading(true);
-  //   setShowAnswer(true);
-  //   setAnswer(""); // Clear previous answer
-  //   setLastAudio(null);
-
-  //   try {
-  //     const response = await fetch(`${config.server}/gini/voice-bot`, {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //         Authorization: `Bearer ${token}`,
-  //       },
-  //       body: JSON.stringify({
-  //         message: [{ role: "user", content: query }],
-  //       }),
-  //     });
-
-  //     if (!response.ok) {
-  //       throw new Error("Failed to get response from AI Tutor");
-  //     }
-
-  //     const data = await response.json();
-  //     const botResponse = data.response.content;
-  //     const audioData = data.response.audio;
-
-  //     setAnswer(botResponse);
-  //     setLastAudio(audioData || null);
-
-  //     if (audioData) {
-  //       playBase64Audio(audioData);
-  //     } else {
-  //       speak(botResponse);
-  //     }
-  //   } catch (error) {
-  //     console.error("Error asking AI Tutor:", error);
-  //     setAnswer(
-  //       "Sorry, I encountered an error while processing your request. Please try again.",
-  //     );
-  //     toast({
-  //       title: "Error",
-  //       description:
-  //         "Failed to connect to the AI Tutor. Please check if the server is running.",
-  //       variant: "destructive",
-  //     });
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
-  const handleAsk = async (textOverride?: string) => {
+  const handleAsk = async (textOverride?: string, voiceBlob?: Blob) => {
     const query = textOverride || question;
-    if (!query.trim()) return;
+    const hasText = query.trim().length > 0;
+    const hasAudio = !!voiceBlob;
+    if (!hasText && !hasAudio) return;
 
     stopSpeaking();
     setIsLoading(true);
@@ -253,18 +231,25 @@ export default function AITutorPage() {
     setLastAudio(null);
 
     try {
-      // Include previous conversation
-      const bodyPayload = {
-        message: [...conversation, { role: "user", content: query }],
-      };
+      const messagePayload = [
+        ...conversation,
+        { role: "user", content: hasText ? query : "[Voice message]" },
+      ];
 
+      const formData = new FormData();
+      formData.append("message", JSON.stringify(messagePayload));
+
+      if (voiceBlob) {
+        const extension = voiceBlob.type.includes("webm") ? "webm" : "wav";
+        formData.append("user_audio", voiceBlob, `recording.${extension}`);
+      }
+      console.log("formData ", formData.getAll("user_audio"));
       const response = await fetch(`${config.server}/gini/voice-bot`, {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify(bodyPayload),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -321,6 +306,8 @@ export default function AITutorPage() {
       window.speechSynthesis.getVoices();
     }
     return () => {
+      stopVoiceRecording();
+      mediaStreamRef.current?.getTracks().forEach((track) => track.stop());
       stopSpeaking();
     };
   }, []);
@@ -379,7 +366,7 @@ export default function AITutorPage() {
             {/* Mic button */}
             <button
               onClick={handleVoiceInput}
-              disabled={isListening || isLoading}
+              disabled={isLoading}
               className={`absolute bottom-4 left-1/2 -translate-x-1/2 w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
                 isListening
                   ? "bg-red-500 scale-110 animate-pulse"
@@ -393,7 +380,7 @@ export default function AITutorPage() {
               )}
             </button>
             <p className="absolute bottom-0 left-1/2 -translate-x-1/2 translate-y-full text-sm text-muted-foreground pt-2">
-              {isListening ? "Listening..." : "Tap to speak"}
+              {isListening ? "Recording... tap to stop" : "Tap to record"}
             </p>
           </div>
 
