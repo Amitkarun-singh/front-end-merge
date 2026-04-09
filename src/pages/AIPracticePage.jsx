@@ -60,7 +60,7 @@ export default function AIPracticePage() {
    */
   const [questionConfig, setQuestionConfig] = useState({});
   const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
-  const token = local.token;
+  const token = local?.token;
 
   /**
    * Effect: Fetch available classes on mount.

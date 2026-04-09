@@ -31,7 +31,7 @@ declare global {
 }
 
 const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
-const token = local.token;
+const token = local?.token;
 
 export default function AITutorPage() {
   const [question, setQuestion] = useState("");

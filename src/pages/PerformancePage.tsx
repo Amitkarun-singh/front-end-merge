@@ -63,17 +63,17 @@ export default function PerformancePage() {
   });
 
   useEffect(() => {
+    const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
+    const token = local?.token;
     async function fetchData() {
-      const localValue = JSON.parse(
-        localStorage.getItem("schools2ai_auth"),
-      ).user;
-
-      const userId = localValue.user_id;
-
       try {
-        const res = await fetch(
-          `${config.server}/student/performance/${userId}`,
-        );
+        console.log("working ");
+
+        const res = await fetch(`${config.server}/student/performance/${1}`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
         const json = await res.json();
 
         if (json.success) {
@@ -258,7 +258,7 @@ export default function PerformancePage() {
                     cy="50%"
                     innerRadius={60}
                     outerRadius={90}
-                    paddingAngle={3}
+                    paddingAngle={0}
                     dataKey="value"
                     label={({ value }) => `${value}%`}
                   >

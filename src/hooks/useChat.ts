@@ -44,13 +44,16 @@ export const useChat = () => {
   // After reading the URL param we immediately clean the URL (no visible ID).
   useEffect(() => {
     // 1. Try state (passed via navigate(path, { state: { conversationId } }))
-    const stateConvId: string | undefined =
-      (location.state as Record<string, string> | null)?.conversationId;
+    const stateConvId: string | undefined = (
+      location.state as Record<string, string> | null
+    )?.conversationId;
     // 2. Fall back to URL search param (e.g., bookmarked links)
-    const urlConvId = stateConvId ?? searchParams.get("conversation_id") ?? null;
-    const source   = (location.state as Record<string, string> | null)?.source
-      ?? searchParams.get("source")
-      ?? undefined;
+    const urlConvId =
+      stateConvId ?? searchParams.get("conversation_id") ?? null;
+    const source =
+      (location.state as Record<string, string> | null)?.source ??
+      searchParams.get("source") ??
+      undefined;
 
     if (!urlConvId) return;
 
@@ -126,7 +129,7 @@ export const useChat = () => {
       if (uploadedFile) formData.append("file", uploadedFile);
 
       const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
-      const token = local.token;
+      const token = local?.token;
 
       const resp = await fetch(CHAT_URL, {
         method: "POST",

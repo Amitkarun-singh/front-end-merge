@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
-const token = local.token;
+const token = local?.token;
 
 const UnifiedExam = ({ examData }) => {
   const questionTypes = examData.questionType;

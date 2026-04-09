@@ -13,7 +13,7 @@ interface Message {
 }
 
 const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
-const token = local.token;
+const token = local?.token;
 export async function submitThumbsUp(
   userMessage: Message,
   response: Message,
