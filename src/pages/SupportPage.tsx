@@ -12,6 +12,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { config } from "../../app.config.js";
 
 const faqs = [
   {
@@ -45,6 +46,18 @@ export default function SupportPage() {
     message: "",
   });
 
+  const submitfeedback = async () => {
+    const { name, email, subject, message } = formData;
+    // console.log(JSON.stringify({ name, email, subject, message }));
+    const res = await fetch(`${config.server}/feedback`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ name, email, subject, message }),
+    });
+  };
+
   return (
     <div className="min-h-screen bg-background pb-12">
       {/* Hero Section */}
@@ -68,7 +81,7 @@ export default function SupportPage() {
             <h2 className="font-display text-xl font-semibold text-foreground mb-6">
               Send us a Message
             </h2>
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-foreground mb-1.5 block">
@@ -121,7 +134,10 @@ export default function SupportPage() {
                   className="min-h-[150px]"
                 />
               </div>
-              <Button className="w-full gradient-button">
+              <Button
+                className="w-full gradient-button"
+                onClick={submitfeedback}
+              >
                 <Send className="w-4 h-4 mr-2" />
                 Send Message
               </Button>

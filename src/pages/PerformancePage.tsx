@@ -84,9 +84,10 @@ export default function PerformancePage() {
           // Summary
           setSummary({
             overallScore: value.summary.overallScore,
-            totalTimeMinutes: value.summary.totalTimeMinutes,
+            // totalTimeMinutes: value.summary.totalTimeMinutes,
             totalQuestions: value.summary.totalQuestions,
             totalTests: value.summary.totalTests,
+            totalCorrectAnswers: value.summary.totalCorrectAnswers,
           });
 
           // Progress Chart
@@ -186,6 +187,13 @@ export default function PerformancePage() {
           <StatsCard
             title="Tests"
             value={summary.totalTests}
+            icon={ClipboardList}
+            iconBg="bg-chart-4/10"
+            iconColor="text-chart-4"
+          />
+          <StatsCard
+            title="Correct Answers"
+            value={summary.totalCorrectAnswers}
             icon={ClipboardList}
             iconBg="bg-chart-4/10"
             iconColor="text-chart-4"

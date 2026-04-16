@@ -36,7 +36,14 @@ import { useChat } from "@/hooks/useChat";
 import { submitThumbsUp, submitFeedback } from "@/api/giniFeedback";
 import { useToast } from "@/hooks/use-toast";
 import heroBg from "@/assets/hero-bg.jpg";
-import { FC, ChangeEvent, useEffect, useRef, useState, useCallback } from "react";
+import {
+  FC,
+  ChangeEvent,
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { fetchRecentQueries, RecentQuery } from "@/api/historyApi";
@@ -104,7 +111,11 @@ const HeroSection = ({ setLoadConversation }: HeroSectionProps) => (
         <QuickTool title="Doc Summariser" icon={HomeIcon} href="/summarizer" />
         <QuickTool title="AI Notes" icon={FileText} href="/ai-notes" />
         <QuickTool title="AI Tutor" icon={GraduationCap} href="/ai-tutor" />
-        <QuickTool title="AI Practice" icon={ClipboardList} href="/ai-practice" />
+        <QuickTool
+          title="AI Practice"
+          icon={ClipboardList}
+          href="/ai-practice"
+        />
       </div>
       <ChatBox setLoadConversation={setLoadConversation} />
     </div>
@@ -167,11 +178,9 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
       <label className="inline-flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
         <Upload className="w-4 h-4" />
         <span>
-          Upload{" "}
-          <span className="text-secondary font-medium">Image</span>{" "}
-          or{" "}
-          <span className="text-primary font-medium">PDF</span> to
-          solve questions in it
+          Upload <span className="text-secondary font-medium">Image</span> or{" "}
+          <span className="text-primary font-medium">PDF</span> to solve
+          questions in it
         </span>
         <input
           type="file"
@@ -181,7 +190,9 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
         />
       </label>
       {uploadedFile && (
-        <p className="text-xs text-foreground/70 -mt-2">📎 {uploadedFile.name}</p>
+        <p className="text-xs text-foreground/70 -mt-2">
+          📎 {uploadedFile.name}
+        </p>
       )}
 
       {/* Dropdowns */}
@@ -608,7 +619,7 @@ const ChatView: FC<ChatViewProps> = ({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Type your question here..."
-            className="pr-20 h-10 text-sm bg-white/70 dark:bg-black/30 border-white/40 backdrop-blur-sm rounded-full px-4 focus-visible:ring-primary/40"
+            className="pr-20 h-10 text-sm bg-white/70 dark:bg-black/30 border-gray-600 backdrop-blur-sm rounded-full px-4 focus-visible:ring-primary/40"
             disabled={isLoading}
           />
           <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
@@ -752,15 +763,11 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
           isInChat ? "flex flex-col" : ""
         }`}
         style={
-          isInChat
-            ? { height: "calc(100vh - 320px)", minHeight: "420px" }
-            : {}
+          isInChat ? { height: "calc(100vh - 320px)", minHeight: "420px" } : {}
         }
       >
         <div
-          className={`${
-            isInChat ? "flex-1 flex flex-col min-h-0 h-full" : ""
-          }`}
+          className={`${isInChat ? "flex-1 flex flex-col min-h-0 h-full" : ""}`}
         >
           {/* History loading spinner */}
           {historyLoading ? (
@@ -809,12 +816,12 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
  */
 // ─── Tool icon helper (mirrors HistoryPage) ──────────────────────────────────
 const toolIconMap: Record<string, React.ElementType> = {
-  "AI Gini":        MessageCircle,
-  "AI Notes":       FileText,
-  "AI Tutor":       GraduationCap,
-  "AI Practice":    ClipboardList,
+  "AI Gini": MessageCircle,
+  "AI Notes": FileText,
+  "AI Tutor": GraduationCap,
+  "AI Practice": ClipboardList,
   "Doc Summariser": FileText,
-  default:          MessageCircle,
+  default: MessageCircle,
 };
 function getToolIcon(tool: string): React.ElementType {
   for (const key of Object.keys(toolIconMap)) {
@@ -831,13 +838,16 @@ interface RecentsSectionProps {
 
 function RecentsSection({ loadConversation }: RecentsSectionProps) {
   const { token } = useAuth();
-  const navigate  = useNavigate();
-  const [queries,  setQueries]  = useState<RecentQuery[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [error,    setError]    = useState<string | null>(null);
+  const navigate = useNavigate();
+  const [queries, setQueries] = useState<RecentQuery[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!token) { setLoading(false); return; }
+    if (!token) {
+      setLoading(false);
+      return;
+    }
     fetchRecentQueries(token)
       .then(setQueries)
       .catch((e) => setError(e.message))
@@ -885,7 +895,9 @@ function RecentsSection({ loadConversation }: RecentsSectionProps) {
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-muted flex items-center justify-center">
                 <MessageSquare className="w-8 h-8 text-muted-foreground" />
               </div>
-              <h3 className="font-semibold text-foreground mb-2">No recent activity</h3>
+              <h3 className="font-semibold text-foreground mb-2">
+                No recent activity
+              </h3>
               <p className="text-sm text-muted-foreground mb-4">
                 Start learning with AI Gini to see your recent activity here
               </p>
@@ -902,7 +914,9 @@ function RecentsSection({ loadConversation }: RecentsSectionProps) {
               {queries.map((item, index) => {
                 const Icon = getToolIcon(item.tool);
                 const hasConversation = item.conversation_id != null;
-                const toolSource = item.tool?.toLowerCase().includes("practice") ? "practice" : "gini";
+                const toolSource = item.tool?.toLowerCase().includes("practice")
+                  ? "practice"
+                  : "gini";
                 const targetPath = item.url || "/ai-gini";
                 return (
                   <button
@@ -938,16 +952,23 @@ function RecentsSection({ loadConversation }: RecentsSectionProps) {
                         {item.query}
                       </p>
                       <div className="flex items-center flex-wrap gap-1.5 mt-1">
-                        <Badge variant="secondary" className="text-xs">{item.tool}</Badge>
+                        <Badge variant="secondary" className="text-xs">
+                          {item.tool}
+                        </Badge>
                         {item.subject && item.subject !== "all" && (
-                          <Badge variant="outline" className="text-xs">{String(item.subject)}</Badge>
+                          <Badge variant="outline" className="text-xs">
+                            {String(item.subject)}
+                          </Badge>
                         )}
                         {item.turn_count && Number(item.turn_count) > 0 && (
                           <span className="text-xs text-muted-foreground">
-                            {Number(item.turn_count)} turn{Number(item.turn_count) !== 1 ? "s" : ""}
+                            {Number(item.turn_count)} turn
+                            {Number(item.turn_count) !== 1 ? "s" : ""}
                           </span>
                         )}
-                        <span className="text-xs text-muted-foreground">{item.time as string}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {item.time as string}
+                        </span>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0 mt-1" />
