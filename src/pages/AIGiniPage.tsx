@@ -619,7 +619,7 @@ const ChatView: FC<ChatViewProps> = ({
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSend()}
             placeholder="Type your question here..."
-            className="pr-20 h-10 text-sm bg-white/70 dark:bg-black/30 border-gray-600 backdrop-blur-sm rounded-full px-4 focus-visible:ring-primary/40"
+            className="pr-20 h-10 text-sm bg-white/70 dark:bg-black/30 border border-primary backdrop-blur-sm rounded-full px-4 focus-visible:ring-primary/40"
             disabled={isLoading}
           />
           <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1">
