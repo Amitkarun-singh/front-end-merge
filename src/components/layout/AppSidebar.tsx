@@ -17,6 +17,8 @@ import {
   GraduationCap,
   FileQuestion,
   LogOut,
+  ClipboardCheck,
+  BookOpenCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -35,14 +37,19 @@ export function useMobileSidebar() {
 }
 
 const studyTools = [
-  { title: "AI Gini", url: "/ai-gini", icon: MessageCircle },
-  { title: "AI Notes", url: "/ai-notes", icon: FileText },
-  { title: "AI Tutor", url: "/ai-tutor", icon: GraduationCap },
-  { title: "AI Practice", url: "/ai-practice", icon: ClipboardList },
-  { title: "Doc Summariser", url: "/summarizer", icon: FileSearch },
-  { title: "Question Bank", url: "/question-bank", icon: FileQuestion },
-  { title: "More Tools", url: "/more-tools", icon: Grid3X3 },
+  { title: "AI Gini",        url: "/ai-gini",      icon: MessageCircle },
+  { title: "AI Notes",       url: "/ai-notes",     icon: FileText      },
+  { title: "AI Tutor",       url: "/ai-tutor",     icon: GraduationCap },
+  { title: "AI Practice",    url: "/ai-practice",  icon: ClipboardList },
+  { title: "Doc Summariser", url: "/summarizer",   icon: FileSearch    },
+  { title: "Question Bank",  url: "/question-bank",icon: FileQuestion  },
+  { title: "More Tools",     url: "/more-tools",   icon: Grid3X3       },
 ];
+
+// Assessment entry injected into Study Tools for teachers/admins
+const aiAssessmentTool = { title: "AI Assessment", url: "/teacher/assessments", icon: ClipboardCheck };
+// My Tests entry injected into Study Tools for students
+const myTestsTool      = { title: "My Tests",       url: "/student/tests",       icon: BookOpenCheck  };
 
 const exploreLinks = [
   { title: "History", url: "/history", icon: BarChart3 },
@@ -78,7 +85,12 @@ export function AppSidebar() {
     navigate("/login", { replace: true });
   };
 
-  const displayName = user?.name || user?.Student_name || user?.username || "Student";
+  const displayName =
+    user?.full_name ||
+    user?.name ||
+    (user as Record<string, unknown>)?.Student_name as string ||
+    user?.username ||
+    "User";
   const initials = displayName.charAt(0).toUpperCase();
   const roleName =
     typeof user?.role === "string"
@@ -158,6 +170,28 @@ export function AppSidebar() {
           </div>
         ) : <Separator className="my-4" />}
         <div className="space-y-1">
+          {/* Inject AI Assessment for teachers/admins at the top of study tools */}
+          {(roleName.toLowerCase().includes("teacher") || roleName.toLowerCase().includes("admin")) && (
+            <Link
+              to={aiAssessmentTool.url}
+              className={cn("sidebar-link", currentPath.startsWith("/teacher/assessments") && "active")}
+              title={aiAssessmentTool.title}
+            >
+              <aiAssessmentTool.icon className="w-5 h-5 flex-shrink-0" />
+              {showLabel && <span>{aiAssessmentTool.title}</span>}
+            </Link>
+          )}
+          {/* Inject My Tests for students */}
+          {roleName.toLowerCase().includes("student") && (
+            <Link
+              to={myTestsTool.url}
+              className={cn("sidebar-link", currentPath.startsWith("/student/tests") && "active")}
+              title={myTestsTool.title}
+            >
+              <myTestsTool.icon className="w-5 h-5 flex-shrink-0" />
+              {showLabel && <span>{myTestsTool.title}</span>}
+            </Link>
+          )}
           {studyTools.map((item) => (
             <Link key={item.title} to={item.url} className={cn("sidebar-link", isActive(item.url) && "active")}>
               <item.icon className="w-5 h-5 flex-shrink-0" />
