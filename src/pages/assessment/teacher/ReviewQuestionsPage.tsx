@@ -310,12 +310,19 @@ function QuestionCard({ question: q, index, expanded, editing, regenerating,
   onEditSave: (d: EditFormData) => Promise<void>;
 }) {
   const { register, handleSubmit, reset } = useForm<EditFormData>({
-    defaultValues: {
-      question_text: q.question_text, option_a: q.options?.A ?? "",
-      option_b: q.options?.B ?? "", option_c: q.options?.C ?? "",
-      option_d: q.options?.D ?? "", correct_answer: q.correct_answer ?? "",
-      hint: q.hint ?? "", marks: q.marks,
-    },
+    defaultValues: (() => {
+      const parsed = parseOptions(q.options);
+      return {
+        question_text:  q.question_text,
+        option_a:       parsed?.["A"] ?? "",
+        option_b:       parsed?.["B"] ?? "",
+        option_c:       parsed?.["C"] ?? "",
+        option_d:       parsed?.["D"] ?? "",
+        correct_answer: q.correct_answer ?? "",
+        hint:           q.hint ?? "",
+        marks:          q.marks,
+      };
+    })(),
   });
   const [saving, setSaving] = useState(false);
   const submitEdit = async (data: EditFormData) => { setSaving(true); await onEditSave(data); setSaving(false); };
@@ -384,14 +391,33 @@ function QuestionCard({ question: q, index, expanded, editing, regenerating,
               )}
 
               {q.question_type === "true_false" && (() => {
-                // true_false options: [{key:"T",text:"True"},{key:"F",text:"False"}]
                 const opts = parsedOptions;
-                const correctKey = q.correct_answer; // "T" or "F" or "True"/"False"
-                const label = opts?.[correctKey ?? ""] ?? correctKey;
+                // Normalise correct answer key to match T/F keys
+                const correctKey = q.correct_answer;
+                // Build display pairs — prefer parsed opts, fall back to T/F
+                const pairs: [string, string][] =
+                  opts && Object.keys(opts).length > 0
+                    ? (Object.entries(opts) as [string, string][])
+                    : [["T", "True"], ["F", "False"]];
                 return (
-                  <p className="text-sm text-muted-foreground">
-                    Correct: <span className="text-green-600 font-semibold">{label}</span>
-                  </p>
+                  <div className="flex gap-3">
+                    {pairs.map(([key, label]) => {
+                      const isCorrect =
+                        key === correctKey ||
+                        label?.toLowerCase() === correctKey?.toLowerCase();
+                      return (
+                        <div key={key}
+                          className={`flex-1 py-2.5 text-center rounded-lg border text-sm font-semibold ${
+                            isCorrect
+                              ? "border-green-300 bg-green-50 text-green-800"
+                              : "border-border bg-muted/30 text-foreground/60"
+                          }`}>
+                          {isCorrect && <span className="mr-1">✓</span>}
+                          {label}
+                        </div>
+                      );
+                    })}
+                  </div>
                 );
               })()}
 

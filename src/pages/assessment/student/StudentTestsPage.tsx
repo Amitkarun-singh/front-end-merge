@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import {
   Clock, BookOpen, Calendar, Play, ArrowRight,
-  ClipboardList, Trophy, Lock
+  ClipboardList, Trophy, Lock, Radio
 } from "lucide-react";
 import { studentApi } from "@/api/assessmentApi";
 import { CardSkeleton } from "@/components/assessment/SharedComponents";
@@ -51,10 +51,12 @@ function useCountdown(endDatetime: string) {
 
 // ─── Derive display status (includes "closed" for expired+not-submitted) ──────
 
-type DisplayStatus = "not_started" | "in_progress" | "submitted" | "closed";
+type DisplayStatus = "not_started" | "live" | "in_progress" | "submitted" | "closed";
 
 function deriveStatus(test: AssignedTest): DisplayStatus {
-  const isExpired = new Date(test.end_datetime).getTime() < Date.now();
+  const now       = Date.now();
+  const isExpired = new Date(test.end_datetime).getTime() < now;
+  const isStarted = new Date(test.start_datetime).getTime() <= now;
 
   // submitted always takes priority
   if ((test.status as string) === "submitted" || test.attempt_status === "submitted") return "submitted";
@@ -62,8 +64,11 @@ function deriveStatus(test: AssignedTest): DisplayStatus {
   // Expired + not submitted → closed
   if (isExpired) return "closed";
 
-  // Active in-progress
+  // Active in-progress (student has an open attempt)
   if ((test.status as string) === "in_progress" || test.attempt_status === "in_progress" || test.attempted === true) return "in_progress";
+
+  // Test window is open but student hasn't started → Live!
+  if (isStarted) return "live";
 
   return "not_started";
 }
@@ -71,10 +76,11 @@ function deriveStatus(test: AssignedTest): DisplayStatus {
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const statusMap: Record<DisplayStatus, { label: string; cls: string }> = {
-  not_started: { label: "Not Started", cls: "bg-slate-100 text-slate-600 border-slate-200" },
-  in_progress:  { label: "In Progress",  cls: "bg-amber-100 text-amber-700 border-amber-200"  },
-  submitted:    { label: "Submitted",    cls: "bg-green-100 text-green-700 border-green-200"  },
-  closed:       { label: "Closed",       cls: "bg-red-100   text-red-700   border-red-200"    },
+  not_started: { label: "Not Started", cls: "bg-slate-100  text-slate-600  border-slate-200"  },
+  live:         { label: "Live",         cls: "bg-red-100    text-red-600    border-red-300"    },
+  in_progress:  { label: "In Progress",  cls: "bg-amber-100  text-amber-700  border-amber-200"  },
+  submitted:    { label: "Submitted",    cls: "bg-green-100  text-green-700  border-green-200"  },
+  closed:       { label: "Closed",       cls: "bg-slate-100  text-slate-500  border-slate-200"  },
 };
 
 // ─── Test Card ────────────────────────────────────────────────────────────────
@@ -98,10 +104,21 @@ function TestCard({ test }: { test: AssignedTest }) {
         <h3 className="font-semibold text-foreground text-base leading-tight line-clamp-2 flex-1">
           {test.title}
         </h3>
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
-          border flex-shrink-0 ${cls}`}>
-          {label}
-        </span>
+        {status === "live" ? (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs
+            font-bold border border-red-300 bg-red-100 text-red-600 flex-shrink-0">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+            </span>
+            Live
+          </span>
+        ) : (
+          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
+            border flex-shrink-0 ${cls}`}>
+            {label}
+          </span>
+        )}
       </div>
 
       <p className="text-muted-foreground text-sm -mt-2">{test.subject_name}</p>
@@ -136,6 +153,15 @@ function TestCard({ test }: { test: AssignedTest }) {
       )}
 
       {/* CTA Buttons */}
+      {status === "live" && (
+        <Link
+          to={`/student/tests/${test.assignment_id}/attempt`}
+          state={{ timeLimitMinutes: timeLimit }}
+          className="flex items-center justify-center gap-2 bg-red-600 hover:bg-red-700
+            rounded-xl py-2.5 text-sm font-bold text-white transition-all shadow-md animate-pulse">
+          <Radio className="w-4 h-4" /> Start Now — Live!
+        </Link>
+      )}
       {status === "not_started" && !isExpired && (
         <Link
           to={`/student/tests/${test.assignment_id}/attempt`}
@@ -163,7 +189,7 @@ function TestCard({ test }: { test: AssignedTest }) {
       )}
       {status === "closed" && (
         <div className="flex items-center justify-center gap-2 text-sm py-2.5 rounded-xl
-          bg-red-50 border border-red-200 text-red-600 font-medium">
+          bg-slate-50 border border-slate-200 text-slate-500 font-medium">
           <Lock className="w-4 h-4" /> Test Closed
         </div>
       )}
@@ -205,18 +231,25 @@ export default function StudentTestsPage() {
           return acc;
         }, {} as Record<DisplayStatus, number>);
 
-        const pills: { label: string; count: number; cls: string }[] = [
-          { label: "Total",       count: data.length,                cls: "bg-accent text-foreground" },
-          { label: "Not Started", count: counts.not_started ?? 0,   cls: "bg-slate-100 text-slate-700" },
-          { label: "In Progress", count: counts.in_progress ?? 0,   cls: "bg-amber-100 text-amber-700" },
-          { label: "Submitted",   count: counts.submitted ?? 0,     cls: "bg-green-100 text-green-700" },
-          { label: "Closed",      count: counts.closed ?? 0,        cls: "bg-red-100 text-red-700" },
+        const pills: { label: string; count: number; cls: string; dot?: boolean }[] = [
+          { label: "Total",       count: data.length,              cls: "bg-accent text-foreground"       },
+          { label: "Live",        count: counts.live ?? 0,         cls: "bg-red-100 text-red-600",  dot: true },
+          { label: "Not Started", count: counts.not_started ?? 0, cls: "bg-slate-100 text-slate-700"     },
+          { label: "In Progress", count: counts.in_progress ?? 0, cls: "bg-amber-100 text-amber-700"     },
+          { label: "Submitted",   count: counts.submitted ?? 0,   cls: "bg-green-100 text-green-700"     },
+          { label: "Closed",      count: counts.closed ?? 0,      cls: "bg-slate-100 text-slate-500"     },
         ].filter((p) => p.count > 0 || p.label === "Total");
 
         return (
           <div className="flex flex-wrap gap-3 mb-6">
             {pills.map((s) => (
               <div key={s.label} className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium ${s.cls} border border-border/30`}>
+                {s.dot && (
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                  </span>
+                )}
                 <span className="font-bold">{s.count}</span> {s.label}
               </div>
             ))}
