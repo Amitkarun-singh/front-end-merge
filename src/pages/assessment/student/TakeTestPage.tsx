@@ -388,22 +388,19 @@ export default function TakeTestPage() {
                   </div>
 
                 ) : type === "true_false" ? (
-                  /* True / False */
+                  /* True / False — use neutral primary highlight (no green/red during test) */
                   <div className="flex gap-4">
                     {(opts && Object.keys(opts).length > 0
                       ? Object.entries(opts)
                       : [["T", "True"], ["F", "False"]]
                     ).map(([key, label]) => {
                       const selected = answers[currentQId] === key;
-                      const isTrue   = key === "T" || String(label).toLowerCase() === "true";
                       return (
                         <button key={key}
                           onClick={() => setAnswers((prev) => ({ ...prev, [currentQId]: key }))}
                           className={`flex-1 py-5 rounded-xl border-2 text-lg font-bold transition-all ${
                             selected
-                              ? isTrue
-                                ? "border-green-500 bg-green-50 text-green-700"
-                                : "border-red-500 bg-red-50 text-red-700"
+                              ? "border-primary bg-primary/10 text-primary"
                               : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-accent/30"}`}>
                           {String(label)}
                         </button>

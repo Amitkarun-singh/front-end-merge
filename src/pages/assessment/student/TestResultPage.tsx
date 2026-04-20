@@ -252,8 +252,8 @@ export default function TestResultPage() {
                       )}
                     </div>
 
-                    {/* MCQ / True-False: show all options with highlights */}
-                    {(a.question_type === "mcq" || a.question_type === "true_false") && hasOptions && (
+                    {/* MCQ: show all options in 2x2 grid */}
+                    {a.question_type === "mcq" && hasOptions && (
                       <div className="grid grid-cols-2 gap-2">
                         {Object.entries(opts!).map(([key, text]) => (
                           <OptionChip
@@ -263,6 +263,22 @@ export default function TestResultPage() {
                             isStudentPick={a.answer_text?.trim().toUpperCase() === key.trim().toUpperCase()}
                             isCorrect={a.correct_answer?.trim().toUpperCase() === key.trim().toUpperCase()}
                           />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* True/False: show both options in a flex row */}
+                    {a.question_type === "true_false" && hasOptions && (
+                      <div className="flex gap-3">
+                        {Object.entries(opts!).map(([key, text]) => (
+                          <div key={key} className="flex-1">
+                            <OptionChip
+                              optKey={key}
+                              text={text}
+                              isStudentPick={a.answer_text?.trim().toUpperCase() === key.trim().toUpperCase()}
+                              isCorrect={a.correct_answer?.trim().toUpperCase() === key.trim().toUpperCase()}
+                            />
+                          </div>
                         ))}
                       </div>
                     )}
