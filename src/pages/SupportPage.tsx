@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { config } from "../../app.config.js";
+import { useToast } from "@/hooks/use-toast";
 
 const faqs = [
   {
@@ -39,23 +40,48 @@ const faqs = [
 
 export default function SupportPage() {
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     subject: "",
     message: "",
   });
+  const { toast } = useToast();
 
   const submitfeedback = async () => {
     const { name, email, subject, message } = formData;
-    // console.log(JSON.stringify({ name, email, subject, message }));
-    const res = await fetch(`${config.server}/feedback`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ name, email, subject, message }),
-    });
+
+    try {
+      const res = await fetch(`${config.server}/feedback`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ name, email, subject, message }),
+      });
+
+      const data = await res.json().catch(() => ({})); // handle empty body safely
+
+      if (!res.ok) {
+        toast({
+          title: "Error",
+          description: data.message || "Something went wrong",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Feedback submitted successfully",
+        });
+      }
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: err.message || "Something went wrong",
+        variant: "destructive",
+      });
+    }
   };
 
   return (
