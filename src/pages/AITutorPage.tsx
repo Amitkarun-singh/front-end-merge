@@ -227,7 +227,7 @@ export default function AITutorPage() {
     stopSpeaking();
     setIsLoading(true);
     setShowAnswer(true);
-    setAnswer(""); // Clear previous answer
+    setAnswer("");
     setLastAudio(null);
 
     try {
@@ -243,7 +243,7 @@ export default function AITutorPage() {
         const extension = voiceBlob.type.includes("webm") ? "webm" : "wav";
         formData.append("user_audio", voiceBlob, `recording.${extension}`);
       }
-      console.log("formData ", formData.getAll("user_audio"));
+
       const response = await fetch(`${config.server}/gini/voice-bot`, {
         method: "POST",
         headers: {
@@ -256,26 +256,74 @@ export default function AITutorPage() {
         throw new Error("Failed to get response from AI Tutor");
       }
 
-      const data = await response.json();
-      const botResponse = data.response.content;
-      const userQuery = data.response.userQuery;
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      if (!reader) throw new Error("No response body");
 
-      // Update UI
-      setAnswer(botResponse);
+      let buffer = "";
+      let resolvedUserQuery = query; // fallback to original text input
 
-      // Update conversation history without audio
-      setConversation((prev) => [
-        ...prev,
-        { role: "user", content: userQuery !== null ? userQuery : query },
-        { role: "assistant", content: botResponse },
-      ]);
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-      // Optional: play audio if present
-      if (data.response.audio) {
-        setLastAudio(data.response.audio);
-        playBase64Audio(data.response.audio);
-      } else {
-        speak(botResponse);
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split("\n\n");
+        buffer = parts.pop() ?? "";
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith("data:")) continue;
+
+          const jsonStr = line.slice("data:".length).trim();
+          if (!jsonStr) continue;
+
+          let event: {
+            type: string;
+            transcript?: string;
+            role?: string;
+            content?: string;
+            audio?: string;
+            userQuery?: string | null;
+            message?: string;
+          };
+
+          try {
+            event = JSON.parse(jsonStr);
+          } catch {
+            console.warn("Failed to parse SSE event:", jsonStr);
+            continue;
+          }
+
+          if (event.type === "stt") {
+            // STT is the transcribed version of the user's voice — store it
+            // so conversation history uses the actual spoken text
+            if (event.transcript) {
+              resolvedUserQuery = event.transcript;
+              setQuestion(event.transcript);
+            }
+          } else if (event.type === "final") {
+            const botResponse = event.content ?? "";
+
+            setAnswer(botResponse);
+
+            setConversation((prev) => [
+              ...prev,
+              { role: "user", content: resolvedUserQuery },
+              { role: "assistant", content: botResponse },
+            ]);
+
+            if (event.audio) {
+              setLastAudio(event.audio);
+              playBase64Audio(event.audio);
+            } else {
+              speak(botResponse);
+            }
+          } else if (event.type === "error") {
+            throw new Error(event.message ?? "Unknown server error");
+          }
+        }
       }
     } catch (error) {
       console.error("Error asking AI Tutor:", error);
