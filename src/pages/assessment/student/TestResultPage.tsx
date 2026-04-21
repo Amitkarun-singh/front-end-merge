@@ -2,10 +2,12 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   CheckCircle, XCircle, Clock, ArrowLeft,
-  PenLine, BarChart3, Trophy, MinusCircle
+  PenLine, BarChart3, Trophy, MinusCircle, Lock
 } from "lucide-react";
 import { studentApi } from "@/api/assessmentApi";
 import { Spinner } from "@/components/assessment/SharedComponents";
+import { MathText } from "@/components/assessment/MathText";
+import { useEffect, useState } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -131,8 +133,52 @@ function OptionChip({
   return (
     <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${cls}`}>
       <span className="font-bold flex-shrink-0">{optKey}.</span>
-      <span className="flex-1">{text}</span>
+      <span className="flex-1"><MathText text={text} /></span>
       {badge}
+    </div>
+  );
+}
+
+// ─── Locked result countdown ──────────────────────────────────────────────────
+
+function LockedResult({ onUnlock }: { onUnlock: () => void }) {
+  const navigate = useNavigate();
+  const [tick, setTick] = useState(0);
+
+  // Refetch every 30 seconds to check if window has closed
+  useEffect(() => {
+    const iv = setInterval(() => {
+      setTick((t) => t + 1);
+      onUnlock();
+    }, 30_000);
+    return () => clearInterval(iv);
+  }, [onUnlock]);
+
+  return (
+    <div className="min-h-full bg-background p-6 lg:p-8 flex items-center justify-center">
+      <div className="max-w-md w-full bg-card border border-border/50 rounded-3xl p-10 text-center space-y-6 shadow-sm">
+        <div className="w-20 h-20 rounded-full bg-amber-50 border-2 border-amber-200
+          flex items-center justify-center mx-auto">
+          <Lock className="w-10 h-10 text-amber-500" />
+        </div>
+        <div>
+          <h2 className="text-2xl font-bold text-foreground mb-2">Result Locked</h2>
+          <p className="text-muted-foreground text-sm">
+            Your result will be available once the test window closes for all students.
+            This page will check automatically every 30 seconds.
+          </p>
+        </div>
+        <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <Clock className="w-4 h-4 animate-pulse text-amber-500" />
+          Checking in {30 - (tick % 30) === 30 ? 30 : 30 - (tick % 30)}s…
+        </div>
+        <button onClick={() => navigate("/student/tests")}
+          className="w-full py-3 rounded-xl border border-border bg-background hover:bg-accent
+            text-foreground font-medium text-sm transition-all flex items-center justify-center gap-2">
+          <ArrowLeft className="w-4 h-4" />
+          Back to My Tests
+        </button>
+      </div>
     </div>
   );
 }
@@ -143,15 +189,24 @@ export default function TestResultPage() {
   const { attempt_id } = useParams<{ attempt_id: string }>();
   const navigate       = useNavigate();
 
-  const { data: rawData, isLoading } = useQuery({
+  const { data: rawData, isLoading, error, refetch } = useQuery({
     queryKey: ["test-result", attempt_id],
     queryFn:  async () => {
       const res = await studentApi.getAttemptResult(Number(attempt_id));
       return (res.data?.data ?? res.data ?? {}) as Record<string, unknown>;
     },
+    retry: false,           // Don't retry on 403 — backend will keep blocking
+    retryOnMount: true,
   });
 
   const data = rawData ? normaliseResult(rawData) : null;
+
+  // Detect the 403 "not yet available" specifically
+  const status403 =
+    (error as { response?: { status?: number } })?.response?.status === 403;
+  const errMsg =
+    (error as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+    (error as Error)?.message;
 
   return (
     <div className="min-h-full bg-background p-6 lg:p-8">
@@ -173,6 +228,9 @@ export default function TestResultPage() {
           <Spinner size="lg" />
           <p className="text-muted-foreground">Loading your results…</p>
         </div>
+      ) : status403 ? (
+        /* Result locked by teacher — test window not yet closed */
+        <LockedResult onUnlock={refetch} />
       ) : data ? (
         <div className="max-w-3xl mx-auto space-y-6">
 
@@ -238,7 +296,9 @@ export default function TestResultPage() {
                         Q{i + 1}
                       </span>
                       <p className="text-foreground text-sm font-medium flex-1 leading-relaxed">
-                        {a.question_text || <span className="italic text-muted-foreground">Question text unavailable</span>}
+                        {a.question_text
+                          ? <MathText text={a.question_text} />
+                          : <span className="italic text-muted-foreground">Question text unavailable</span>}
                       </p>
                       {isEssay || isPending ? (
                         <div className="flex items-center gap-1 text-purple-600 flex-shrink-0">
@@ -357,7 +417,16 @@ export default function TestResultPage() {
           </div>
         </div>
       ) : (
-        <div className="text-center py-24 text-muted-foreground">Result not found.</div>
+        <div className="text-center py-24">
+          <p className="text-muted-foreground">
+            {errMsg || "Result not found or you don't have access to this result."}
+          </p>
+          <button onClick={() => navigate("/student/tests")}
+            className="mt-6 px-5 py-2.5 rounded-xl border border-border bg-background
+              hover:bg-accent text-sm text-foreground font-medium transition-all">
+            Back to My Tests
+          </button>
+        </div>
       )}
     </div>
   );

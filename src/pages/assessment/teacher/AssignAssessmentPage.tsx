@@ -50,11 +50,23 @@ export default function AssignAssessmentPage() {
   const { register, handleSubmit, watch, setValue, formState: { errors } } =
     useForm<FormData>({
       defaultValues: {
-        shuffle_questions:       false,
-        shuffle_options:         false,
-        show_result_immediately: false,
+        shuffle_questions:       true,
+        shuffle_options:         true,
+        show_result_immediately: true,
       },
     });
+
+  // Current local datetime in datetime-local format (YYYY-MM-DDTHH:MM)
+  function nowLocalIso() {
+    const now = new Date();
+    now.setSeconds(0, 0);
+    // toISOString gives UTC — convert to local offset manually
+    const offset = now.getTimezoneOffset();
+    const local  = new Date(now.getTime() - offset * 60_000);
+    return local.toISOString().slice(0, 16);
+  }
+
+  const watchedStart = watch("start_datetime");
 
   // ── 1. Fetch classes ───────────────────────────────────────────────────────
   useEffect(() => {
@@ -270,8 +282,15 @@ export default function AssignAssessmentPage() {
               </label>
               <input
                 type="datetime-local"
-                {...register("start_datetime", { required: "Start time is required" })}
-                className={fieldCls + " [color-scheme:dark]"}
+                {...register("start_datetime", {
+                  required: "Start time is required",
+                  validate: (v) =>
+                    !v || new Date(v) > new Date()
+                      ? true
+                      : "Start time must be in the future",
+                })}
+                min={nowLocalIso()}
+                className={fieldCls}
               />
               {errors.start_datetime && (
                 <p className="text-destructive text-xs mt-1">{errors.start_datetime.message}</p>
@@ -283,8 +302,15 @@ export default function AssignAssessmentPage() {
               </label>
               <input
                 type="datetime-local"
-                {...register("end_datetime", { required: "End time is required" })}
-                className={fieldCls + " [color-scheme:dark]"}
+                {...register("end_datetime", {
+                  required: "End time is required",
+                  validate: (v) =>
+                    !v || !watchedStart || new Date(v) > new Date(watchedStart)
+                      ? true
+                      : "End time must be after start time",
+                })}
+                min={watchedStart || nowLocalIso()}
+                className={fieldCls}
               />
               {errors.end_datetime && (
                 <p className="text-destructive text-xs mt-1">{errors.end_datetime.message}</p>
