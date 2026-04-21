@@ -87,9 +87,56 @@ function getToolRoute(tool: string): string {
 
 // ─── Normalisation helpers ────────────────────────────────────────────────────
 
+/**
+ * If `value` is a JSON-stringified (or even truncated) array of {role, content}
+ * messages (e.g. from tutor_logs), return the first user message's content.
+ * Otherwise return the original value unchanged.
+ *
+ * Strategy:
+ *  1. Trim whitespace, bail early if it doesn't start with "["
+ *  2. Try full JSON.parse → locate first user/human role
+ *  3. Fallback: regex-extract the very first "content":"…" value from the raw
+ *     string (handles truncated/malformed JSON returned by some backends)
+ */
+function extractFirstUserMessage(value: string): string {
+  const trimmed = (value || "").trim();
+  if (!trimmed.startsWith("[")) return trimmed;
+
+  // ── Attempt 1: proper JSON parse ──────────────────────────────────────────
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (Array.isArray(parsed)) {
+      // prefer the first message sent by the user
+      const firstUser = parsed.find(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (m: any) => m.role === "user" || m.role === "human",
+      );
+      if (firstUser?.content) return String(firstUser.content).trim();
+      // fallback: first item, any role
+      if (parsed[0]?.content) return String(parsed[0].content).trim();
+    }
+  } catch {
+    /* JSON is malformed/truncated — fall through to regex */
+  }
+
+  // ── Attempt 2: regex on raw string (handles truncated responses) ──────────
+  // Matches   "content":"<anything up to the next unescaped quote>"
+  const match = trimmed.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+  if (match?.[1]) {
+    try {
+      // unescape JSON string escapes (e.g. \n, \u0939, etc.)
+      return JSON.parse(`"${match[1]}"`);
+    } catch {
+      return match[1];
+    }
+  }
+
+  return trimmed;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseQuery(raw: any): RecentQuery {
-  const query =
+  const rawQuery =
     raw.title || // ← "what is fractional formula"
     raw.query ||
     raw.question ||
@@ -98,6 +145,9 @@ function normaliseQuery(raw: any): RecentQuery {
     raw.text ||
     raw.user_query ||
     "Unknown query";
+
+  // Strip raw JSON message arrays → show just the first user input
+  const query = extractFirstUserMessage(String(rawQuery));
 
   const tool =
     raw.source || // ← "AI Gini" / "AI Practice"

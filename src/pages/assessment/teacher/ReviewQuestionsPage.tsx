@@ -12,6 +12,7 @@ import {
   QuestionTypeBadge, Spinner, ConfirmDialog, CardSkeleton
 } from "@/components/assessment/SharedComponents";
 import { useToast } from "@/components/assessment/ToastProvider";
+import { MathText } from "@/components/assessment/MathText";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -348,7 +349,7 @@ function QuestionCard({ question: q, index, expanded, editing, regenerating,
 
         {/* Question preview */}
         <p className="text-foreground text-sm flex-1 line-clamp-1">
-          {q.question_text.slice(0, 90)}{q.question_text.length > 90 ? "…" : ""}
+          <MathText text={q.question_text.slice(0, 90) + (q.question_text.length > 90 ? "…" : "")} />
         </p>
 
         {/* Meta */}
@@ -374,7 +375,9 @@ function QuestionCard({ question: q, index, expanded, editing, regenerating,
         <div className="px-4 pb-4 border-t border-border/40 pt-4">
           {!editing ? (
             <div className="space-y-3">
-              <p className="text-foreground text-sm leading-relaxed">{q.question_text}</p>
+              <p className="text-foreground text-sm leading-relaxed">
+                <MathText text={q.question_text} />
+              </p>
 
               {q.question_type === "mcq" && parsedOptions && (
                 <div className="grid grid-cols-2 gap-2">
@@ -384,7 +387,8 @@ function QuestionCard({ question: q, index, expanded, editing, regenerating,
                         ? "border-green-300 bg-green-50 text-green-800"
                         : "border-border bg-muted/30 text-foreground/70"
                     }`}>
-                      <span className="font-bold">{key}.</span> {val}
+                      <span className="font-bold mr-1">{key}.</span>
+                      <MathText text={val} />
                     </div>
                   ))}
                 </div>
@@ -413,7 +417,7 @@ function QuestionCard({ question: q, index, expanded, editing, regenerating,
                               : "border-border bg-muted/30 text-foreground/60"
                           }`}>
                           {isCorrect && <span className="mr-1">✓</span>}
-                          {label}
+                          <MathText text={label} />
                         </div>
                       );
                     })}
@@ -423,7 +427,7 @@ function QuestionCard({ question: q, index, expanded, editing, regenerating,
 
               {q.hint && (
                 <p className="text-sm text-muted-foreground italic bg-accent/50 rounded-lg px-3 py-2">
-                  💡 {q.hint}
+                  💡 <MathText text={q.hint} />
                 </p>
               )}
 

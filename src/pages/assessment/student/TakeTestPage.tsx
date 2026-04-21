@@ -7,6 +7,7 @@ import {
 import { studentApi } from "@/api/assessmentApi";
 import { Spinner, ConfirmDialog } from "@/components/assessment/SharedComponents";
 import { useToast } from "@/components/assessment/ToastProvider";
+import { MathText } from "@/components/assessment/MathText";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -185,8 +186,15 @@ export default function TakeTestPage() {
           assessment_id:           0,
           questions,
           time_limit_seconds:      timeMins ? timeMins * 60 : null,
-          show_result_immediately: attempt.show_result_immediately ?? false,
-          end_datetime:            attempt.end_datetime ?? "",
+          // show_result_immediately lives on the assignment, not the attempt;
+          // try both possible locations the backend might include it
+          show_result_immediately: raw?.assignment?.show_result_immediately
+            ?? raw?.show_result_immediately
+            ?? attempt.show_result_immediately
+            ?? false,
+          end_datetime:            raw?.assignment?.end_datetime
+            ?? attempt.end_datetime
+            ?? "",
         });
       })
       .catch((err) => {
@@ -228,12 +236,23 @@ export default function TakeTestPage() {
       });
       const rdata = res.data?.data ?? res.data;
       const aid   = rdata?.attempt_id ?? attemptData.attempt_id;
-      const showImmediately = rdata?.show_result_immediately ?? attemptData.show_result_immediately;
+
+      // Prefer the flag from attemptData (set during startAttempt);
+      // fall back to what the submit response returns (if backend evolves)
+      const showImmediately =
+        attemptData.show_result_immediately ??
+        rdata?.show_result_immediately ??
+        false;
+
       if (showImmediately && aid) {
         navigate(`/student/tests/result/${aid}`);
       } else {
         navigate("/student/tests/submitted", {
-          state: { end_datetime: attemptData.end_datetime, attempt_id: aid },
+          state: {
+            end_datetime:            attemptData.end_datetime,
+            attempt_id:              aid,
+            show_result_immediately: showImmediately,
+          },
         });
       }
     } catch { showToast("Failed to submit test", "error"); }
@@ -346,7 +365,7 @@ export default function TakeTestPage() {
 
                 {/* Question text */}
                 <h2 className="text-xl font-semibold text-foreground leading-relaxed">
-                  {currentQ.question_text}
+                  <MathText text={currentQ.question_text} />
                 </h2>
 
                 {/* ── MCQ — 2×2 grid (matches teacher review style) ── */}
@@ -362,7 +381,7 @@ export default function TakeTestPage() {
                               ? "border-primary bg-primary/10 text-primary"
                               : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-accent/40"
                           }`}>
-                          <span className="font-bold">{key}.</span> {text}
+                          <span className="font-bold">{key}.</span>{" "}<MathText text={text} />
                         </button>
                       );
                     })}
@@ -402,7 +421,7 @@ export default function TakeTestPage() {
                             selected
                               ? "border-primary bg-primary/10 text-primary"
                               : "border-border bg-background text-foreground hover:border-primary/40 hover:bg-accent/30"}`}>
-                          {String(label)}
+                          <MathText text={String(label)} />
                         </button>
                       );
                     })}
@@ -467,7 +486,7 @@ export default function TakeTestPage() {
                       <div className="mt-2 flex items-start gap-2 bg-amber-50 border border-amber-200
                         rounded-xl px-4 py-3 text-sm text-amber-800">
                         <Lightbulb className="w-4 h-4 mt-0.5 flex-shrink-0 text-amber-500" />
-                        <span>{currentQ.hint}</span>
+                        <span><MathText text={currentQ.hint} /></span>
                       </div>
                     )}
                   </div>
