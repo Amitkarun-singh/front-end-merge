@@ -3,6 +3,7 @@ import { useSearchParams, useLocation } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { config } from "../../app.config.js";
 import { fetchConversation } from "@/api/historyApi";
+import { fetchEventSource } from "@microsoft/fetch-event-source";
 
 /**
  * Interface representing a single chat message.
@@ -40,14 +41,10 @@ export const useChat = () => {
   const location = useLocation();
 
   // ── Pre-load a past conversation ─────────────────────────────────────────────
-  // Priority: location.state.conversationId  →  ?conversation_id URL param
-  // After reading the URL param we immediately clean the URL (no visible ID).
   useEffect(() => {
-    // 1. Try state (passed via navigate(path, { state: { conversationId } }))
     const stateConvId: string | undefined = (
       location.state as Record<string, string> | null
     )?.conversationId;
-    // 2. Fall back to URL search param (e.g., bookmarked links)
     const urlConvId =
       stateConvId ?? searchParams.get("conversation_id") ?? null;
     const source =
@@ -57,7 +54,6 @@ export const useChat = () => {
 
     if (!urlConvId) return;
 
-    // Remove ?conversation_id from the address bar so it's never visible
     if (searchParams.get("conversation_id")) {
       const cleanUrl = window.location.pathname;
       window.history.replaceState({}, "", cleanUrl);
@@ -77,9 +73,6 @@ export const useChat = () => {
           role: m.role === "user" ? "user" : "assistant",
           content: m.content,
         }));
-        console.log(
-          `[useChat] Loaded ${mapped.length} messages from conversation ${urlConvId}`,
-        );
         setMessages(mapped);
       })
       .catch((err) => {
@@ -91,8 +84,6 @@ export const useChat = () => {
         });
       })
       .finally(() => setHistoryLoading(false));
-    // run once on mount only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -101,7 +92,7 @@ export const useChat = () => {
   const handleSend = async () => {
     if ((!input.trim() && !uploadedFile) || isLoading) return;
 
-    let newMessages = messages;
+    let currentMessages = messages;
 
     if (input.trim()) {
       const userMessage: Message = {
@@ -109,18 +100,16 @@ export const useChat = () => {
         role: "user",
         content: input,
       };
-      newMessages = [...messages, userMessage];
-      setMessages(newMessages);
+      currentMessages = [...messages, userMessage];
+      setMessages(currentMessages);
       setInput("");
     }
 
     setIsLoading(true);
 
-    let assistantContent = "";
-
     try {
       const formData = new FormData();
-      formData.append("messages", JSON.stringify(newMessages));
+      formData.append("messages", JSON.stringify(currentMessages));
       formData.append("language", language);
       formData.append("conversation_id", conversationId);
 
@@ -128,87 +117,102 @@ export const useChat = () => {
       if (selectedSubject) formData.append("subject", selectedSubject);
       if (uploadedFile) formData.append("file", uploadedFile);
 
-      const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
+      const local = JSON.parse(localStorage.getItem("schools2ai_auth") || "{}");
       const token = local?.token;
 
-      const resp = await fetch(CHAT_URL, {
+      let assistantContent = "";
+      const controller = new AbortController();
+
+      await fetchEventSource(CHAT_URL, {
         method: "POST",
         body: formData,
         headers: {
           Authorization: `Bearer ${token}`,
         },
-      });
-
-      if (!resp.ok) {
-        const errorData = await resp.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to get response");
-      }
-
-      if (!resp.body) throw new Error("No response body");
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        textBuffer += decoder.decode(value, { stream: true });
-
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
-
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content as
-              | string
-              | undefined;
-            if (content) {
-              assistantContent += content;
-              setMessages((prev) => {
-                const last = prev[prev.length - 1];
-                if (last?.role === "assistant") {
-                  return prev.map((m, i) =>
-                    i === prev.length - 1
-                      ? { ...m, content: assistantContent }
-                      : m,
-                  );
-                }
-                return [
-                  ...prev,
-                  {
-                    id: (Date.now() + 1).toString(),
-                    role: "assistant",
-                    content: assistantContent,
-                  },
-                ];
-              });
-            }
-          } catch {
-            textBuffer = line + "\n" + textBuffer;
-            break;
+        signal: controller.signal,
+        async onopen(response) {
+          if (response.ok) {
+            return;
+          } else if (
+            response.status >= 400 &&
+            response.status < 500 &&
+            response.status !== 429
+          ) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || "Failed to connect to chat");
+          } else {
+            throw new Error("Server error occurred");
           }
-        }
-      }
+        },
+        onmessage(ev) {
+          try {
+            const parsed = JSON.parse(ev.data);
+            console.log("parsed ->", ev.event === "done");
+            console.log("parsed ->", ev.event);
+
+            if (ev.event === "message") {
+              const content = parsed.content;
+              if (content) {
+                assistantContent += content;
+                setMessages((prev) => {
+                  const last = prev[prev.length - 1];
+                  if (
+                    last?.role === "assistant" &&
+                    !last.id.startsWith("history-")
+                  ) {
+                    return prev.map((m, i) =>
+                      i === prev.length - 1
+                        ? { ...m, content: assistantContent }
+                        : m,
+                    );
+                  }
+                  return [
+                    ...prev,
+                    {
+                      id: Date.now().toString(),
+                      role: "assistant",
+                      content: assistantContent,
+                    },
+                  ];
+                });
+              }
+            } else if (ev.event === "error") {
+              const errorMsg = parsed.message || "An error occurred";
+              toast({
+                title:
+                  parsed.type === "VALIDATION_ERROR"
+                    ? "Validation Error"
+                    : "Error",
+                description: errorMsg,
+                variant: "destructive",
+              });
+              setIsLoading(false);
+              controller.abort();
+            } else if (ev.event === "done") {
+              setIsLoading(false);
+              controller.abort();
+            }
+          } catch (err) {
+            console.error("Error parsing SSE message:", err);
+          }
+        },
+        onerror(err) {
+          console.error("SSE Error:", err);
+          toast({
+            title: "Connection Error",
+            description:
+              err instanceof Error ? err.message : "Failed to get AI response",
+            variant: "destructive",
+          });
+          throw err; // allow retry or let it fail
+        },
+        onclose() {
+          setIsLoading(false);
+          setUploadedFile(null);
+        },
+      });
     } catch (error) {
       console.error("Chat error:", error);
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Failed to get AI response",
-        variant: "destructive",
-      });
-    } finally {
       setIsLoading(false);
       setUploadedFile(null);
     }
