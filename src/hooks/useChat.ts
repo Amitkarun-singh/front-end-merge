@@ -147,7 +147,12 @@ export const useChat = () => {
         onmessage(ev) {
           try {
             const parsed = JSON.parse(ev.data);
+<<<<<<< HEAD
 
+=======
+            console.log("parsed ->", ev.event === "done");
+            console.log("parsed ->", ev.event);
+>>>>>>> cb22cdd (stated using @microsoft/fetch-event-source" in aigini)
 
             if (ev.event === "message") {
               const content = parsed.content;
