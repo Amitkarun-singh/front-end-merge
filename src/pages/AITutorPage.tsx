@@ -34,6 +34,7 @@ const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
 const token = local?.token;
 
 export default function AITutorPage() {
+  const [sessionId] = useState(() => Date.now().toString());
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [showAnswer, setShowAnswer] = useState(false);
@@ -238,6 +239,7 @@ export default function AITutorPage() {
 
       const formData = new FormData();
       formData.append("message", JSON.stringify(messagePayload));
+      formData.append("sessionId", sessionId);
 
       if (voiceBlob) {
         const extension = voiceBlob.type.includes("webm") ? "webm" : "wav";
