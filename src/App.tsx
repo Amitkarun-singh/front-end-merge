@@ -4,7 +4,9 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
+import { FeatureProvider } from "@/context/FeatureContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { FeatureRoute } from "@/components/FeatureRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { ToastProvider } from "@/components/assessment/ToastProvider";
 
@@ -47,75 +49,212 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <ToastProvider>
-            <Routes>
-              {/* ── Public ── */}
-              <Route path="/login" element={<StudentLoginPage />} />
+          {/* FeatureProvider must be inside AuthProvider so it can read the token */}
+          <FeatureProvider>
+            <ToastProvider>
+              <Routes>
+                {/* ── Public ── */}
+                <Route path="/login" element={<StudentLoginPage />} />
 
-              {/* ── Student: Take Test (full-screen, no sidebar) ── */}
-              <Route
-                path="/student/tests/:assignment_id/attempt"
-                element={
-                  <ProtectedRoute>
-                    <TakeTestPage />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/student/tests/submitted"
-                element={
-                  <ProtectedRoute>
-                    <TestSubmittedPage />
-                  </ProtectedRoute>
-                }
-              />
+                {/* ── Student: Take Test (full-screen, no sidebar) ── */}
+                <Route
+                  path="/student/tests/:assignment_id/attempt"
+                  element={
+                    <ProtectedRoute>
+                      {/* Full-screen: redirect silently since there's no sidebar/layout */}
+                      <FeatureRoute feature="AI_ASSESSMENT" redirectTo="/student/tests">
+                        <TakeTestPage />
+                      </FeatureRoute>
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/student/tests/submitted"
+                  element={
+                    <ProtectedRoute>
+                      <FeatureRoute feature="AI_ASSESSMENT" redirectTo="/student/tests">
+                        <TestSubmittedPage />
+                      </FeatureRoute>
+                    </ProtectedRoute>
+                  }
+                />
 
-              {/* ── Protected (with sidebar) ── */}
-              <Route
-                path="/*"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout>
-                      <Routes>
-                        {/* Existing pages */}
-                        <Route path="/" element={<HomePage />} />
-                        <Route path="/ai-gini" element={<AIGiniPage />} />
-                        <Route path="/ai-notes" element={<AINotesPage />} />
-                        <Route path="/ai-practice" element={<AIPracticePage />} />
-                        <Route path="/ai-tutor" element={<AITutorPage />} />
-                        <Route path="/ai-flashcards" element={<AINotesPage />} />
-                        <Route path="/summarizer" element={<SummarizerPage />} />
-                        <Route path="/performance" element={<PerformancePage />} />
-                        <Route path="/more-tools" element={<MoreToolsPage />} />
-                        <Route path="/question-bank" element={<QuestionBankPage />} />
-                        <Route path="/profile" element={<ProfilePage />} />
-                        <Route path="/new-course" element={<HomePage />} />
-                        <Route path="/history" element={<HistoryPage />} />
-                        <Route path="/history/conversation/:conversation_id" element={<ConversationPage />} />
-                        <Route path="/tools/*" element={<MoreToolsPage />} />
-                        <Route path="/support" element={<SupportPage />} />
-                        <Route path="/feedback" element={<SupportPage />} />
+                {/* ── Protected (with sidebar) ── */}
+                <Route
+                  path="/*"
+                  element={
+                    <ProtectedRoute>
+                      <MainLayout>
+                        <Routes>
+                          {/* ── Always-accessible pages ── */}
+                          <Route path="/" element={<HomePage />} />
+                          <Route path="/profile" element={<ProfilePage />} />
+                          <Route path="/performance" element={<PerformancePage />} />
+                          <Route path="/history" element={<HistoryPage />} />
+                          <Route path="/history/conversation/:conversation_id" element={<ConversationPage />} />
+                          <Route path="/support" element={<SupportPage />} />
+                          <Route path="/feedback" element={<SupportPage />} />
+                          <Route path="/new-course" element={<HomePage />} />
 
-                        {/* ── Teacher Assessment ── */}
-                        <Route path="/teacher/assessments" element={<TeacherAssessmentsPage />} />
-                        <Route path="/teacher/assessments/create" element={<CreateAssessmentPage />} />
-                        <Route path="/teacher/assessments/:id/review" element={<ReviewQuestionsPage />} />
-                        <Route path="/teacher/assessments/:id/assign" element={<AssignAssessmentPage />} />
-                        <Route path="/teacher/assessments/assignment/:id/results" element={<AssignmentResultsPage />} />
-                        <Route path="/teacher/assessments/:id/results" element={<TeacherAssessmentResultsPage />} />
+                          {/* ── Feature-gated pages ── */}
+                          <Route
+                            path="/ai-gini"
+                            element={
+                              <FeatureRoute feature="AI_GINI">
+                                <AIGiniPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/ai-notes"
+                            element={
+                              <FeatureRoute feature="AI_NOTES">
+                                <AINotesPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/ai-flashcards"
+                            element={
+                              <FeatureRoute feature="AI_NOTES">
+                                <AINotesPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/ai-tutor"
+                            element={
+                              <FeatureRoute feature="AI_TUTOR">
+                                <AITutorPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/ai-practice"
+                            element={
+                              <FeatureRoute feature="AI_PRACTICE">
+                                <AIPracticePage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/summarizer"
+                            element={
+                              <FeatureRoute feature="DOC_SUMMARISER">
+                                <SummarizerPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/question-bank"
+                            element={
+                              <FeatureRoute feature="QUESTION_BANK">
+                                <QuestionBankPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/more-tools"
+                            element={
+                              <FeatureRoute feature="MORE_TOOLS">
+                                <MoreToolsPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/tools/*"
+                            element={
+                              <FeatureRoute feature="MORE_TOOLS">
+                                <MoreToolsPage />
+                              </FeatureRoute>
+                            }
+                          />
 
-                        {/* ── Student Assessment ── */}
-                        <Route path="/student/tests" element={<StudentTestsPage />} />
-                        <Route path="/student/tests/result/:attempt_id" element={<TestResultPage />} />
+                          {/* ── Teacher Assessment (gated by AI_ASSESSMENT) ── */}
+                          <Route
+                            path="/teacher/assessments"
+                            element={
+                              <FeatureRoute
+                                feature="AI_ASSESSMENT"
+                                showDisabledMessage
+                                disabledTitle="AI Assessment"
+                              >
+                                <TeacherAssessmentsPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/teacher/assessments/create"
+                            element={
+                              <FeatureRoute feature="AI_ASSESSMENT" redirectTo="/teacher/assessments">
+                                <CreateAssessmentPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/teacher/assessments/:id/review"
+                            element={
+                              <FeatureRoute feature="AI_ASSESSMENT" redirectTo="/teacher/assessments">
+                                <ReviewQuestionsPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/teacher/assessments/:id/assign"
+                            element={
+                              <FeatureRoute feature="AI_ASSESSMENT" redirectTo="/teacher/assessments">
+                                <AssignAssessmentPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/teacher/assessments/assignment/:id/results"
+                            element={
+                              <FeatureRoute feature="AI_ASSESSMENT" redirectTo="/teacher/assessments">
+                                <AssignmentResultsPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/teacher/assessments/:id/results"
+                            element={
+                              <FeatureRoute feature="AI_ASSESSMENT" redirectTo="/teacher/assessments">
+                                <TeacherAssessmentResultsPage />
+                              </FeatureRoute>
+                            }
+                          />
 
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </ToastProvider>
+                          {/* ── Student Assessment / My Tests (gated by AI_ASSESSMENT) ── */}
+                          <Route
+                            path="/student/tests"
+                            element={
+                              <FeatureRoute
+                                feature="AI_ASSESSMENT"
+                                showDisabledMessage
+                                disabledTitle="My Tests"
+                              >
+                                <StudentTestsPage />
+                              </FeatureRoute>
+                            }
+                          />
+                          <Route
+                            path="/student/tests/result/:attempt_id"
+                            element={
+                              <FeatureRoute feature="AI_ASSESSMENT" redirectTo="/student/tests">
+                                <TestResultPage />
+                              </FeatureRoute>
+                            }
+                          />
+
+                          <Route path="*" element={<NotFound />} />
+                        </Routes>
+                      </MainLayout>
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </ToastProvider>
+          </FeatureProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

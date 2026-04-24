@@ -19,15 +19,16 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
+import { useFeatures, FeatureName } from "@/context/FeatureContext";
 import {
   fetchRecentQueries,
   fetchFeaturesExplored,
   fetchLoginHistory,
-  fetchLatestTests,          // ← new
+  fetchLatestTests,
   RecentQuery,
   FeatureExplored,
   LoginRecord,
-  LatestTest,                // ← new
+  LatestTest,
 } from "@/api/historyApi";
 
 // ─── Tool → Icon map ──────────────────────────────────────────────────────────
@@ -47,6 +48,30 @@ function getToolIcon(tool: string): React.ElementType {
       return toolIconMap[key];
   }
   return toolIconMap.default;
+}
+
+// ─── Tool → FeatureName (for enabled-check filtering) ────────────────────────
+function toolToFeatureName(tool: string): FeatureName | null {
+  const lower = (tool || "").toLowerCase();
+  if (lower.includes("assessment") || lower.includes("my tests")) return "AI_ASSESSMENT";
+  if (lower.includes("gini"))        return "AI_GINI";
+  if (lower.includes("notes"))       return "AI_NOTES";
+  if (lower.includes("tutor"))       return "AI_TUTOR";
+  if (lower.includes("practice"))    return "AI_PRACTICE";
+  if (lower.includes("summaris"))    return "DOC_SUMMARISER";
+  if (lower.includes("question"))    return "QUESTION_BANK";
+  if (lower.includes("more") || lower.includes("tools")) return "MORE_TOOLS";
+  return null; // unknown tool — always show
+}
+
+// ─── Tool → backend source identifier (for fetchConversation) ────────────────
+function toolToSource(tool: string): string {
+  const lower = (tool || "").toLowerCase();
+  if (lower.includes("practice"))  return "practice";
+  if (lower.includes("tutor"))     return "tutor";
+  if (lower.includes("notes"))     return "notes";
+  if (lower.includes("summaris"))  return "summarizer";
+  return "gini"; // default: AI Gini
 }
 
 // ─── Relative-time helper ────────────────────────────────────────────────────
@@ -137,8 +162,9 @@ function scoreColor(pct: number): string {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function HistoryPage() {
-  const { token } = useAuth();
-  const navigate  = useNavigate();
+  const { token }          = useAuth();
+  const navigate           = useNavigate();
+  const { isFeatureEnabled } = useFeatures();
 
   const [queries,  setQueries]  = useState<RecentQuery[]>([]);
   const [features, setFeatures] = useState<FeatureExplored[]>([]);
@@ -181,8 +207,44 @@ export default function HistoryPage() {
 
   }, [token]);
 
-  const TOP           = 5;
+  const TOP = 5;
+
+  // ── Filter out entries for school-disabled features ──────────────────────
+  const visibleQueries = queries.filter((item) => {
+    const fn = toolToFeatureName(item.tool);
+    return !fn || isFeatureEnabled(fn);
+  });
+
+  const visibleFeatureExplored = features.filter((feat) => {
+    const fn = toolToFeatureName(feat.name);
+    return !fn || isFeatureEnabled(fn);
+  });
+
   const visibleLogins = logins.slice(0, TOP);
+
+  // ── Navigation handler for Recent Queries ────────────────────────────────
+  const handleQueryClick = (item: RecentQuery) => {
+    const hasConversation = item.conversation_id != null;
+    const source          = toolToSource(item.tool);
+    const toolLower       = (item.tool || "").toLowerCase();
+    const targetPath      = item.url || "/ai-gini";
+
+    if (!hasConversation) {
+      navigate(targetPath);
+      return;
+    }
+
+    // AI Tutor is voice-based — open in read-only ConversationPage (same result as AI Gini)
+    if (toolLower.includes("tutor")) {
+      navigate(`/history/conversation/${item.conversation_id}?source=${source}`);
+      return;
+    }
+
+    // All other tools → navigate to their page and pass conversationId via state
+    navigate(targetPath, {
+      state: { conversationId: String(item.conversation_id), source },
+    });
+  };
 
   return (
     <div className="min-h-full p-6 lg:p-8">
@@ -199,35 +261,23 @@ export default function HistoryPage() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-          {/* ── Recent Queries ── */}
+          {/* ── Recent Queries (only enabled-feature tools) ── */}
           <Section
             title="Recent Queries"
             icon={MessageCircle}
             iconColor="text-primary"
             loading={loadingQ}
             error={errorQ}
-            empty={queries.length === 0}
-            scrollable={queries.length > TOP}
+            empty={visibleQueries.length === 0}
+            scrollable={visibleQueries.length > TOP}
           >
             <div className="space-y-2">
-              {queries.map((item, index) => {
-                const Icon            = getToolIcon(item.tool);
-                const hasConversation = item.conversation_id != null;
-                const toolSource      = item.tool?.toLowerCase().includes("practice") ? "practice" : "gini";
-                const targetPath      = item.url || "/ai-gini";
+              {visibleQueries.map((item, index) => {
+                const Icon = getToolIcon(item.tool);
                 return (
                   <button
                     key={index}
-                    onClick={() =>
-                      hasConversation
-                        ? navigate(targetPath, {
-                            state: {
-                              conversationId: String(item.conversation_id),
-                              source: toolSource,
-                            },
-                          })
-                        : navigate(targetPath)
-                    }
+                    onClick={() => handleQueryClick(item)}
                     className="w-full flex items-start gap-3 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors text-left cursor-pointer group"
                   >
                     <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
@@ -257,18 +307,18 @@ export default function HistoryPage() {
             </div>
           </Section>
 
-          {/* ── Features Explored ── */}
+          {/* ── Features Explored (only enabled-feature tools) ── */}
           <Section
             title="Features Explored"
             icon={Grid3X3}
             iconColor="text-secondary"
             loading={loadingF}
             error={errorF}
-            empty={features.length === 0}
-            scrollable={features.length > TOP}
+            empty={visibleFeatureExplored.length === 0}
+            scrollable={visibleFeatureExplored.length > TOP}
           >
             <div className="space-y-2">
-              {features.map((feature, index) => {
+              {visibleFeatureExplored.map((feature, index) => {
                 const Icon = getToolIcon(feature.name);
                 return (
                   <div
@@ -294,7 +344,8 @@ export default function HistoryPage() {
             </div>
           </Section>
 
-          {/* ── Exam History ── */}
+          {/* ── Exam History — only shown when AI_ASSESSMENT is enabled ── */}
+          {isFeatureEnabled("AI_ASSESSMENT") && (
           <Section
             title="Exam History"
             icon={BookOpen}
@@ -339,6 +390,7 @@ export default function HistoryPage() {
               })}
             </div>
           </Section>
+          )}
 
           {/* ── Login History ── */}
           <Section
