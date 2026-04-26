@@ -10,6 +10,10 @@ import {
   MicOff,
   Square,
   Play,
+  ArrowLeft,
+  User,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +25,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { fetchConversation, Conversation, ConversationMessage } from "@/api/historyApi";
+import { Badge } from "@/components/ui/badge";
+import schools2aiIcon from "@/assets/schools2ai-icon.png";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import "katex/dist/katex.min.css";
 import { config } from "../../app.config.js";
 
 declare global {
@@ -32,6 +46,68 @@ declare global {
 
 const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
 const token = local?.token;
+
+// ─── Inline history helpers ───────────────────────────────────────────────────
+function _formatTime(raw: string | undefined): string {
+  if (!raw) return "";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+}
+
+function _preprocessLatex(content: string): string {
+  return content
+    .replace(/\\\(/g, "$").replace(/\\\)/g, "$")
+    .replace(/\\\[/g, "$$").replace(/\\\]/g, "$$");
+}
+
+function HistoryMsgBubble({ msg }: { msg: ConversationMessage }) {
+  const isUser = msg.role === "user";
+  if (isUser) {
+    return (
+      <div className="flex justify-end group">
+        <div className="flex flex-col items-end gap-1 max-w-[80%]">
+          <div className="bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-3 shadow-sm">
+            <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+          </div>
+          {msg.timestamp && (
+            <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+              <Clock className="w-2.5 h-2.5" />{_formatTime(msg.timestamp)}
+            </span>
+          )}
+        </div>
+        <div className="ml-2 flex-shrink-0 self-end">
+          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
+            <User className="w-4 h-4 text-primary" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="flex justify-start group">
+      <div className="mr-2 flex-shrink-0 self-end">
+        <div className="w-7 h-7 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center overflow-hidden shadow-sm">
+          <img src={schools2aiIcon} alt="AI" className="w-5 h-5 object-contain" />
+        </div>
+      </div>
+      <div className="flex flex-col items-start gap-1 max-w-[80%]">
+        <div className="bg-card border border-border/50 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm">
+          <div className="prose prose-sm max-w-none prose-neutral dark:prose-invert leading-relaxed">
+            <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>
+              {_preprocessLatex(msg.content)}
+            </ReactMarkdown>
+          </div>
+        </div>
+        {msg.timestamp && (
+          <span className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+            <Clock className="w-2.5 h-2.5" />{_formatTime(msg.timestamp)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default function AITutorPage() {
   const [sessionId] = useState(() => Date.now().toString());
@@ -49,6 +125,35 @@ export default function AITutorPage() {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+
+  // ── History view state ─────────────────────────────────────────────
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { token: authToken } = useAuth();
+  const locationState = location.state as { conversationId?: string; source?: string } | null;
+  const historyConvId = locationState?.conversationId ?? null;
+  const historySource = locationState?.source ?? "tutor";
+
+  const [historyConv, setHistoryConv] = useState<Conversation | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const historyBottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!historyConvId || !authToken) return;
+    setHistoryLoading(true);
+    setHistoryError(null);
+    fetchConversation(authToken, historyConvId, historySource)
+      .then(setHistoryConv)
+      .catch((e) => setHistoryError(e.message))
+      .finally(() => setHistoryLoading(false));
+  }, [historyConvId, authToken, historySource]);
+
+  useEffect(() => {
+    if (!historyLoading && historyConv?.messages.length) {
+      historyBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [historyLoading, historyConv]);
 
   const dotLottieCallback = (dotLottie: DotLottie) => {
     dotLottieRef.current = dotLottie;
@@ -230,6 +335,8 @@ export default function AITutorPage() {
     setShowAnswer(true);
     setAnswer("");
     setLastAudio(null);
+    // Clear any history conversation loaded from the History tab
+    setHistoryConv(null);
 
     try {
       const messagePayload = [
@@ -363,6 +470,7 @@ export default function AITutorPage() {
     };
   }, []);
 
+
   return (
     <div className="min-h-screen p-6 lg:p-8">
       <div className="max-w-4xl mx-auto">
@@ -481,33 +589,65 @@ export default function AITutorPage() {
               </div>
             </div>
 
-            {/* Answer */}
-            {showAnswer && (
+            {/* Bot box — shows live answer OR loaded history conversation */}
+            {(showAnswer || historyConvId) && (
               <div className="p-4 rounded-xl bg-accent/50 animate-fade-in">
                 <label className="text-sm font-medium text-foreground mb-2 block">
                   Bot:
                 </label>
-                {isLoading ? (
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Thinking...
-                  </div>
-                ) : (
-                  <>
-                    <div className="text-foreground leading-relaxed whitespace-pre-wrap">
-                      {answer}
-                    </div>
 
-                    <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                      <Button variant="ghost" size="sm" onClick={resetChat}>
-                        <RotateCcw className="w-4 h-4 mr-2" />
-                        Ask Another Question
-                      </Button>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <GraduationCap className="w-4 h-4" />
-                        Step-by-step explanation
-                      </div>
+                {/* ── Live answer from current question ── */}
+                {showAnswer && (
+                  isLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Thinking...
                     </div>
+                  ) : (
+                    <>
+                      <div className="text-foreground leading-relaxed whitespace-pre-wrap">
+                        {answer}
+                      </div>
+                      <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
+                        <Button variant="ghost" size="sm" onClick={resetChat}>
+                          <RotateCcw className="w-4 h-4 mr-2" />
+                          Ask Another Question
+                        </Button>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <GraduationCap className="w-4 h-4" />
+                          Step-by-step explanation
+                        </div>
+                      </div>
+                    </>
+                  )
+                )}
+
+                {/* ── History conversation (no date divider) ── */}
+                {!showAnswer && historyConvId && (
+                  <>
+                    {historyLoading && (
+                      <div className="flex items-center gap-2 py-2 text-muted-foreground">
+                        <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                        <span className="text-sm">Loading conversation…</span>
+                      </div>
+                    )}
+                    {!historyLoading && historyError && (
+                      <div className="flex items-center gap-2 text-destructive text-sm">
+                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                        <span>Failed to load: {historyError}</span>
+                      </div>
+                    )}
+                    {!historyLoading && !historyError && historyConv && historyConv.messages.length > 0 && (
+                      <div className="space-y-4">
+                        {historyConv.messages.map((msg, i) => (
+                          <HistoryMsgBubble key={i} msg={msg} />
+                        ))}
+                        <div ref={historyBottomRef} />
+                      </div>
+                    )}
+                    {!historyLoading && !historyError && historyConv && historyConv.messages.length === 0 && (
+                      <p className="text-sm text-muted-foreground">No messages in this conversation.</p>
+                    )}
                   </>
                 )}
               </div>

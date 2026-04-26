@@ -11,6 +11,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { ToastProvider } from "@/components/assessment/ToastProvider";
 
 import StudentLoginPage from "./pages/StudentLoginPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import HomePage from "./pages/HomePage";
 import AIGiniPage from "./pages/AIGiniPage";
 import AINotesPage from "./pages/AINotesPage";
@@ -55,6 +56,7 @@ const App = () => (
               <Routes>
                 {/* ── Public ── */}
                 <Route path="/login" element={<StudentLoginPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                 {/* ── Student: Take Test (full-screen, no sidebar) ── */}
                 <Route

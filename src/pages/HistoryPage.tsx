@@ -74,6 +74,18 @@ function toolToSource(tool: string): string {
   return "gini"; // default: AI Gini
 }
 
+// ─── Tool → relative route (safe for navigate(), never absolute) ──────────────
+function getRelativeToolRoute(tool: string): string {
+  const lower = (tool || "").toLowerCase();
+  if (lower.includes("tutor"))     return "/ai-tutor";
+  if (lower.includes("practice"))  return "/ai-practice";
+  if (lower.includes("notes"))     return "/ai-notes";
+  if (lower.includes("summaris"))  return "/summarizer";
+  if (lower.includes("question"))  return "/question-bank";
+  if (lower.includes("more") || lower.includes("tools")) return "/more-tools";
+  return "/ai-gini";
+}
+
 // ─── Relative-time helper ────────────────────────────────────────────────────
 function relativeTime(raw: string | undefined): string {
   if (!raw) return "—";
@@ -226,24 +238,22 @@ export default function HistoryPage() {
   const handleQueryClick = (item: RecentQuery) => {
     const hasConversation = item.conversation_id != null;
     const source          = toolToSource(item.tool);
-    const toolLower       = (item.tool || "").toLowerCase();
-    const targetPath      = item.url || "/ai-gini";
 
     if (!hasConversation) {
-      navigate(targetPath);
+      // No conversation — go to the tool page (always relative, never item.url)
+      navigate(getRelativeToolRoute(item.tool));
       return;
     }
 
-    // AI Tutor is voice-based — open in read-only ConversationPage (same result as AI Gini)
-    if (toolLower.includes("tutor")) {
-      navigate(`/history/conversation/${item.conversation_id}?source=${source}`);
-      return;
-    }
+    const convId = String(item.conversation_id);
 
-    // All other tools → navigate to their page and pass conversationId via state
-    navigate(targetPath, {
-      state: { conversationId: String(item.conversation_id), source },
-    });
+    if (source === "tutor") {
+      // AI Tutor → show conversation inline BELOW the student input on /ai-tutor
+      navigate("/ai-tutor", { state: { conversationId: convId, source } });
+    } else {
+      // All other tools → shared ConversationPage
+      navigate(`/history/conversation/${convId}?source=${encodeURIComponent(source)}`);
+    }
   };
 
   return (

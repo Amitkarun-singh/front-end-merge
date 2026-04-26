@@ -50,7 +50,7 @@ interface AuthState {
 }
 
 interface AuthContextType extends AuthState {
-  login: (payload: Record<string, string>) => Promise<void>;
+  login: (payload: Record<string, string>) => Promise<{ requiresPasswordReset?: boolean }>;
   sendOtp: (phoneNumber: string) => Promise<{ otpToken: string }>;
   verifyOtp: (payload: {
     phone_number: string;
@@ -311,6 +311,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const responseData = data.data || data;
+
+      // ── First-time login: password reset required ─────────────────────────
+      if (responseData.requiresPasswordReset && responseData.tempToken) {
+        sessionStorage.setItem('tempToken', responseData.tempToken);
+        setAuthState((prev) => ({ ...prev, loading: false }));
+        return { requiresPasswordReset: true };
+      }
+
       const token = responseData.accessToken || responseData.token;
 
       // Extract role from login response
