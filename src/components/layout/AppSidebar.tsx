@@ -1,6 +1,7 @@
 import { useState, useEffect, createContext, useContext } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useFeatures, FeatureName } from "@/context/FeatureContext";
 import { cn } from "@/lib/utils";
 import {
   Home,
@@ -36,20 +37,38 @@ export function useMobileSidebar() {
   return useContext(MobileSidebarContext);
 }
 
-const studyTools = [
-  { title: "AI Gini",        url: "/ai-gini",      icon: MessageCircle },
-  { title: "AI Notes",       url: "/ai-notes",     icon: FileText      },
-  { title: "AI Tutor",       url: "/ai-tutor",     icon: GraduationCap },
-  { title: "AI Practice",    url: "/ai-practice",  icon: ClipboardList },
-  { title: "Doc Summariser", url: "/summarizer",   icon: FileSearch    },
-  { title: "Question Bank",  url: "/question-bank",icon: FileQuestion  },
-  { title: "More Tools",     url: "/more-tools",   icon: Grid3X3       },
+/** Each study-tool entry carries an optional feature flag */
+interface StudyTool {
+  title: string;
+  url: string;
+  icon: React.ElementType;
+  feature?: FeatureName;
+}
+
+const studyTools: StudyTool[] = [
+  { title: "AI Gini",        url: "/ai-gini",       icon: MessageCircle, feature: "AI_GINI"       },
+  { title: "AI Notes",       url: "/ai-notes",      icon: FileText,      feature: "AI_NOTES"      },
+  { title: "AI Tutor",       url: "/ai-tutor",      icon: GraduationCap, feature: "AI_TUTOR"      },
+  { title: "AI Practice",    url: "/ai-practice",   icon: ClipboardList, feature: "AI_PRACTICE"   },
+  { title: "Doc Summariser", url: "/summarizer",    icon: FileSearch,    feature: "DOC_SUMMARISER" },
+  { title: "Question Bank",  url: "/question-bank", icon: FileQuestion,  feature: "QUESTION_BANK" },
+  { title: "More Tools",     url: "/more-tools",    icon: Grid3X3,       feature: "MORE_TOOLS"    },
 ];
 
 // Assessment entry injected into Study Tools for teachers/admins
-const aiAssessmentTool = { title: "AI Assessment", url: "/teacher/assessments", icon: ClipboardCheck };
+const aiAssessmentTool: StudyTool = {
+  title: "AI Assessment",
+  url: "/teacher/assessments",
+  icon: ClipboardCheck,
+  feature: "AI_ASSESSMENT",
+};
 // My Tests entry injected into Study Tools for students
-const myTestsTool      = { title: "My Tests",       url: "/student/tests",       icon: BookOpenCheck  };
+const myTestsTool: StudyTool = {
+  title: "My Tests",
+  url: "/student/tests",
+  icon: BookOpenCheck,
+  feature: "AI_ASSESSMENT",
+};
 
 const exploreLinks = [
   { title: "History", url: "/history", icon: BarChart3 },
@@ -65,6 +84,7 @@ export function AppSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const { isFeatureEnabled } = useFeatures();
   const currentPath = location.pathname;
 
   const isSupportPage = currentPath === "/support" || currentPath === "/feedback";
@@ -98,7 +118,6 @@ export function AppSidebar() {
       : (user?.role as { role_name?: string })?.role_name || "Student";
 
   // On desktop: showLabel = !collapsed
-  // On mobile: always render sidebar with showLabel = mobileOpen (icon strip when closed, full when open)
   const desktopShowLabel = !collapsed;
 
   const sidebarInner = (showLabel: boolean) => (
@@ -120,8 +139,6 @@ export function AppSidebar() {
           size="icon"
           className="absolute top-4 right-2 h-6 w-6"
           onClick={() => {
-            // On mobile: toggle overlay open/closed
-            // On desktop: toggle collapsed
             const isMobile = window.innerWidth < 768;
             if (isMobile) setMobileOpen(!mobileOpen);
             else setCollapsed(!collapsed);
@@ -170,8 +187,9 @@ export function AppSidebar() {
           </div>
         ) : <Separator className="my-4" />}
         <div className="space-y-1">
-          {/* Inject AI Assessment for teachers/admins at the top of study tools */}
-          {(roleName.toLowerCase().includes("teacher") || roleName.toLowerCase().includes("admin")) && (
+          {/* AI Assessment — only for teachers/admins AND feature enabled */}
+          {(roleName.toLowerCase().includes("teacher") || roleName.toLowerCase().includes("admin")) &&
+            isFeatureEnabled(aiAssessmentTool.feature!) && (
             <Link
               to={aiAssessmentTool.url}
               className={cn("sidebar-link", currentPath.startsWith("/teacher/assessments") && "active")}
@@ -181,8 +199,10 @@ export function AppSidebar() {
               {showLabel && <span>{aiAssessmentTool.title}</span>}
             </Link>
           )}
-          {/* Inject My Tests for students */}
-          {roleName.toLowerCase().includes("student") && (
+
+          {/* My Tests — only for students AND feature enabled */}
+          {roleName.toLowerCase().includes("student") &&
+            isFeatureEnabled(myTestsTool.feature!) && (
             <Link
               to={myTestsTool.url}
               className={cn("sidebar-link", currentPath.startsWith("/student/tests") && "active")}
@@ -192,12 +212,21 @@ export function AppSidebar() {
               {showLabel && <span>{myTestsTool.title}</span>}
             </Link>
           )}
-          {studyTools.map((item) => (
-            <Link key={item.title} to={item.url} className={cn("sidebar-link", isActive(item.url) && "active")}>
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {showLabel && <span>{item.title}</span>}
-            </Link>
-          ))}
+
+          {/* Study tools — only render when feature is enabled */}
+          {studyTools
+            .filter((item) => !item.feature || isFeatureEnabled(item.feature))
+            .map((item) => (
+              <Link
+                key={item.title}
+                to={item.url}
+                className={cn("sidebar-link", isActive(item.url) && "active")}
+                title={item.title}
+              >
+                <item.icon className="w-5 h-5 flex-shrink-0" />
+                {showLabel && <span>{item.title}</span>}
+              </Link>
+            ))}
         </div>
 
         {showLabel ? (
@@ -228,7 +257,6 @@ export function AppSidebar() {
                 className="w-8 h-8 rounded-full object-cover"
                 onError={(e) => {
                   console.warn("[Sidebar] Avatar image failed to load:", user.avatar);
-                  // Swap to the initials div on broken URL
                   e.currentTarget.style.display = "none";
                   const sibling = e.currentTarget.nextElementSibling as HTMLElement | null;
                   if (sibling) sibling.style.display = "flex";
