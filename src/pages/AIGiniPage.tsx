@@ -694,25 +694,29 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
     const fetchClasses = async () => {
       if (!token) return;
       try {
-        const response = await fetch(`${config.server}/api/classes`, {
+        const response = await fetch(`${config.server}/api/class/student`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
         const result = await response.json();
-        if (result.success) {
-          setClasses(result.data);
-          if (result.data.length > 0 && !selectedClass) {
-            setSelectedClass("all");
+        if (result.success && result.data) {
+          const studentClass = {
+            class_id: result.data.class_id,
+            class_name: result.data.class_name.toString(),
+          };
+          setClasses([studentClass]);
+          if (!selectedClass) {
+            setSelectedClass(studentClass.class_name);
           }
         }
       } catch (error) {
-        console.error("Error fetching classes:", error);
+        console.error("Error fetching class:", error);
       }
     };
 
     fetchClasses();
-  }, [token, setSelectedClass]);
+  }, [token, setSelectedClass, selectedClass]);
 
   useEffect(() => {
     const fetchSubjects = async () => {
