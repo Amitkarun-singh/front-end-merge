@@ -294,8 +294,10 @@ export default function HistoryPage() {
                       <Icon className="w-4 h-4 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                        {item.query}
+                      <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">
+                        {item.query && item.query.length > 25
+                          ? item.query.slice(0, 25) + "…"
+                          : item.query}
                       </p>
                       <div className="flex items-center flex-wrap gap-1.5 mt-1">
                         <Badge variant="secondary" className="text-xs">{item.tool}</Badge>
