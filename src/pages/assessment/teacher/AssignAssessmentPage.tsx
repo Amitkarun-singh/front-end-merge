@@ -164,7 +164,7 @@ export default function AssignAssessmentPage() {
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-full bg-background p-6 lg:p-8 max-w-2xl mx-auto">
+    <div className="min-h-full bg-background p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto">
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">

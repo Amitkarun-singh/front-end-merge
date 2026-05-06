@@ -111,7 +111,39 @@ export default function AssignmentResultsPage() {
       {/* Table */}
       <div className="bg-card border border-border/50 rounded-2xl shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          {/* ─ Mobile cards ─ */}
+          <div className="lg:hidden divide-y divide-border/40">
+            {isLoading ? Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="px-4 py-3 space-y-2">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            )) : filtered.length === 0 ? (
+              <p className="px-4 py-10 text-center text-muted-foreground text-sm">No students found</p>
+            ) : filtered.map((a, i) => (
+              <div key={i} className="px-4 py-3.5 space-y-1.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-foreground text-sm">{a.student_name}</p>
+                    <p className="text-xs text-muted-foreground">{a.roll_number}</p>
+                  </div>
+                  <span className={`text-sm font-bold ${a.percentage >= 75 ? "text-green-600" : a.percentage >= 50 ? "text-amber-600" : "text-red-600"}`}>
+                    {a.percentage.toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>Score: <span className="font-semibold text-foreground">{a.score}</span> / {a.total_marks}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    a.status === "submitted" ? "bg-green-100 text-green-700 border border-green-200" : "bg-muted text-muted-foreground border border-border"}`}>
+                    {a.status}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">{new Date(a.submitted_at).toLocaleString()}</p>
+              </div>
+            ))}
+          </div>
+          {/* ─ Desktop table ─ */}
+          <table className="hidden lg:table w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 {["Student Name","Roll No.","Score","Out of","Percentage","Submitted At","Status"].map((h) => (

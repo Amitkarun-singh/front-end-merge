@@ -211,7 +211,7 @@ export default function StudentTestsPage() {
   });
 
   return (
-    <div className="min-h-full bg-background p-6 lg:p-8">
+    <div className="min-h-full bg-background p-4 sm:p-6 lg:p-8">
 
       {/* Header */}
       <div className="mb-8">

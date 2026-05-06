@@ -189,13 +189,13 @@ export default function TeacherAssessmentsPage() {
       </div>
 
       {/* ── Filter Row ── */}
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <div className="flex items-center gap-1 bg-muted rounded-xl p-1">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
+        <div className="flex items-center gap-1 bg-muted rounded-xl p-1 overflow-x-auto">
           {TABS.map((t) => (
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key)}
-              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
                 activeTab === t.key
                   ? "bg-background text-primary shadow-sm border border-border/50"
                   : "text-muted-foreground hover:text-foreground"
@@ -206,13 +206,13 @@ export default function TeacherAssessmentsPage() {
           ))}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
-          <Filter className="w-4 h-4 text-muted-foreground" />
-          <div className="relative">
+        <div className="flex items-center gap-2 sm:ml-auto">
+          <Filter className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+          <div className="relative flex-1 min-w-0">
             <select
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
-              className="appearance-none bg-background border border-border text-foreground text-sm
+              className="w-full appearance-none bg-background border border-border text-foreground text-sm
                 rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">All Classes</option>
@@ -223,11 +223,11 @@ export default function TeacherAssessmentsPage() {
             </select>
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
           </div>
-          <div className="relative">
+          <div className="relative flex-1 min-w-0">
             <select
               value={subjectFilter}
               onChange={(e) => setSubjectFilter(e.target.value)}
-              className="appearance-none bg-background border border-border text-foreground text-sm
+              className="w-full appearance-none bg-background border border-border text-foreground text-sm
                 rounded-lg pl-3 pr-8 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">All Subjects</option>
@@ -270,7 +270,110 @@ export default function TeacherAssessmentsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            {/* ─ Mobile card list ─ */}
+            <div className="lg:hidden divide-y divide-border/40">
+              {assessments.map((a, rowIdx) => {
+                const aId = resolveId(a);
+                const totalQ    = a.question_summary?.total    ?? a.total_questions    ?? 0;
+                const pendingQ  = a.question_summary?.pending  ?? a.pending_questions  ?? 0;
+                const approvedQ = a.question_summary?.approved ?? a.approved_questions ?? 0;
+                const timeLimit = a.time_limit_minutes ?? a.time_limit ?? null;
+                const assigned  = a.assignment_count   ?? a.assigned_count ?? 0;
+                const hasPending  = pendingQ > 0;
+                const isPublishing = publishingId === (aId ?? -1);
+                return (
+                  <div key={aId ?? rowIdx} className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <p className="font-semibold text-foreground text-sm">{a.title}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {a.subject_name ?? `Subject #${(a as {subject_id?: number}).subject_id ?? "—"}`} · {a.class_name}
+                        </p>
+                      </div>
+                      <div className="flex gap-1.5 flex-shrink-0">
+                        <Pill label={a.difficulty} cls={diffCls[a.difficulty] ?? diffCls.medium} />
+                        <Pill label={a.status} cls={statCls[a.status] ?? statCls.draft} />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground">
+                      <div className="bg-accent/60 rounded-lg p-2 text-center">
+                        <p className="font-bold text-foreground">{totalQ}</p>
+                        <p>Questions</p>
+                      </div>
+                      <div className="bg-accent/60 rounded-lg p-2 text-center">
+                        <p className="font-bold text-foreground">{a.total_marks}</p>
+                        <p>Marks</p>
+                      </div>
+                      <div className="bg-accent/60 rounded-lg p-2 text-center">
+                        <p className="font-bold text-foreground">{timeLimit ? `${timeLimit}m` : "—"}</p>
+                        <p>Time</p>
+                      </div>
+                      <div className="bg-accent/60 rounded-lg p-2 text-center">
+                        <p className="font-bold text-foreground">{assigned}</p>
+                        <p>Assigned</p>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => aId && navigate(`/teacher/assessments/${aId}/review`)}
+                        disabled={!aId}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                          bg-accent text-accent-foreground hover:bg-primary/10 hover:text-primary
+                          border border-border/50 text-xs font-medium transition-all disabled:opacity-40"
+                      >
+                        <Eye className="w-3.5 h-3.5" />Review
+                      </button>
+                      {a.status === "published" && (
+                        <button
+                          onClick={() => aId && navigate(`/teacher/assessments/${aId}/results`)}
+                          disabled={!aId}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                            bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200
+                            text-xs font-medium transition-all disabled:opacity-40"
+                        >
+                          <BarChart3 className="w-3.5 h-3.5" />Results
+                        </button>
+                      )}
+                      {a.status === "draft" && !hasPending && totalQ > 0 && (
+                        <button
+                          onClick={() => aId && handlePublish(aId)}
+                          disabled={isPublishing || !aId}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                            bg-green-50 text-green-700 hover:bg-green-100 border border-green-200
+                            text-xs font-medium transition-all disabled:opacity-60"
+                        >
+                          {isPublishing ? <Spinner size="sm" /> : <Send className="w-3.5 h-3.5" />}Publish
+                        </button>
+                      )}
+                      {a.status === "published" && (
+                        <button
+                          onClick={() => aId && navigate(`/teacher/assessments/${aId}/assign`)}
+                          disabled={!aId}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                            bg-primary text-primary-foreground hover:bg-primary/90
+                            text-xs font-medium transition-all shadow-sm"
+                        >
+                          <Send className="w-3.5 h-3.5" />Assign
+                        </button>
+                      )}
+                      <button
+                        onClick={() => aId && handleDeleteClick(aId, a.title)}
+                        disabled={deletingId === (aId ?? -1) || !aId}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                          bg-red-50 text-red-600 hover:bg-red-100 border border-red-200
+                          text-xs font-medium transition-all disabled:opacity-60"
+                      >
+                        {deletingId === (aId ?? -1)
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Trash2 className="w-3.5 h-3.5" />}Delete
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* ─ Desktop table ─ */}
+            <table className="hidden lg:table w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   {["Title","Subject / Class","Difficulty","Status","Questions","Marks","Time","Assigned","Actions"].map((h) => (
@@ -284,7 +387,6 @@ export default function TeacherAssessmentsPage() {
               <tbody className="divide-y divide-border/40">
                 {assessments.map((a, rowIdx) => {
                   const aId = resolveId(a);
-                  // Support both flat fields (old shape) and nested question_summary (new shape)
                   const totalQ    = a.question_summary?.total    ?? a.total_questions    ?? 0;
                   const pendingQ  = a.question_summary?.pending  ?? a.pending_questions  ?? 0;
                   const approvedQ = a.question_summary?.approved ?? a.approved_questions ?? 0;
@@ -339,8 +441,6 @@ export default function TeacherAssessmentsPage() {
                           >
                             <Eye className="w-3.5 h-3.5" />Review
                           </button>
-
-                          {/* Results — shown for all published assessments */}
                           {a.status === "published" && (
                             <button
                               onClick={() => aId && navigate(`/teacher/assessments/${aId}/results`)}
@@ -352,7 +452,6 @@ export default function TeacherAssessmentsPage() {
                               <BarChart3 className="w-3.5 h-3.5" />Results
                             </button>
                           )}
-
                           {a.status === "draft" && !hasPending && totalQ > 0 && (
                             <button
                               onClick={() => aId && handlePublish(aId)}
@@ -376,8 +475,6 @@ export default function TeacherAssessmentsPage() {
                               <Send className="w-3.5 h-3.5" />Assign
                             </button>
                           )}
-
-                          {/* Delete */}
                           <button
                             onClick={() => aId && handleDeleteClick(aId, a.title)}
                             disabled={deletingId === (aId ?? -1) || !aId}

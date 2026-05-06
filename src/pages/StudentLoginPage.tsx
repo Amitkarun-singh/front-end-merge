@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import './StudentLoginPage.css';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import {
   Eye,
@@ -318,9 +318,9 @@ export default function StudentLoginPage() {
                       />
                       <span>Remember me</span>
                     </label>
-                    <a href="#" className="login-forgot-link">
+                    <Link to="/forgot-password" className="login-forgot-link">
                       Forgot password?
-                    </a>
+                    </Link>
                   </div>
 
                   {/* Login Button */}
@@ -454,6 +454,10 @@ export default function StudentLoginPage() {
             {/* Footer */}
             <div className="login-footer">
               <p>
+                Don't have an account?{' '}
+                <Link to="/register" className="login-forgot-link">Register for free</Link>
+              </p>
+              <p style={{ marginTop: '0.5rem' }}>
                 Powered by <span className="login-footer-brand">Schools2AI</span>{' '}
                 — AI-powered education
               </p>
