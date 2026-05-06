@@ -209,7 +209,7 @@ export default function TestResultPage() {
     (error as Error)?.message;
 
   return (
-    <div className="min-h-full bg-background p-6 lg:p-8">
+    <div className="min-h-full bg-background p-4 sm:p-6 lg:p-8">
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
@@ -235,8 +235,8 @@ export default function TestResultPage() {
         <div className="max-w-3xl mx-auto space-y-6">
 
           {/* ── Score Card ── */}
-          <div className="bg-card border border-border/50 rounded-2xl p-8 shadow-sm">
-            <div className="flex flex-col sm:flex-row items-center gap-8">
+          <div className="bg-card border border-border/50 rounded-2xl p-5 sm:p-8 shadow-sm">
+            <div className="flex flex-col sm:flex-row items-center gap-6 sm:gap-8">
               <CircularProgress percentage={data.percentage} />
               <div className="flex-1 text-center sm:text-left space-y-3">
                 <div className="text-4xl font-black text-foreground">

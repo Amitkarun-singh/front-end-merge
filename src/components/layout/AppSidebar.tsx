@@ -20,6 +20,7 @@ import {
   LogOut,
   ClipboardCheck,
   BookOpenCheck,
+  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -78,7 +79,7 @@ const exploreLinks = [
 export function AppSidebar() {
   // Desktop: collapsed state (starts expanded)
   const [collapsed, setCollapsed] = useState(false);
-  // Mobile: overlay open state (starts closed — only icon strip shows)
+  // Mobile overlay state from context (driven by hamburger in MainLayout)
   const { mobileOpen, setMobileOpen } = useMobileSidebar();
 
   const location = useLocation();
@@ -120,29 +121,40 @@ export function AppSidebar() {
   // On desktop: showLabel = !collapsed
   const desktopShowLabel = !collapsed;
 
-  const sidebarInner = (showLabel: boolean) => (
+  /* ────────────────────────────────────────────────────────────────────────
+     Shared sidebar inner content — receives showLabel flag.
+     On mobile we always pass true (full labels visible in the overlay).
+     On desktop we respect the collapsed state.
+  ──────────────────────────────────────────────────────────────────────── */
+  const sidebarInner = (showLabel: boolean, isMobileOverlay = false) => (
     <>
-      {/* Logo */}
-      <div className="flex items-center gap-2 p-4 h-16">
+      {/* Logo + optional close button */}
+      <div className="flex items-center gap-2 p-4 h-16 flex-shrink-0">
         <img src={schools2aiIcon} alt="Schools2AI" className="w-8 h-8 flex-shrink-0" />
         {showLabel && (
-          <span className="font-display font-bold text-lg text-foreground whitespace-nowrap">
+          <span className="font-display font-bold text-lg text-foreground whitespace-nowrap flex-1">
             Schools2AI
           </span>
         )}
+        {/* Close button only inside the mobile overlay */}
+        {isMobileOverlay && (
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="ml-auto p-1.5 rounded-lg hover:bg-sidebar-accent text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Close menu"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
-      {/* Toggle button */}
-      {!isSupportPage && (
+      {/* Desktop collapse/expand toggle — hidden on mobile overlay */}
+      {!isMobileOverlay && !isSupportPage && (
         <Button
           variant="ghost"
           size="icon"
           className="absolute top-4 right-2 h-6 w-6"
-          onClick={() => {
-            const isMobile = window.innerWidth < 768;
-            if (isMobile) setMobileOpen(!mobileOpen);
-            else setCollapsed(!collapsed);
-          }}
+          onClick={() => setCollapsed(!collapsed)}
         >
           {showLabel ? (
             <ChevronLeft className="h-4 w-4" />
@@ -232,7 +244,7 @@ export function AppSidebar() {
         {showLabel ? (
           <div className="mt-6 mb-2">
             <span className="text-xs font-medium text-muted-foreground px-3 uppercase tracking-wider">
-              Explore & Help
+              Explore &amp; Help
             </span>
           </div>
         ) : <Separator className="my-4" />}
@@ -247,7 +259,7 @@ export function AppSidebar() {
       </nav>
 
       {/* User profile & Logout */}
-      <div className="p-3 border-t border-sidebar-border">
+      <div className="p-3 border-t border-sidebar-border flex-shrink-0">
         <Link to="/profile" className="flex items-center gap-3 p-2 rounded-lg hover:bg-sidebar-accent transition-colors">
           <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden">
             {user?.avatar ? (
@@ -291,24 +303,19 @@ export function AppSidebar() {
 
   return (
     <>
-      {/* ── DESKTOP: sticky in normal flex flow, collapses/expands pushing content ── */}
+      {/* ── DESKTOP: inline in flex layout, collapsible ── */}
       <aside
         className={cn(
           "hidden md:flex h-screen flex-col bg-sidebar border-r border-sidebar-border transition-all duration-300 overflow-hidden relative flex-shrink-0 sticky top-0",
           collapsed ? "md:w-16" : "md:w-64"
         )}
       >
-        {sidebarInner(desktopShowLabel)}
+        {sidebarInner(desktopShowLabel, false)}
       </aside>
 
-      {/* ── MOBILE: all fixed, zero-width in flex layout ── */}
-      <div className="md:hidden w-0 h-0 overflow-visible">
-        {/* Always-visible icon strip (w-16, fixed left) */}
-        <aside className="fixed top-0 left-0 z-50 h-screen w-16 bg-sidebar border-r border-sidebar-border flex flex-col transition-all duration-300 overflow-hidden">
-          {sidebarInner(false)}
-        </aside>
-
-        {/* Backdrop — only when mobile overlay is open */}
+      {/* ── MOBILE: full-screen slide-in overlay, no icon strip ── */}
+      <div className="md:hidden">
+        {/* Backdrop */}
         <div
           className={cn(
             "fixed inset-0 z-[60] bg-black/50 backdrop-blur-sm transition-opacity duration-300",
@@ -317,14 +324,14 @@ export function AppSidebar() {
           onClick={() => setMobileOpen(false)}
         />
 
-        {/* Full expanded overlay sidebar */}
+        {/* Full sidebar overlay */}
         <aside
           className={cn(
-            "fixed top-0 left-0 z-[70] h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-300 overflow-hidden",
+            "fixed top-0 left-0 z-[70] h-full w-72 max-w-[85vw] bg-sidebar border-r border-sidebar-border flex flex-col transition-transform duration-300 overflow-hidden shadow-2xl",
             mobileOpen ? "translate-x-0" : "-translate-x-full"
           )}
         >
-          {sidebarInner(true)}
+          {sidebarInner(true, true)}
         </aside>
       </div>
     </>

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { FeatureProvider } from "@/context/FeatureContext";
+import { RegistrationProvider } from "@/context/RegistrationContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { FeatureRoute } from "@/components/FeatureRoute";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -12,6 +13,10 @@ import { ToastProvider } from "@/components/assessment/ToastProvider";
 
 import StudentLoginPage from "./pages/StudentLoginPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import Register from "./pages/Register";
+import VerifyOtp from "./pages/VerifyOtp";
+import CompleteProfile from "./pages/CompleteProfile";
 import HomePage from "./pages/HomePage";
 import AIGiniPage from "./pages/AIGiniPage";
 import AINotesPage from "./pages/AINotesPage";
@@ -52,11 +57,17 @@ const App = () => (
         <AuthProvider>
           {/* FeatureProvider must be inside AuthProvider so it can read the token */}
           <FeatureProvider>
-            <ToastProvider>
-              <Routes>
-                {/* ── Public ── */}
-                <Route path="/login" element={<StudentLoginPage />} />
-                <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <RegistrationProvider>
+              <ToastProvider>
+                <Routes>
+                  {/* ── Public ── */}
+                  <Route path="/login" element={<StudentLoginPage />} />
+                  <Route path="/reset-password" element={<ResetPasswordPage />} />
+                  <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                  {/* ── Registration flow ── */}
+                  <Route path="/register" element={<Register />} />
+                  <Route path="/register/verify" element={<VerifyOtp />} />
+                  <Route path="/register/profile" element={<CompleteProfile />} />
 
                 {/* ── Student: Take Test (full-screen, no sidebar) ── */}
                 <Route
@@ -256,7 +267,8 @@ const App = () => (
                 />
               </Routes>
             </ToastProvider>
-          </FeatureProvider>
+          </RegistrationProvider>
+        </FeatureProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

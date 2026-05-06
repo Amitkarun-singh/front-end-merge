@@ -209,7 +209,7 @@ export default function CreateAssessmentPage() {
     transition-all text-sm`;
 
   return (
-    <div className="min-h-screen bg-[#0f1117] text-white p-6 lg:p-8 max-w-3xl mx-auto">
+    <div className="min-h-screen bg-[#0f1117] text-white p-4 sm:p-6 lg:p-8 max-w-3xl mx-auto">
 
       {/* Back */}
       <button

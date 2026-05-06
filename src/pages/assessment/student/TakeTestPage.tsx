@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import {
   ChevronLeft, ChevronRight, Clock, AlertTriangle,
-  CheckCircle, ClipboardList, Lightbulb
+  CheckCircle, ClipboardList, Lightbulb, Menu, X
 } from "lucide-react";
 import { studentApi } from "@/api/assessmentApi";
 import { Spinner, ConfirmDialog } from "@/components/assessment/SharedComponents";
@@ -276,11 +276,64 @@ export default function TakeTestPage() {
   const answeredCount = Object.keys(answers).length;
   const currentQId    = currentQ ? qId(currentQ) : 0;
 
-  return (
-    <div className="h-screen bg-background flex overflow-hidden">
+  const [paletteOpen, setPaletteOpen] = useState(false);
 
-      {/* ── Left Sidebar ── */}
-      <div className="w-64 flex-shrink-0 bg-card border-r border-border flex flex-col p-4 gap-4">
+  return (
+    <div className="h-screen bg-background flex flex-col lg:flex-row overflow-hidden">
+
+      {/* ── Mobile Top Bar ── */}
+      <div className="lg:hidden flex items-center justify-between px-4 py-2 bg-card border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setPaletteOpen(v => !v)}
+            className="p-1.5 rounded-lg bg-muted hover:bg-accent text-muted-foreground transition">
+            {paletteOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+          <span className="text-sm font-medium text-foreground">
+            Q{currentIdx + 1}<span className="text-muted-foreground">/{questions.length}</span>
+          </span>
+        </div>
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-mono font-bold border ${
+          isDanger  ? "bg-red-50 border-red-200 text-red-600 animate-pulse"
+          : isWarning ? "bg-amber-50 border-amber-200 text-amber-600"
+          : "bg-accent border-border/40 text-foreground"}`}>
+          <Clock className="w-3.5 h-3.5" />
+          {attemptData.time_limit_seconds ? timerDisplay : "∞"}
+        </div>
+        <button onClick={() => setConfirmSubmit(true)}
+          className="bg-primary hover:bg-primary/90 text-primary-foreground px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+          Submit
+        </button>
+      </div>
+
+      {/* ── Mobile Palette Drawer ── */}
+      {paletteOpen && (
+        <div className="lg:hidden bg-card border-b border-border px-4 py-3 flex-shrink-0">
+          <div className="grid grid-cols-8 gap-1.5 mb-3">
+            {questions.map((q, i) => {
+              const qid = qId(q);
+              const isAnswered = !!answers[qid];
+              const isCurrent  = i === currentIdx;
+              return (
+                <button key={qid || i} onClick={() => { setCurrentIdx(i); setShowHint(false); setPaletteOpen(false); }}
+                  className={`h-9 rounded-lg text-xs font-bold transition-all ${
+                    isCurrent  ? "ring-2 ring-primary bg-primary text-primary-foreground"
+                    : isAnswered ? "bg-green-100 text-green-700 border border-green-200"
+                    : "bg-muted text-muted-foreground hover:bg-accent"}`}>
+                  {i + 1}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex gap-4 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-green-100 border border-green-200" /> Answered</div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-muted" /> Not Answered</div>
+            <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded bg-primary" /> Current</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Desktop Left Sidebar ── */}
+      <div className="hidden lg:flex w-64 flex-shrink-0 bg-card border-r border-border flex-col p-4 gap-4">
 
         {/* Timer */}
         <div className={`rounded-xl p-3 text-center border ${
@@ -339,8 +392,8 @@ export default function TakeTestPage() {
       {/* ── Right Content ── */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* Top bar */}
-        <div className="border-b border-border px-6 py-3 flex items-center justify-between bg-card/60">
+        {/* Top bar — desktop only (mobile has its own bar above) */}
+        <div className="hidden lg:flex border-b border-border px-6 py-3 items-center justify-between bg-card/60">
           <div className="flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-primary" />
             <span className="text-sm text-muted-foreground">
@@ -355,7 +408,7 @@ export default function TakeTestPage() {
         </div>
 
         {/* Question Body */}
-        <div className="flex-1 overflow-y-auto p-6 lg:p-10 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 custom-scrollbar">
           {currentQ && (() => {
             const opts = parseOptions(currentQ.options);
             const type = currentQ.question_type;
@@ -498,26 +551,35 @@ export default function TakeTestPage() {
         </div>
 
         {/* Navigation bar */}
-        <div className="border-t border-border px-6 py-4 flex items-center justify-between bg-card/60">
+        <div className="border-t border-border px-4 py-3 flex items-center justify-between bg-card/60">
           <button
             onClick={() => { setCurrentIdx((i) => Math.max(0, i - 1)); setShowHint(false); }}
             disabled={currentIdx === 0}
-            className="flex items-center gap-2 bg-muted hover:bg-accent disabled:opacity-30
-              border border-border rounded-xl px-4 py-2.5 text-sm text-foreground transition">
-            <ChevronLeft className="w-4 h-4" /> Previous
+            className="flex items-center gap-1.5 bg-muted hover:bg-accent disabled:opacity-30
+              border border-border rounded-xl px-3 py-2 text-sm text-foreground transition">
+            <ChevronLeft className="w-4 h-4" />
+            <span className="hidden sm:inline">Previous</span>
           </button>
+
+          <span className="text-xs text-muted-foreground lg:hidden">
+            {currentQ?.marks} mark{currentQ?.marks !== 1 ? "s" : ""}
+          </span>
 
           {currentIdx < questions.length - 1 ? (
             <button onClick={() => { setCurrentIdx((i) => i + 1); setShowHint(false); }}
-              className="flex items-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground
-                rounded-xl px-4 py-2.5 text-sm font-semibold transition shadow-edtech">
-              Save &amp; Next <ChevronRight className="w-4 h-4" />
+              className="flex items-center gap-1.5 bg-primary hover:bg-primary/90 text-primary-foreground
+                rounded-xl px-3 py-2 text-sm font-semibold transition shadow-edtech">
+              <span className="hidden sm:inline">Save &amp; Next</span>
+              <span className="sm:hidden">Next</span>
+              <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
             <button onClick={() => setConfirmSubmit(true)}
-              className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white
-                rounded-xl px-4 py-2.5 text-sm font-semibold transition">
-              <CheckCircle className="w-4 h-4" /> Submit Test
+              className="flex items-center gap-1.5 bg-green-600 hover:bg-green-700 text-white
+                rounded-xl px-3 py-2 text-sm font-semibold transition">
+              <CheckCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">Submit Test</span>
+              <span className="sm:hidden">Submit</span>
             </button>
           )}
         </div>

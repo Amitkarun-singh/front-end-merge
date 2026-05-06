@@ -148,7 +148,40 @@ export default function TeacherAssessmentResultsPage() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            {/* ─ Mobile cards ─ */}
+            <div className="lg:hidden divide-y divide-border/40">
+              {filtered.length === 0 ? (
+                <p className="px-4 py-12 text-center text-muted-foreground text-sm">
+                  {data?.total_students === 0 ? "No students have submitted this assessment yet." : "No students match your search."}
+                </p>
+              ) : filtered.map((a, i) => (
+                <div key={a.attempt_id ?? i} className="px-4 py-3.5 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-medium text-foreground text-sm">{a.student_name}</p>
+                      <p className="text-xs text-muted-foreground">{a.roll_number} {a.class_name && `· ${[a.class_name, a.section_name].filter(Boolean).join(" · ")}`}</p>
+                    </div>
+                    <span className={`text-sm font-bold ${pctCls(a.percentage)}`}>{a.percentage}%</span>
+                  </div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Score: <span className="font-semibold text-foreground">{a.score}</span> / {a.total_marks}</span>
+                    <span>{new Date(a.submitted_at).toLocaleString()}</span>
+                  </div>
+                  {a.attempt_id && (
+                    <button
+                      onClick={() => navigate(`/student/tests/result/${a.attempt_id}`)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg
+                        bg-accent text-accent-foreground hover:bg-primary/10 hover:text-primary
+                        border border-border/50 text-xs font-medium transition-all"
+                    >
+                      <Eye className="w-3.5 h-3.5" />View Detail
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* ─ Desktop table ─ */}
+            <table className="hidden lg:table w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/40">
                   {["Student Name","Roll No.","Class / Section","Score","Percentage","Submitted At","Action"].map((h) => (

@@ -1,0 +1,993 @@
+/* ============================================================
+   Schools2AI — Registration Flow
+   Inherits login-page blobs/particles from StudentLoginPage.css.
+   Only defines what's unique to the registration flow.
+   ============================================================ */
+
+/* ── Desktop split container ─────────────────────────────────────────────────── */
+.reg-split {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  max-width: 960px;
+  min-height: 600px;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  box-shadow:
+    0 25px 60px -12px rgba(139, 92, 246, 0.15),
+    0 12px 30px -8px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(20px);
+  animation: loginCardEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Left branding panel — identical gradient to login-branding ──────────────── */
+.reg-branding {
+  display: none;
+  width: 420px;
+  min-width: 420px;
+  background: linear-gradient(
+    160deg,
+    hsl(262 60% 45%) 0%,
+    hsl(250 55% 40%) 50%,
+    hsl(240 50% 35%) 100%
+  );
+  position: relative;
+  overflow: hidden;
+  padding: 3rem 2.5rem;
+}
+
+.reg-branding::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 80%, hsl(187 96% 42% / 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, hsl(330 80% 65% / 0.15) 0%, transparent 50%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* Mascot background image — same as .login-mascot-bg */
+.reg-mascot-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.15;
+  mix-blend-mode: luminosity;
+}
+
+.reg-branding-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  color: white;
+}
+
+.reg-branding-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 0.75rem;
+  background: rgba(255, 255, 255, 0.15);
+  padding: 0.4rem;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+}
+
+.reg-branding-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.reg-branding h2 {
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: white;
+  margin: 0;
+}
+
+.reg-branding h2 span {
+  background: linear-gradient(90deg, hsl(262 83% 68%), hsl(187 96% 60%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.reg-branding-tagline {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  opacity: 0.8;
+  margin-bottom: 2.5rem;
+  color: white;
+}
+
+.reg-branding-features {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.reg-branding-feature {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.875rem;
+  opacity: 0.9;
+  color: white;
+}
+
+.reg-branding-feature-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, hsl(262 83% 68%), hsl(187 96% 55%));
+  flex-shrink: 0;
+  box-shadow: 0 0 6px hsl(262 83% 60% / 0.4);
+}
+
+/* ── Right form panel ────────────────────────────────────────────────────────── */
+.reg-form-panel {
+  flex: 1;
+  display: flex;
+  align-items: stretch;
+}
+
+.reg-card-inner {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px);
+  display: flex;
+  flex-direction: column;
+  padding: 2.5rem 2rem;
+}
+
+/* ── Centered card (OTP + Profile pages) ─────────────────────────────────────── */
+.reg-centered {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 460px;
+  border-radius: 1.5rem;
+  overflow: hidden;
+  box-shadow:
+    0 25px 60px -12px rgba(139, 92, 246, 0.15),
+    0 12px 30px -8px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.5);
+  backdrop-filter: blur(20px);
+  animation: loginCardEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reg-centered .reg-card-inner {
+  border-radius: 0;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.reg-centered-wide {
+  max-width: 520px;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+.reg-header {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.reg-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.reg-logo-img {
+  width: 40px;
+  height: 40px;
+  border-radius: 0.5rem;
+}
+
+.reg-logo-text {
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: hsl(240 10% 15%);
+}
+
+.reg-logo-text span {
+  background: linear-gradient(90deg, hsl(262 83% 58%), hsl(187 96% 42%));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.reg-heading {
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: hsl(262 83% 58%);
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.02em;
+}
+
+.reg-subheading {
+  font-size: 0.85rem;
+  color: hsl(240 4% 46%);
+}
+
+/* ── Role toggle (pill tabs) ─────────────────────────────────────────────────── */
+.reg-role-group {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 1.5rem;
+  background: hsl(240 5% 96%);
+  border-radius: 0.75rem;
+  padding: 0.25rem;
+}
+
+.reg-role-pill {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: 0.625rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: hsl(240 4% 46%);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: none;
+  background: transparent;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+}
+
+.reg-role-pill:hover {
+  color: hsl(262 83% 58%);
+}
+
+.reg-role-pill-active {
+  background: white;
+  color: hsl(262 83% 58%);
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.12);
+}
+
+/* ── Form ────────────────────────────────────────────────────────────────────── */
+.reg-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.reg-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.reg-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: hsl(240 10% 20%);
+}
+
+.reg-input-wrap {
+  position: relative;
+}
+
+.reg-input-icon {
+  position: absolute;
+  left: 0.875rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1.125rem;
+  height: 1.125rem;
+  color: hsl(240 4% 65%);
+  pointer-events: none;
+  transition: color 0.3s ease;
+}
+
+.reg-input-wrap:focus-within .reg-input-icon {
+  color: hsl(262 83% 58%);
+}
+
+.reg-input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.75rem;
+  border: 2px solid hsl(240 6% 90%);
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  color: hsl(240 10% 15%);
+  background: hsl(240 5% 98%);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  outline: none;
+  font-family: 'Inter', system-ui, sans-serif;
+  box-sizing: border-box;
+  height: 48px;
+}
+
+.reg-input::placeholder {
+  color: hsl(240 4% 65%);
+}
+
+.reg-input:hover {
+  background: hsl(240 5% 96%);
+  border-color: hsl(240 6% 82%);
+}
+
+.reg-input:focus {
+  background: white;
+  border-color: hsl(262 83% 58%);
+  box-shadow: 0 0 0 3px hsl(262 83% 58% / 0.1), 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.reg-input-error {
+  border-color: hsl(0 84% 60%) !important;
+  box-shadow: 0 0 0 3px hsl(0 84% 60% / 0.1) !important;
+}
+
+.reg-input-no-icon {
+  padding-left: 1rem;
+}
+
+.reg-input-password {
+  padding-right: 3rem;
+}
+
+/* select arrow */
+.reg-input-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.875rem center;
+  padding-right: 2.5rem;
+  cursor: pointer;
+}
+
+/* ── Password toggle ─────────────────────────────────────────────────────────── */
+.reg-pw-toggle {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: hsl(240 4% 55%);
+  cursor: pointer;
+  transition: color 0.2s ease;
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+}
+
+.reg-pw-toggle:hover {
+  color: hsl(262 83% 58%);
+}
+
+/* ── Field error text ────────────────────────────────────────────────────────── */
+.reg-field-error {
+  font-size: 0.8rem;
+  color: hsl(0 84% 45%);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+}
+
+/* ── Password strength bar ───────────────────────────────────────────────────── */
+.reg-strength-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: 0.25rem;
+}
+
+.reg-strength-bars {
+  display: flex;
+  gap: 4px;
+  flex: 1;
+}
+
+.reg-strength-seg {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.reg-strength-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  min-width: 42px;
+  text-align: right;
+}
+
+/* ── Submit button — same gradient as login-submit-btn ───────────────────────── */
+.reg-submit-btn {
+  width: 100%;
+  padding: 0.85rem 1.5rem;
+  background: linear-gradient(135deg, hsl(262 83% 58%) 0%, hsl(240 60% 48%) 100%);
+  color: white;
+  font-size: 0.95rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 4px 15px hsl(262 83% 58% / 0.3), 0 1px 3px rgba(0,0,0,0.1);
+  margin-top: 0.5rem;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+}
+
+.reg-submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px hsl(262 83% 58% / 0.4), 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.reg-submit-btn:active:not(:disabled) {
+  transform: translateY(0) scale(0.98);
+}
+
+.reg-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Spinner ─────────────────────────────────────────────────────────────────── */
+.reg-spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2.5px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: loginSpin 0.6s linear infinite;
+}
+
+/* ── Error banner ────────────────────────────────────────────────────────────── */
+.reg-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  background: hsl(0 84% 97%);
+  border: 1px solid hsl(0 84% 90%);
+  color: hsl(0 84% 45%);
+  font-size: 0.85rem;
+  border-radius: 0.75rem;
+  animation: loginShake 0.4s ease;
+}
+
+/* ── Toast notification ──────────────────────────────────────────────────────── */
+.reg-toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: hsl(240 10% 15%);
+  color: white;
+  padding: 0.875rem 1.5rem;
+  border-radius: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  max-width: 90vw;
+  animation: regToastIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.reg-toast-success { background: linear-gradient(135deg, #10B981, #059669); }
+.reg-toast-error   { background: linear-gradient(135deg, #EF4444, #DC2626); }
+.reg-toast-warning { background: linear-gradient(135deg, #F59E0B, #D97706); }
+
+@keyframes regToastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ── OTP boxes ───────────────────────────────────────────────────────────────── */
+.reg-otp-row {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+  margin: 0.5rem 0;
+}
+
+.reg-otp-box {
+  width: 48px;
+  height: 56px;
+  text-align: center;
+  font-size: 1.5rem;
+  font-weight: 700;
+  border: 2px solid hsl(240 6% 90%);
+  border-radius: 0.75rem;
+  outline: none;
+  color: hsl(240 10% 15%);
+  background: hsl(240 5% 98%);
+  transition: all 0.2s ease;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+}
+
+.reg-otp-box:focus {
+  border-color: hsl(262 83% 58%);
+  box-shadow: 0 0 0 3px hsl(262 83% 58% / 0.1);
+  background: white;
+}
+
+.reg-otp-box-filled {
+  border-color: hsl(262 83% 58%);
+  background: hsl(262 60% 97%);
+}
+
+@keyframes regOtpShake {
+  0%,100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+.reg-otp-shake { animation: regOtpShake 0.5s ease; }
+
+/* ── Back button ─────────────────────────────────────────────────────────────── */
+.reg-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.85rem;
+  color: hsl(240 4% 50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.2s;
+  padding: 0;
+}
+
+.reg-back-btn:hover { color: hsl(262 83% 58%); }
+
+/* ── Progress bar (Step 3) ───────────────────────────────────────────────────── */
+.reg-progress-bar {
+  height: 4px;
+  background: hsl(240 6% 90%);
+  display: flex;
+  overflow: hidden;
+}
+
+.reg-progress-seg {
+  flex: 1;
+  height: 100%;
+  background: hsl(262 83% 58%);
+}
+
+.reg-step-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: hsl(262 83% 58%);
+  text-align: center;
+  padding: 0.625rem 1.75rem 0;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Footer link ─────────────────────────────────────────────────────────────── */
+.reg-footer {
+  text-align: center;
+  margin-top: auto;
+  padding-top: 1.5rem;
+  font-size: 0.8rem;
+  color: hsl(240 4% 60%);
+}
+
+.reg-footer a {
+  color: hsl(262 83% 58%);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.reg-footer a:hover { color: hsl(262 83% 45%); }
+
+/* ── Resend row ──────────────────────────────────────────────────────────────── */
+.reg-resend {
+  text-align: center;
+  font-size: 0.85rem;
+  color: hsl(240 4% 46%);
+}
+
+.reg-resend-btn {
+  color: hsl(262 83% 58%);
+  font-weight: 600;
+  cursor: pointer;
+  background: none;
+  border: none;
+  font-size: 0.85rem;
+  font-family: inherit;
+  margin-left: 0.25rem;
+  transition: color 0.2s;
+}
+
+.reg-resend-btn:hover:not(:disabled) { color: hsl(262 83% 45%); }
+.reg-resend-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── Phone icon hero ─────────────────────────────────────────────────────────── */
+.reg-icon-hero {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: hsl(262 60% 95%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 1.25rem;
+  color: hsl(262 83% 58%);
+  animation: regIconPop 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes regIconPop {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+/* ── Radio pills (gender, device) ────────────────────────────────────────────── */
+.reg-radio-group {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.reg-radio-pill {
+  flex: 1;
+  min-width: 72px;
+  padding: 0.5rem 0.875rem;
+  border: 2px solid hsl(240 6% 90%);
+  border-radius: 0.75rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: hsl(240 4% 50%);
+  cursor: pointer;
+  background: hsl(240 5% 98%);
+  text-align: center;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.reg-radio-pill:hover {
+  border-color: hsl(262 83% 58%);
+  color: hsl(262 83% 58%);
+}
+
+.reg-radio-pill-active {
+  background: hsl(262 60% 97%);
+  border-color: hsl(262 83% 58%);
+  color: hsl(262 83% 58%);
+}
+
+/* ── Toggle switch ───────────────────────────────────────────────────────────── */
+.reg-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+}
+
+.reg-toggle {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: hsl(240 6% 85%);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.25s ease;
+  flex-shrink: 0;
+  outline: none;
+}
+
+.reg-toggle:focus-visible {
+  box-shadow: 0 0 0 3px hsl(262 83% 58% / 0.2);
+}
+
+.reg-toggle-on { background: hsl(262 83% 58%); }
+
+.reg-toggle-thumb {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+}
+
+.reg-toggle-on .reg-toggle-thumb { transform: translateX(20px); }
+
+.reg-toggle-text {
+  font-size: 0.85rem;
+  color: hsl(240 4% 35%);
+  font-weight: 500;
+}
+
+/* ── Skeleton loader ─────────────────────────────────────────────────────────── */
+.reg-skeleton {
+  height: 48px;
+  border-radius: 0.75rem;
+  background: linear-gradient(90deg, hsl(240 5% 96%) 25%, hsl(240 6% 90%) 50%, hsl(240 5% 96%) 75%);
+  background-size: 200% 100%;
+  animation: regSkelShimmer 1.4s ease infinite;
+}
+
+@keyframes regSkelShimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Success overlay ─────────────────────────────────────────────────────────── */
+.reg-success-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 3rem 1.5rem;
+  gap: 1rem;
+}
+
+.reg-success-check {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, hsl(262 83% 58%), hsl(187 96% 42%));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  animation: regCheckPop 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes regCheckPop {
+  from { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.12); }
+  to   { transform: scale(1); opacity: 1; }
+}
+
+.reg-success-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: hsl(240 10% 10%);
+}
+
+.reg-success-sub {
+  font-size: 1rem;
+  color: hsl(240 4% 50%);
+  line-height: 1.6;
+  max-width: 300px;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────────────────── */
+
+/* Tablet and up: add more padding to card */
+@media (min-width: 768px) {
+  .reg-card-inner { padding: 3rem 2.5rem; }
+}
+
+/* Desktop: show branding panel */
+@media (min-width: 1024px) {
+  .reg-branding { display: flex; align-items: center; }
+  .reg-split { max-width: 960px; }
+  .reg-card-inner { padding: 3rem; }
+}
+
+/* Mobile: hide branding, form goes full-width */
+@media (max-width: 1023px) {
+  .reg-split {
+    border-radius: 0;
+    min-height: 100vh;
+    box-shadow: none;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .reg-branding { display: none !important; }
+
+  .login-card-wrapper {
+    width: 100%;
+    flex: 1;
+  }
+
+  .login-card {
+    border-radius: 0 !important;
+    min-height: 100vh;
+    box-shadow: none;
+    width: 100%;
+  }
+
+  /* Centered cards (OTP, Profile) */
+  .reg-centered {
+    max-width: 100%;
+    border-radius: 0;
+    min-height: 100vh;
+    box-shadow: none;
+  }
+
+  .reg-centered-wide { max-width: 100%; }
+
+  .reg-otp-box {
+    width: 42px;
+    height: 50px;
+    font-size: 1.3rem;
+  }
+
+  /* Fix blobs so they don't affect document flow */
+  .login-blob { position: fixed; }
+}
+
+
+
+/* ============================================================
+   Board selection grid (Screen 1 — Register.tsx)
+   ============================================================ */
+
+.reg-board-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.625rem;
+  margin-top: 0.25rem;
+}
+
+.reg-board-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.75rem 0.875rem;
+  border: 1.5px solid hsl(240 6% 90%);
+  border-radius: 0.75rem;
+  background: hsl(240 5% 98%);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: all 0.2s ease;
+}
+
+.reg-board-card:hover {
+  border-color: hsl(262 83% 70%);
+  background: hsl(262 60% 99%);
+}
+
+.reg-board-card-active {
+  border-width: 2px;
+  border-color: hsl(262 83% 58%);
+  background: hsl(262 60% 97%);
+  box-shadow: 0 0 0 3px hsl(262 83% 58% / 0.08);
+}
+
+.reg-board-check {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: hsl(262 83% 58%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reg-board-label {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: hsl(240 10% 12%);
+  line-height: 1.2;
+}
+
+.reg-board-card-active .reg-board-label {
+  color: hsl(262 83% 45%);
+}
+
+.reg-board-sub {
+  font-size: 0.72rem;
+  color: hsl(240 4% 52%);
+  line-height: 1.3;
+}
+
+/* Non-CBSE warning banner */
+.reg-board-warning {
+  background: #FFF7ED;
+  border: 1px solid #FED7AA;
+  border-radius: 0.625rem;
+  padding: 1rem 1.125rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  font-size: 0.84rem;
+  color: hsl(25 80% 35%);
+  line-height: 1.55;
+  animation: loginCardEntrance 0.3s ease;
+}
+
+.reg-board-warning-title {
+  font-weight: 700;
+  font-size: 0.875rem;
+  color: hsl(25 80% 28%);
+}
+
+.reg-board-warning p { margin: 0; }
+
+.reg-board-warning a {
+  color: hsl(25 80% 35%);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.reg-board-warning-contact {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+/* Mobile: board cards go single column on very small screens */
+@media (max-width: 360px) {
+  .reg-board-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Teacher subject picker: class pill grid ─────────────────────────────────── */
+.reg-class-pill-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.reg-class-pill {
+  padding: 0.35rem 0.75rem;
+  border: 1.5px solid hsl(240 6% 88%);
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: hsl(240 4% 45%);
+  background: hsl(240 5% 97%);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.18s ease;
+  white-space: nowrap;
+}
+
+.reg-class-pill:hover {
+  border-color: hsl(262 83% 65%);
+  color: hsl(262 83% 50%);
+  background: hsl(262 60% 98%);
+}
+
+.reg-class-pill-active {
+  background: hsl(262 83% 58%);
+  border-color: hsl(262 83% 58%);
+  color: white;
+  box-shadow: 0 2px 8px hsl(262 83% 58% / 0.25);
+}
