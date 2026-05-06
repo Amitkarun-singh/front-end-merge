@@ -264,7 +264,7 @@ function normaliseStats(raw: any): HistoryStats {
 
 async function apiFetch<T>(endpoint: string, token: string): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
-  console.log(`[historyApi] GET ${url}`);
+
 
   const res = await fetch(url, {
     method: "GET",
@@ -275,7 +275,7 @@ async function apiFetch<T>(endpoint: string, token: string): Promise<T> {
   });
 
   const json = await res.json().catch(() => ({}));
-  console.log(`[historyApi] ${endpoint} raw response:`, json);
+
 
   if (!res.ok) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -284,7 +284,7 @@ async function apiFetch<T>(endpoint: string, token: string): Promise<T> {
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const unwrapped = (json as any).data ?? json;
-  console.log(`[historyApi] ${endpoint} unwrapped:`, unwrapped);
+
 
   return unwrapped as T;
 }

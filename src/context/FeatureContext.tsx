@@ -101,7 +101,7 @@ export function FeatureProvider({ children }: { children: ReactNode }) {
         ? json.data
         : [];
 
-      console.log("[FeatureContext] Feature access loaded:", list);
+
       setFeatures(list);
     } catch (err) {
       console.error("[FeatureContext] Error fetching feature access:", err);
