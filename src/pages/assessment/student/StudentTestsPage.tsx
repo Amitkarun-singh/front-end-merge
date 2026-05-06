@@ -205,7 +205,7 @@ export default function StudentTestsPage() {
     queryFn: async () => {
       const res = await studentApi.getAssignedTests();
       const list = res.data?.data ?? res.data;
-      console.log("[StudentTests] raw API list:", list);
+
       return Array.isArray(list) ? list : [];
     },
   });

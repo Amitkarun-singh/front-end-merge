@@ -339,7 +339,7 @@ export default function AITutorPage() {
     setHistoryConv(null);
 
     try {
-      console.log("voiceBlob ", voiceBlob);
+
       const messagePayload = [
         ...conversation,
         { role: "user", content: voiceBlob ? "[Voice message]" : query },

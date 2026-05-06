@@ -66,7 +66,7 @@ export default function AIPracticePage() {
    * Effect: Fetch available classes on mount.
    */
   useEffect(() => {
-    console.log(local.token);
+
     const fetchClasses = async () => {
       try {
         const response = await fetch(`${config.server}/api/classes`, {
@@ -232,7 +232,7 @@ export default function AIPracticePage() {
       questionsCount: questionConfig,
     };
 
-    console.log("Generated Exam Data:", data);
+
     setLoading(true);
 
     try {
@@ -249,7 +249,7 @@ export default function AIPracticePage() {
         const data = await res.json();
         setExamData(data);
         setStep("exam");
-        console.log(data);
+
       }
     } catch (error) {
       setLoading(false);
@@ -262,7 +262,7 @@ export default function AIPracticePage() {
   }
 
   if (step === "exam") {
-    console.log("exam");
+
     return <UnifiedExam examData={examData} />;
   }
 

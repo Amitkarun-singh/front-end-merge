@@ -67,7 +67,7 @@ export default function PerformancePage() {
     const token = local?.token;
     async function fetchData() {
       try {
-        console.log("working ");
+
 
         const res = await fetch(`${config.server}/student/performance/${1}`, {
           headers: {
@@ -119,7 +119,7 @@ export default function PerformancePage() {
             })),
           );
           // Latest Tests
-          console.log("data -> ", value);
+
           setLatestTests(
             value.latestTests.map((test) => {
               let colorClass = "bg-primary";
