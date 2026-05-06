@@ -339,9 +339,10 @@ export default function AITutorPage() {
     setHistoryConv(null);
 
     try {
+      console.log("voiceBlob ", voiceBlob);
       const messagePayload = [
         ...conversation,
-        { role: "user", content: hasText ? query : "[Voice message]" },
+        { role: "user", content: voiceBlob ? "[Voice message]" : query },
       ];
 
       const formData = new FormData();
@@ -370,7 +371,7 @@ export default function AITutorPage() {
       if (!reader) throw new Error("No response body");
 
       let buffer = "";
-      let resolvedUserQuery = query; // fallback to original text input
+      let resolvedUserQuery = voiceBlob ? "[Voice message]" : query; // fallback to original text input
 
       while (true) {
         const { done, value } = await reader.read();
