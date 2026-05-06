@@ -339,9 +339,10 @@ export default function AITutorPage() {
     setHistoryConv(null);
 
     try {
+
       const messagePayload = [
         ...conversation,
-        { role: "user", content: hasText ? query : "[Voice message]" },
+        { role: "user", content: voiceBlob ? "[Voice message]" : query },
       ];
 
       const formData = new FormData();
@@ -370,7 +371,7 @@ export default function AITutorPage() {
       if (!reader) throw new Error("No response body");
 
       let buffer = "";
-      let resolvedUserQuery = query; // fallback to original text input
+      let resolvedUserQuery = voiceBlob ? "[Voice message]" : query; // fallback to original text input
 
       while (true) {
         const { done, value } = await reader.read();
@@ -487,7 +488,7 @@ export default function AITutorPage() {
         {/* Tutor Interface */}
         <div className="edtech-card overflow-hidden">
           {/* Visual area */}
-          <div className="relative h-80 md:h-80 gradient-hero flex items-center justify-center">
+          <div className="relative h-80 md:h-80 flex items-center justify-center overflow-hidden border border-gray-200 rounded-lg">
             {isSpeaking ? (
               <Button
                 variant="outline"
@@ -513,12 +514,14 @@ export default function AITutorPage() {
               )
             )}
             <div
-              className={`${isListening ? "animate-pulse scale-105" : ""} transition-all duration-300 w-72 h-72 md:w-[500px] md:h-[500px]`}
+              className={`${isListening ? "animate-pulse scale-105" : ""} transition-all duration-300 absolute inset-0 w-full h-full flex items-center justify-center`}
             >
               <DotLottieReact
                 src="/Aigini_final_trimmed_video.lottie"
                 loop
                 dotLottieRefCallback={dotLottieCallback}
+                className="w-full h-full object-cover"
+                style={{ objectFit: 'cover' }}
               />
             </div>
 

@@ -79,13 +79,11 @@ function flattenProfile(raw: Record<string, unknown>): User {
 
   const hasNested = raw.user !== undefined || raw.school !== undefined || raw.student !== undefined;
 
-  console.log("[flattenProfile] raw keys:", Object.keys(raw));
-  console.log("[flattenProfile] hasNested:", hasNested);
 
   if (!hasNested) {
     // Already flat — avatarUrl at top level takes priority over avatar key
     const avatarFlat = (raw.avatarUrl as string | null) || (raw.avatar as string | null);
-    console.log("[flattenProfile] flat path — avatarUrl:", raw.avatarUrl, "| avatar:", raw.avatar, "→ using:", avatarFlat);
+
     return { ...raw, avatar: avatarFlat } as User;
   }
 
@@ -94,9 +92,6 @@ function flattenProfile(raw: Record<string, unknown>): User {
   const avatarUrl = (raw.avatarUrl as string | null)   // full signed URL  ← use this
                  || (userObj.avatar as string | null);   // fallback: raw key (may not render)
 
-  console.log("[flattenProfile] raw.avatarUrl:", raw.avatarUrl);
-  console.log("[flattenProfile] userObj.avatar:", userObj.avatar);
-  console.log("[flattenProfile] → using avatar:", avatarUrl);
 
   return {
     // User fields
@@ -190,7 +185,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const url = `${API_BASE}/api/auth/profile`;
-    console.log("[fetchProfile] GET", url);
+
 
     try {
       const res = await fetch(url, {
@@ -202,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
 
       const data = await res.json();
-      console.log("[fetchProfile] status:", res.status, "| response:", data);
+
 
       if (!res.ok) {
         if (res.status === 401) {
@@ -220,9 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const raw: Record<string, unknown> = data.data ?? data;
-      console.log("[fetchProfile] raw data:", raw);
       const profile = flattenProfile(raw);
-      console.log("[fetchProfile] flattened profile avatar:", profile.avatar);
 
       // Preserve existing role — profile endpoint may not return role
       setAuthState((prev) => ({
@@ -245,16 +238,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const currentToken = tokenRef.current;
     if (!currentToken) throw new Error("Not authenticated");
 
-    console.log("[updateAvatar] File name:", file.name, "| type:", file.type, "| size:", file.size, "bytes");
-    console.log("[updateAvatar] POST", `${API_BASE}/api/auth/update-avatar`);
 
     const formData = new FormData();
     formData.append("file", file);
 
-    // Log FormData entries
-    for (const [key, val] of formData.entries()) {
-      console.log("[updateAvatar] FormData entry:", key, "->", val instanceof File ? `File(${val.name}, ${val.type})` : val);
-    }
 
     const res = await fetch(`${API_BASE}/api/auth/update-avatar`, {
       method: "POST",
@@ -266,8 +253,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     const data = await res.json().catch(() => ({}));
-    console.log("[updateAvatar] Response status:", res.status);
-    console.log("[updateAvatar] Response body:", data);
 
     if (!res.ok) {
       const errMsg = (data as { message?: string }).message || `Upload failed (HTTP ${res.status})`;
@@ -275,9 +260,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(errMsg);
     }
 
-    console.log("[updateAvatar] Upload successful — refreshing profile...");
     await fetchProfile();
-    console.log("[updateAvatar] Profile refresh complete.");
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchProfile]);
 

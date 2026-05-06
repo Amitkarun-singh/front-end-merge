@@ -110,7 +110,7 @@ export default function SummarizerPage() {
       // Read from ref — guaranteed to have the latest value regardless of render batching
       const currentMaxLength = maxLengthRef.current;
       const wordLimit = currentMaxLength && currentMaxLength !== "__auto__" ? currentMaxLength : null;
-      console.log("[Summarizer] maxlength to send:", wordLimit ?? "(none — auto)");
+
       if (wordLimit) {
         formData.append("maxlenght", wordLimit);  // matches backend typo
         formData.append("maxlength", wordLimit);  // correct spelling fallback

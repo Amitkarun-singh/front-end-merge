@@ -169,7 +169,7 @@ export default function CreateAssessmentPage() {
         question_types:      selectedTypes,
       });
       // DEBUG: log full response to find correct path
-      console.log("[createAssessment] full res.data:", JSON.stringify(res.data, null, 2));
+
 
       const d = res.data;
       const newId =
@@ -180,7 +180,7 @@ export default function CreateAssessmentPage() {
         d?.assessment_id ??
         d?.id;
 
-      console.log("[createAssessment] resolved newId:", newId);
+
 
       if (!newId) {
         showToast("Assessment created but could not get ID. Check console.", "warning");

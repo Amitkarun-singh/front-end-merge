@@ -357,7 +357,7 @@ export default function AINotesPage() {
       { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await res.json();
-    console.log(data);
+
     setNote(data.data?.[0]);
     setShowNotes(true);
     setPreviewMode(null);

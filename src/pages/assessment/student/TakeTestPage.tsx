@@ -140,7 +140,7 @@ export default function TakeTestPage() {
     studentApi.startAttempt(assignmentIdNum)
       .then(async (res) => {
         const raw = res.data?.data ?? res.data;
-        console.log("[TakeTest] startAttempt raw:", JSON.stringify(raw, null, 2));
+
 
         const attempt   = raw?.attempt ?? raw;
         const attemptId = attempt.attempt_id;

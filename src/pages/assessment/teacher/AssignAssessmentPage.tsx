@@ -91,14 +91,14 @@ export default function AssignAssessmentPage() {
 
     const token = getToken();
     const url = `${config.server}/api/class/${selectedClassId}/sections`;
-    console.log("[Sections] calling URL:", url);
+
 
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })
       .then((r) => r.json())
       .then((res) => {
-        console.log("[Sections] raw response:", JSON.stringify(res, null, 2));
+
         const data = res.data ?? res;
-        console.log("[Sections] parsed data:", data);
+
         setSections(Array.isArray(data) ? data : []);
       })
       .catch((err) => {
