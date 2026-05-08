@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -45,11 +46,21 @@ import StudentTestsPage from "./pages/assessment/student/StudentTestsPage";
 import TakeTestPage from "./pages/assessment/student/TakeTestPage";
 import TestResultPage from "./pages/assessment/student/TestResultPage";
 import TestSubmittedPage from "./pages/assessment/student/TestSubmittedPage";
+import { initializeNotifications } from "./firebase/notification";
+import { setupRecaptcha ,sendOTP} from "./firebase/otp";
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    initializeNotifications();
+    setupRecaptcha();
+    sendOTP("+917010966623")
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
+    <div id="recaptcha-container"></div>
     <TooltipProvider>
       <Toaster />
       <Sonner />
@@ -274,5 +285,6 @@ const App = () => (
     </TooltipProvider>
   </QueryClientProvider>
 );
+};
 
 export default App;
