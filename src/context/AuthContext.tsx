@@ -8,6 +8,7 @@ import {
   ReactNode,
 } from "react";
 import { config } from "../../app.config.js";
+import { setupRecaptcha, sendOTP as firebaseSendOTP, verifyOTP as firebaseVerifyOTP } from "@/firebase/otp";
 
 interface User {
   // Core identity
@@ -51,11 +52,10 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (payload: Record<string, string>) => Promise<{ requiresPasswordReset?: boolean }>;
-  sendOtp: (phoneNumber: string) => Promise<{ otpToken: string }>;
+  sendOtp: (phoneNumber: string) => Promise<void>;
   verifyOtp: (payload: {
     phone_number: string;
     otp: string;
-    otpToken: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
   fetchProfile: () => Promise<void>;
@@ -355,26 +355,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Send OTP — POST /api/auth/login/send-otp
+   * Send OTP via Firebase — uses otp.ts sendOTP which calls signInWithPhoneNumber
    */
   const sendOtp = async (phoneNumber: string) => {
     setAuthState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/login/send-otp`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone_number: phoneNumber }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.message || "Failed to send OTP");
-      }
-
+      // Ensure reCAPTCHA is initialised before sending
+      setupRecaptcha();
+      await firebaseSendOTP(phoneNumber);
       setAuthState((prev) => ({ ...prev, loading: false }));
-      return { otpToken: data.data?.otpToken || data.otpToken };
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Failed to send OTP";
       setAuthState((prev) => ({
@@ -387,20 +377,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Verify OTP — POST /api/auth/login
+   * Verify OTP via Firebase, then exchange the Firebase idToken with the backend.
+   * Backend endpoint: POST /api/auth/login  { idToken }
+   * Server verifies the idToken using Firebase Admin SDK and returns an app token.
    */
   const verifyOtp = async (payload: {
     phone_number: string;
     otp: string;
-    otpToken: string;
   }) => {
     setAuthState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
+      // Step 1: Verify the OTP with Firebase and get the Firebase user
+      const firebaseUser = await firebaseVerifyOTP(payload.otp);
+
+      // Step 2: Get the Firebase ID token to send to our backend
+      const idToken = await firebaseUser.getIdToken();
+
+      // Step 3: Exchange the Firebase ID token with our backend for an app token
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ idToken, phone_number: payload.phone_number }),
       });
 
       const data = await res.json();
@@ -421,7 +419,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error: null,
       });
 
-      // Fetch full profile after OTP login
+      // Step 4: Fetch full profile after OTP login
       try {
         const profileRes = await fetch(`${API_BASE}/api/auth/profile`, {
           method: "GET",

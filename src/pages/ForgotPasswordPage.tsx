@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import schools2aiIcon from '@/assets/schools2ai-icon.png';
 import { config } from '../../app.config.js';
+import { setupRecaptcha, sendOTP as firebaseSendOTP, verifyOTP as firebaseVerifyOTP } from "@/firebase/otp";
 
 const API_BASE = config.server;
 
@@ -56,7 +57,6 @@ export default function ForgotPasswordPage() {
 
   // Step 1
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [otpToken, setOtpToken]       = useState('');
 
   // Step 2
   const [otp, setOtp]                 = useState('');
@@ -111,16 +111,9 @@ export default function ForgotPasswordPage() {
     setError('');
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/forgot-password/send-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number: phoneNumber }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to send OTP');
-
-      const token = data.data?.otpToken ?? data.otpToken;
-      setOtpToken(token);
+      // Ensure reCAPTCHA is initialised
+      setupRecaptcha();
+      await firebaseSendOTP(phoneNumber);
       setStep(2);
       startCountdown();
     } catch (err: unknown) {
@@ -138,10 +131,17 @@ export default function ForgotPasswordPage() {
     setError('');
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/forgot-password/verify-otp`, {
+      // Step 1: Verify with Firebase
+      const firebaseUser = await firebaseVerifyOTP(otp);
+      
+      // Step 2: Get ID Token
+      const idToken = await firebaseUser.getIdToken();
+
+      // Step 3: Exchange for resetToken at our backend
+      const res = await fetch(`${API_BASE}/api/auth/forgot-password/firebase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number: phoneNumber, otp, otpToken }),
+        body: JSON.stringify({ idToken, phone_number: phoneNumber }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Invalid OTP. Please try again.');
@@ -177,7 +177,6 @@ export default function ForgotPasswordPage() {
       if (!res.ok) {
         if (res.status === 401) {
           setResetToken('');
-          setOtpToken('');
           setOtp('');
           setStep(1);
           setError('Your session expired. Please start over.');

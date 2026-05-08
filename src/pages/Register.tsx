@@ -10,6 +10,7 @@ import { useRegistration } from '@/context/RegistrationContext';
 import PasswordStrength from '@/components/PasswordStrength';
 import schools2aiIcon from '@/assets/schools2ai-icon.png';
 import { config } from '../../app.config.js';
+import { setupRecaptcha, sendOTP as firebaseSendOTP } from "@/firebase/otp";
 
 const API_BASE = config.server;
 const mascotBg = '/lovable-uploads/b1136e5e-34ad-4526-9763-27d3381c9bed.png';
@@ -186,8 +187,11 @@ export default function Register() {
       const d = data.data ?? data;
       setRegistrationData({
         user_id:  d.user_id  ?? null,
-        otpToken: d.otpToken ?? null,
       });
+
+      // Step 2: Send OTP via Firebase
+      setupRecaptcha();
+      await firebaseSendOTP(phoneNumber.trim());
 
       navigate('/register/verify');
     } catch {

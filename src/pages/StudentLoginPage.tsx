@@ -19,7 +19,6 @@ export default function StudentLoginPage() {
   const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password');
   const [showPassword, setShowPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
-  const [otpToken, setOtpToken] = useState<string | null>(null);
   const [rememberMe, setRememberMe] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -81,8 +80,7 @@ export default function StudentLoginPage() {
     e.preventDefault();
 
     try {
-      const result = await sendOtp(formData.phoneNumber);
-      setOtpToken(result.otpToken);
+      await sendOtp(formData.phoneNumber);
       setOtpSent(true);
     } catch {
       // error is set in context
@@ -93,13 +91,10 @@ export default function StudentLoginPage() {
   const handleOtpLogin = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!otpToken) return;
-
     try {
       await verifyOtp({
         phone_number: formData.phoneNumber,
         otp: formData.otp,
-        otpToken,
       });
       // navigate happens via useEffect
     } catch {

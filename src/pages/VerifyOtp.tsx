@@ -7,6 +7,7 @@ import { useRegistration } from '@/context/RegistrationContext';
 import OtpInput from '@/components/OtpInput';
 import schools2aiIcon from '@/assets/schools2ai-icon.png';
 import { config } from '../../app.config.js';
+import { verifyOTP as firebaseVerifyOTP, sendOTP as firebaseSendOTP } from "@/firebase/otp";
 
 const API_BASE = config.server;
 const OTP_RESEND_SECONDS = 45;
@@ -19,13 +20,13 @@ interface Toast {
 export default function VerifyOtp() {
   const navigate = useNavigate();
   const {
-    phone_number, otpToken, role, user_id, setRegistrationData,
+    phone_number, role, user_id, setRegistrationData,
   } = useRegistration();
 
-  // Guard: redirect if no phone/token (registration not done yet)
+  // Guard: redirect if no phone (registration not done yet)
   useEffect(() => {
-    if (!phone_number || !otpToken) navigate('/register', { replace: true });
-  }, [phone_number, otpToken, navigate]);
+    if (!phone_number) navigate('/register', { replace: true });
+  }, [phone_number, navigate]);
 
   const [otp, setOtp]                     = useState<string[]>(Array(6).fill(''));
   const [loading, setLoading]             = useState(false);
@@ -72,23 +73,22 @@ export default function VerifyOtp() {
     setError('');
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/register/verify-otp`, {
+      // Step 1: Verify with Firebase
+      const firebaseUser = await firebaseVerifyOTP(otpString);
+      
+      // Step 2: Get ID Token
+      const idToken = await firebaseUser.getIdToken();
+
+      // Step 3: Exchange for app token at our backend
+      const res = await fetch(`${API_BASE}/api/auth/register/firebase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number, otp: otpString, otpToken }),
+        body: JSON.stringify({ idToken, phone_number, user_id }),
       });
       const data = await res.json();
 
       if (!res.ok) {
         const msg: string = data.message || 'Invalid or expired OTP';
-        // Check for expired → auto-trigger resend
-        if (msg.toLowerCase().includes('expir')) {
-          showToast({ type: 'warning', message: 'OTP expired. Requesting a new one...' });
-          setOtp(Array(6).fill(''));
-          triggerShake();
-          await handleResend(true);
-          return;
-        }
         setError(msg);
         triggerShake();
         setOtp(Array(6).fill(''));
@@ -114,17 +114,7 @@ export default function VerifyOtp() {
     if (countdown > 0 && !silent) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/register/resend-otp`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone_number }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to resend OTP');
-
-      const newToken = data.data?.otpToken ?? data.otpToken;
-      if (newToken) setRegistrationData({ otpToken: newToken });
-
+      await firebaseSendOTP(phone_number!);
       setOtp(Array(6).fill(''));
       setError('');
       startCountdown();
