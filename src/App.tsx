@@ -47,7 +47,7 @@ import TakeTestPage from "./pages/assessment/student/TakeTestPage";
 import TestResultPage from "./pages/assessment/student/TestResultPage";
 import TestSubmittedPage from "./pages/assessment/student/TestSubmittedPage";
 import { initializeNotifications } from "./firebase/notification";
-import { setupRecaptcha ,sendOTP} from "./firebase/otp";
+import { setupRecaptcha ,sendOTP,verifyOTP} from "./firebase/otp";
 
 const queryClient = new QueryClient();
 
@@ -55,7 +55,8 @@ const App = () => {
   useEffect(() => {
     initializeNotifications();
     setupRecaptcha();
-    sendOTP("+917010966623")
+    sendOTP("+919876543210")
+    // verifyOTP("123456")
   }, []);
 
   return (

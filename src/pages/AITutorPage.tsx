@@ -116,7 +116,7 @@ export default function AITutorPage() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [language, setLanguage] = useState("en-IN");
+  const [language, setLanguage] = useState("English");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastAudio, setLastAudio] = useState<string | null>(null);
   const { toast } = useToast();
@@ -354,7 +354,7 @@ export default function AITutorPage() {
         formData.append("user_audio", voiceBlob, `recording.${extension}`);
       }
 
-      const response = await fetch(`${config.server}/gini/voice-bot`, {
+      const response = await fetch(`${config.server}/gini/voice-bot?language=${encodeURIComponent(language)}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -550,15 +550,15 @@ export default function AITutorPage() {
           <div className="p-6 space-y-4">
             {/* Language selector */}
             <div className="flex justify-end">
-              <Select value={language} onValueChange={setLanguage}>
+              <Select value={language} onValueChange={setLanguage} >
                 <SelectTrigger className="w-auto">
                   <Globe className="w-4 h-4 mr-2" />
                   <SelectValue placeholder="Language" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="en-US">English (US)</SelectItem>
+                <SelectContent >
+                  <SelectItem value="English">English (US)</SelectItem>
 
-                  <SelectItem value="hi-IN">Hindi</SelectItem>
+                  <SelectItem value="Hindi">Hindi</SelectItem>
                 </SelectContent>
               </Select>
             </div>
