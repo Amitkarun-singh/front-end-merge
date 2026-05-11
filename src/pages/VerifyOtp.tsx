@@ -4,6 +4,7 @@ import './StudentLoginPage.css';
 import { useNavigate } from 'react-router-dom';
 import { Phone, ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react';
 import { useRegistration } from '@/context/RegistrationContext';
+import { useAuth } from '@/context/AuthContext';
 import OtpInput from '@/components/OtpInput';
 import schools2aiIcon from '@/assets/schools2ai-icon.png';
 import { config } from '../../app.config.js';
@@ -19,6 +20,7 @@ interface Toast {
 
 export default function VerifyOtp() {
   const navigate = useNavigate();
+  const { setAuthData } = useAuth();
   const {
     phone_number, role, username, password, full_name, email, board, setRegistrationData,
   } = useRegistration();
@@ -105,11 +107,25 @@ export default function VerifyOtp() {
       }
 
       const d = data.data ?? data;
-      setRegistrationData({
+      const profile = d.profile || {};
+      
+      const authData = {
         accessToken: d.accessToken ?? d.token ?? null,
         refreshToken: d.refreshToken ?? null,
         role: d.role ?? role,
-        user_id: d.user_id || (d.user && d.user.id),
+        user_id: profile.user_id || d.user_id || (d.user && d.user.id),
+      };
+
+      setRegistrationData(authData);
+
+      // Use AuthContext to log the user in
+      setAuthData({
+        token: authData.accessToken!,
+        user: {
+          ...profile,
+          user_id: authData.user_id,
+          role: authData.role,
+        }
       });
 
       navigate('/', { replace: true });

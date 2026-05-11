@@ -122,8 +122,6 @@ export default function ForgotPasswordPage() {
     setError('');
 
     try {
-      // Ensure reCAPTCHA is initialised
-      setupRecaptcha();
       const fullNumber = `${countryCode}${phoneNumber}`;
       await firebaseSendOTP(fullNumber);
       setStep(2);

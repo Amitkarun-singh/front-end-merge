@@ -13,19 +13,34 @@ const auth = getAuth(app);
 
 // STEP 1: setup reCAPTCHA
 export const setupRecaptcha = () => {
-  if (window.recaptchaVerifier) return;
-  
   const container = document.getElementById("recaptcha-container");
   if (!container) {
     console.warn("recaptcha-container not found in DOM");
     return;
   }
 
+  // If we already have a verifier, try to clear it to avoid "element removed" errors
+  if (window.recaptchaVerifier) {
+    try {
+      window.recaptchaVerifier.clear();
+    } catch (e) {
+      console.warn("Error clearing old reCAPTCHA verifier", e);
+    }
+  }
+
   window.recaptchaVerifier = new RecaptchaVerifier(
     auth,
-    "recaptcha-container",
+    container,
     {
       size: "invisible", // or "normal"
+      callback: (response: any) => {
+        // reCAPTCHA solved - will proceed with phone auth
+        console.log("reCAPTCHA solved");
+      },
+      "expired-callback": () => {
+        // Response expired. Ask user to solve reCAPTCHA again.
+        console.log("reCAPTCHA expired");
+      }
     }
   );
 };
@@ -33,10 +48,8 @@ export const setupRecaptcha = () => {
 // STEP 2: send OTP
 export const sendOTP = async (phoneNumber: string) => {
   try {
-    // Ensure recaptcha is set up
-    if (!window.recaptchaVerifier) {
-      setupRecaptcha();
-    }
+    // Always setup a fresh recaptcha verifier to avoid stale element issues
+    setupRecaptcha();
 
     const appVerifier = window.recaptchaVerifier;
     if (!appVerifier) {
@@ -52,8 +65,18 @@ export const sendOTP = async (phoneNumber: string) => {
     window.confirmationResult = confirmationResult;
     console.log("OTP sent successfully to", phoneNumber);
     return confirmationResult;
-  } catch (err) {
+  } catch (err: any) {
     console.error("Error sending OTP:", err);
+    
+    // If we get a reCAPTCHA error, clear the verifier so it can be re-initialized next time
+    if (err.message && err.message.includes("reCAPTCHA")) {
+      console.log("Resetting reCAPTCHA due to error...");
+      if (window.recaptchaVerifier) {
+        try { window.recaptchaVerifier.clear(); } catch(e) {}
+        window.recaptchaVerifier = null as any;
+      }
+    }
+    
     throw err;
   }
 };

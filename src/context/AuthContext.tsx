@@ -58,6 +58,7 @@ interface AuthContextType extends AuthState {
     otp: string;
   }) => Promise<void>;
   logout: () => Promise<void>;
+  setAuthData: (data: { token: string; user: any }) => void;
   fetchProfile: () => Promise<void>;
   updateAvatar: (file: File) => Promise<void>;
   clearError: () => void;
@@ -361,8 +362,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthState((prev) => ({ ...prev, loading: true, error: null }));
 
     try {
-      // Ensure reCAPTCHA is initialised before sending
-      setupRecaptcha();
       await firebaseSendOTP(phoneNumber);
       setAuthState((prev) => ({ ...prev, loading: false }));
     } catch (err: unknown) {
@@ -484,6 +483,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const setAuthData = useCallback((data: { token: string; user: any }) => {
+    const profile = flattenProfile(data.user);
+    setAuthState({
+      isAuthenticated: true,
+      user: profile,
+      token: data.token,
+      loading: false,
+      error: null,
+    });
+  }, []);
+
   const clearError = () => {
     setAuthState((prev) => ({ ...prev, error: null }));
   };
@@ -496,6 +506,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         sendOtp,
         verifyOtp,
         logout,
+        setAuthData,
         fetchProfile,
         updateAvatar,
         clearError,

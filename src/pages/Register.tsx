@@ -162,7 +162,6 @@ export default function Register() {
       });
 
       // Step 2: Send OTP via Firebase
-      setupRecaptcha();
       const fullNumber = `${countryCode}${phoneNumber.trim()}`;
       await firebaseSendOTP(fullNumber);
 
