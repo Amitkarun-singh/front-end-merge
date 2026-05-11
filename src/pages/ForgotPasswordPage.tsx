@@ -9,6 +9,16 @@ import schools2aiIcon from '@/assets/schools2ai-icon.png';
 import { config } from '../../app.config.js';
 import { setupRecaptcha, sendOTP as firebaseSendOTP, verifyOTP as firebaseVerifyOTP } from "@/firebase/otp";
 
+const COUNTRY_CODES = [
+  { code: '+91', flag: '🇮🇳', name: 'India' },
+  { code: '+1',  flag: '🇺🇸', name: 'USA' },
+  { code: '+44', flag: '🇬🇧', name: 'UK' },
+  { code: '+971', flag: '🇦🇪', name: 'UAE' },
+  { code: '+65', flag: '🇸🇬', name: 'Singapore' },
+  { code: '+61', flag: '🇦🇺', name: 'Australia' },
+  { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+];
+
 const API_BASE = config.server;
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -57,6 +67,7 @@ export default function ForgotPasswordPage() {
 
   // Step 1
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [countryCode, setCountryCode] = useState('+91');
 
   // Step 2
   const [otp, setOtp]                 = useState('');
@@ -113,7 +124,8 @@ export default function ForgotPasswordPage() {
     try {
       // Ensure reCAPTCHA is initialised
       setupRecaptcha();
-      await firebaseSendOTP(phoneNumber);
+      const fullNumber = `${countryCode}${phoneNumber}`;
+      await firebaseSendOTP(fullNumber);
       setStep(2);
       startCountdown();
     } catch (err: unknown) {
@@ -141,7 +153,7 @@ export default function ForgotPasswordPage() {
       const res = await fetch(`${API_BASE}/api/auth/forgot-password/firebase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken, phone_number: phoneNumber }),
+        body: JSON.stringify({ idToken, phone_number: `${countryCode}${phoneNumber}` }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Invalid OTP. Please try again.');
@@ -285,19 +297,34 @@ export default function ForgotPasswordPage() {
                 <form onSubmit={handleSendOtp} className="login-form">
                   <div className="login-field">
                     <label htmlFor="fp-phone" className="login-label">Phone Number</label>
-                    <div className="login-input-wrapper">
-                      <Phone className="login-input-icon" />
-                      <input
-                        ref={phoneInputRef}
-                        id="fp-phone"
-                        type="tel"
-                        value={phoneNumber}
-                        onChange={(e) => setPhoneNumber(e.target.value)}
-                        placeholder="+91 9876543210"
-                        className="login-input"
-                        required
-                        autoComplete="tel"
-                      />
+                    <div className="phone-input-container">
+                      <div className="country-code-wrapper">
+                        <select
+                          value={countryCode}
+                          onChange={(e) => setCountryCode(e.target.value)}
+                          className="country-code-select"
+                        >
+                          {COUNTRY_CODES.map((c) => (
+                            <option key={`${c.code}-${c.name}`} value={c.code}>
+                              {c.flag} {c.code}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="phone-number-wrapper">
+                        <Phone className="login-input-icon" />
+                        <input
+                          ref={phoneInputRef}
+                          id="fp-phone"
+                          type="tel"
+                          value={phoneNumber}
+                          onChange={(e) => setPhoneNumber(e.target.value)}
+                          placeholder="9876543210"
+                          className="login-input login-input-has-icon"
+                          required
+                          autoComplete="tel"
+                        />
+                      </div>
                     </div>
                   </div>
 

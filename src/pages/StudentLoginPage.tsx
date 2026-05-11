@@ -15,6 +15,16 @@ import {
 } from 'lucide-react';
 import schools2aiIcon from '@/assets/schools2ai-icon.png';
 
+const COUNTRY_CODES = [
+  { code: '+91', flag: '🇮🇳', name: 'India' },
+  { code: '+1',  flag: '🇺🇸', name: 'USA' },
+  { code: '+44', flag: '🇬🇧', name: 'UK' },
+  { code: '+971', flag: '🇦🇪', name: 'UAE' },
+  { code: '+65', flag: '🇸🇬', name: 'Singapore' },
+  { code: '+61', flag: '🇦🇺', name: 'Australia' },
+  { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+];
+
 export default function StudentLoginPage() {
   const [loginMode, setLoginMode] = useState<'password' | 'otp'>('password');
   const [showPassword, setShowPassword] = useState(false);
@@ -26,6 +36,7 @@ export default function StudentLoginPage() {
     emailOrUsername: '',
     password: '',
     otp: '',
+    countryCode: '+91',
   });
 
   const { login, sendOtp, verifyOtp, isAuthenticated, loading, error, clearError } =
@@ -80,7 +91,8 @@ export default function StudentLoginPage() {
     e.preventDefault();
 
     try {
-      await sendOtp(formData.phoneNumber);
+      const fullNumber = `${formData.countryCode}${formData.phoneNumber}`;
+      await sendOtp(fullNumber);
       setOtpSent(true);
     } catch {
       // error is set in context
@@ -93,7 +105,7 @@ export default function StudentLoginPage() {
 
     try {
       await verifyOtp({
-        phone_number: formData.phoneNumber,
+        phone_number: `${formData.countryCode}${formData.phoneNumber}`,
         otp: formData.otp,
       });
       // navigate happens via useEffect
@@ -342,19 +354,35 @@ export default function StudentLoginPage() {
                     <label htmlFor="phoneNumber" className="login-label">
                       Mobile Number
                     </label>
-                    <div className="login-input-wrapper">
-                      <Phone className="login-input-icon" />
-                      <input
-                        id="phoneNumber"
-                        type="tel"
-                        name="phoneNumber"
-                        value={formData.phoneNumber}
-                        onChange={handleInputChange}
-                        placeholder="+91 9876543210"
-                        className="login-input"
-                        required
-                        autoComplete="tel"
-                      />
+                    <div className="phone-input-container">
+                      <div className="country-code-wrapper">
+                        <select
+                          name="countryCode"
+                          value={formData.countryCode}
+                          onChange={(e) => setFormData(prev => ({ ...prev, countryCode: e.target.value }))}
+                          className="country-code-select"
+                        >
+                          {COUNTRY_CODES.map((c) => (
+                            <option key={`${c.code}-${c.name}`} value={c.code}>
+                              {c.flag} {c.code}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="phone-number-wrapper">
+                        <Phone className="login-input-icon" />
+                        <input
+                          id="phoneNumber"
+                          type="tel"
+                          name="phoneNumber"
+                          value={formData.phoneNumber}
+                          onChange={handleInputChange}
+                          placeholder="9876543210"
+                          className="login-input login-input-has-icon"
+                          required
+                          autoComplete="tel"
+                        />
+                      </div>
                     </div>
                   </div>
 

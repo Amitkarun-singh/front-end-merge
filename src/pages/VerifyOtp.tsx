@@ -20,7 +20,7 @@ interface Toast {
 export default function VerifyOtp() {
   const navigate = useNavigate();
   const {
-    phone_number, role, user_id, setRegistrationData,
+    phone_number, role, username, password, full_name, email, board, setRegistrationData,
   } = useRegistration();
 
   // Guard: redirect if no phone (registration not done yet)
@@ -79,11 +79,20 @@ export default function VerifyOtp() {
       // Step 2: Get ID Token
       const idToken = await firebaseUser.getIdToken();
 
-      // Step 3: Exchange for app token at our backend
-      const res = await fetch(`${API_BASE}/api/auth/register/firebase`, {
+      // Step 3: Send registration data to backend
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken, phone_number, user_id }),
+        body: JSON.stringify({
+          role,
+          username,
+          password,
+          phone_number,
+          full_name,
+          email,
+          board,
+          idToken,
+        }),
       });
       const data = await res.json();
 
@@ -98,11 +107,12 @@ export default function VerifyOtp() {
       const d = data.data ?? data;
       setRegistrationData({
         accessToken: d.accessToken ?? d.token ?? null,
+        refreshToken: d.refreshToken ?? null,
         role: d.role ?? role,
-        user_id: d.user_id ?? user_id,
+        user_id: d.user_id || (d.user && d.user.id),
       });
 
-      navigate('/register/profile', { replace: true });
+      navigate('/', { replace: true });
     } catch {
       showToast({ type: 'error', message: 'Connection error. Please try again.' });
     } finally {

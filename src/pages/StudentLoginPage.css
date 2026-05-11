@@ -705,3 +705,63 @@
     padding: 3rem;
   }
 }
+
+/* ---------- Country Code Dropdown ---------- */
+.phone-input-container {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.country-code-wrapper {
+  position: relative;
+  width: 100px;
+  flex-shrink: 0;
+}
+
+.country-code-select {
+  width: 100%;
+  height: 48px;
+  padding: 0 1.5rem 0 0.75rem;
+  border: 2px solid hsl(240 6% 90%);
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: hsl(240 10% 15%);
+  background: hsl(240 5% 98%);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2394a3b8' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+}
+
+.country-code-select:hover {
+  background-color: hsl(240 5% 96%);
+  border-color: hsl(240 6% 82%);
+}
+
+.country-code-select:focus {
+  background-color: white;
+  border-color: hsl(262 83% 58%);
+  box-shadow: 0 0 0 3px hsl(262 83% 58% / 0.1);
+  outline: none;
+}
+
+.phone-number-wrapper {
+  flex: 1;
+  position: relative;
+}
+
+.login-input-with-code {
+  padding-left: 0.875rem !important;
+}
+
+.login-input-has-icon {
+  padding-left: 2.75rem !important;
+}
+
+.reg-input-has-icon {
+  padding-left: 2.75rem !important;
+}

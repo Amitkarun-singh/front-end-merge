@@ -12,6 +12,16 @@ import schools2aiIcon from '@/assets/schools2ai-icon.png';
 import { config } from '../../app.config.js';
 import { setupRecaptcha, sendOTP as firebaseSendOTP } from "@/firebase/otp";
 
+const COUNTRY_CODES = [
+  { code: '+91', flag: '🇮🇳', name: 'India' },
+  { code: '+1',  flag: '🇺🇸', name: 'USA' },
+  { code: '+44', flag: '🇬🇧', name: 'UK' },
+  { code: '+971', flag: '🇦🇪', name: 'UAE' },
+  { code: '+65', flag: '🇸🇬', name: 'Singapore' },
+  { code: '+61', flag: '🇦🇺', name: 'Australia' },
+  { code: '+966', flag: '🇸🇦', name: 'Saudi Arabia' },
+];
+
 const API_BASE = config.server;
 const mascotBg = '/lovable-uploads/b1136e5e-34ad-4526-9763-27d3381c9bed.png';
 
@@ -26,7 +36,7 @@ const BOARDS = [
 type BoardId = typeof BOARDS[number]['id'];
 
 // ─── Validation helpers ────────────────────────────────────────────────────────
-const validatePhone = (num: string) => /^[6-9]\d{9}$/.test(num.replace(/\D/g, ''));
+const validatePhone = (num: string) => true // /^[6-9]\d{9}$/.test(num.replace(/\D/g, ''));
 const validateEmail = (e: string) => !e || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 const validateUsername = (u: string) => /^[a-zA-Z0-9_]{3,30}$/.test(u);
 
@@ -57,6 +67,7 @@ export default function Register() {
   const [showPassword,    setShowPassword]    = useState(false);
   const [showConfirm,     setShowConfirm]     = useState(false);
   const [selectedBoard,   setSelectedBoard]   = useState<BoardId | ''>('');
+  const [countryCode,     setCountryCode]     = useState('+91');
   const [errors,          setErrors]          = useState<FieldErrors>({});
   const [submitting,      setSubmitting]      = useState(false);
   const [toast,           setToast]           = useState<Toast | null>(null);
@@ -140,7 +151,7 @@ export default function Register() {
         role: selectedRole,
         username: username.trim(),
         password,
-        phone_number: phoneNumber.trim(),
+        phone_number: `${countryCode}${phoneNumber.trim()}`,
         full_name: fullName.trim() || null,
         email: email.trim() || null,
         board: selectedBoard,
@@ -150,48 +161,10 @@ export default function Register() {
         school_address: null,
       });
 
-      const payload: Record<string, unknown> = {
-        role: selectedRole,
-        username: username.trim(),
-        password,
-        phone_number: phoneNumber.trim(),
-        board: selectedBoard,
-      };
-      if (fullName.trim())  payload.full_name = fullName.trim();
-      if (email.trim())     payload.email     = email.trim();
-
-      const res  = await fetch(`${API_BASE}/api/auth/register`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-
-      if (!res.ok) {
-        const msg: string = data.message || 'Registration failed';
-        if (res.status === 409) {
-          if (msg.toLowerCase().includes('username'))
-            setFieldError('username', 'Username is already taken');
-          else if (msg.toLowerCase().includes('phone'))
-            setFieldError('phone_number', 'Phone number is already registered');
-          else
-            setFieldError('general', msg);
-        } else if (res.status === 400) {
-          setFieldError('general', msg);
-        } else {
-          showToast({ type: 'error', message: msg });
-        }
-        return;
-      }
-
-      const d = data.data ?? data;
-      setRegistrationData({
-        user_id:  d.user_id  ?? null,
-      });
-
       // Step 2: Send OTP via Firebase
       setupRecaptcha();
-      await firebaseSendOTP(phoneNumber.trim());
+      const fullNumber = `${countryCode}${phoneNumber.trim()}`;
+      await firebaseSendOTP(fullNumber);
 
       navigate('/register/verify');
     } catch {
@@ -206,10 +179,10 @@ export default function Register() {
 
   return (
     <div className="login-page">
-      <div className="login-blob login-blob-1" />
+      {/* <div className="login-blob login-blob-1" />
       <div className="login-blob login-blob-2" />
       <div className="login-blob login-blob-3" />
-      <div className="login-blob login-blob-4" />
+      <div className="login-blob login-blob-4" /> */}
 
       {/* Toast */}
       {toast && (
@@ -333,29 +306,46 @@ export default function Register() {
                   Phone Number <span style={{ color: '#EF4444' }}>*</span>
                 </label>
                 <div className="reg-input-wrap">
-                  <Phone className="reg-input-icon" />
-                  <input
-                    id="reg-phone"
-                    type="tel"
-                    value={phoneNumber}
-                    onChange={e => handlePhoneChange(e.target.value)}
-                    placeholder="+91 98765 43210"
-                    className={`reg-input${errors.phone_number ? ' reg-input-error' : ''}`}
-                    required
-                    inputMode="numeric"
-                    maxLength={10}
-                    autoComplete="tel"
-                  />
-                  {phoneNumber.length > 0 && (
-                    <span style={{
-                      position: 'absolute', right: '0.875rem', top: '50%',
-                      transform: 'translateY(-50%)', fontSize: '0.75rem',
-                      color: phoneNumber.length === 10 ? '#10B981' : 'hsl(240 4% 55%)',
-                      fontWeight: 600, pointerEvents: 'none',
-                    }}>
-                      {phoneNumber.length}/10
-                    </span>
-                  )}
+                  <div className="phone-input-container">
+                    <div className="country-code-wrapper">
+                      <select
+                        value={countryCode}
+                        onChange={(e) => setCountryCode(e.target.value)}
+                        className="country-code-select"
+                      >
+                        {COUNTRY_CODES.map((c) => (
+                          <option key={`${c.code}-${c.name}`} value={c.code}>
+                            {c.flag} {c.code}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="phone-number-wrapper">
+                      <Phone className="reg-input-icon" />
+                      <input
+                        id="reg-phone"
+                        type="tel"
+                        value={phoneNumber}
+                        onChange={e => handlePhoneChange(e.target.value)}
+                        placeholder="98765 43210"
+                        className={`reg-input reg-input-has-icon${errors.phone_number ? ' reg-input-error' : ''}`}
+                        required
+                        inputMode="numeric"
+                        maxLength={10}
+                        autoComplete="tel"
+                      />
+                      {phoneNumber.length > 0 && (
+                        <span style={{
+                          position: 'absolute', right: '0.875rem', top: '50%',
+                          transform: 'translateY(-50%)', fontSize: '0.75rem',
+                          color: phoneNumber.length === 10 ? '#10B981' : 'hsl(240 4% 55%)',
+                          fontWeight: 600, pointerEvents: 'none',
+                        }}>
+                          {phoneNumber.length}/10
+                        </span>
+                      )}
+                    </div>
+                  </div>
                 </div>
                 {errors.phone_number && (
                   <span className="reg-field-error" role="alert">
