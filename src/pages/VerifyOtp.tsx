@@ -100,10 +100,15 @@ export default function VerifyOtp() {
       const data = await res.json();
 
       if (!res.ok) {
-        const msg: string = data.message || 'Invalid or expired OTP';
+        let msg: string = data.message || 'Invalid or expired OTP';
+        
+        if (data.type === 'VALIDATION_ERROR' && Array.isArray(data.errors)) {
+          msg = data.errors.map((e: any) => e.message).join('. ');
+        }
+        
         setError(msg);
         triggerShake();
-        setOtp(Array(6).fill(''));
+        setOtp(Array(6).fill(''));  
         return;
       }
 
