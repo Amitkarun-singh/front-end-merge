@@ -701,13 +701,24 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
         });
         const result = await response.json();
         if (result.success && result.data) {
-          const studentClass = {
-            class_id: result.data.class_id,
-            class_name: result.data.class_name.toString(),
-          };
-          setClasses([studentClass]);
-          if (!selectedClass) {
-            setSelectedClass(studentClass.class_name);
+          if (result.data.classes && Array.isArray(result.data.classes) && result.data.classes.length > 0) {
+            const fetchedClasses = result.data.classes.map((cls: any) => ({
+              class_id: cls.class_id,
+              class_name: cls.class_name.toString(),
+            }));
+            setClasses(fetchedClasses);
+            if (!selectedClass) {
+              setSelectedClass(fetchedClasses[0].class_name);
+            }
+          } else if (result.data.class_id && result.data.class_name) {
+            const singleClass = {
+              class_id: result.data.class_id,
+              class_name: result.data.class_name.toString(),
+            };
+            setClasses([singleClass]);
+            if (!selectedClass) {
+              setSelectedClass(singleClass.class_name);
+            }
           }
         }
       } catch (error) {

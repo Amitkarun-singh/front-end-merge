@@ -32,7 +32,7 @@ interface User {
   // Student
   student_id?: string | number;
   roll_number?: string;
-  class?: string;
+  class?: string | number;
   section?: string;
   div?: string;
   gender?: string;

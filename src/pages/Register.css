@@ -1047,3 +1047,40 @@
 .login-input-has-icon {
   padding-left: 2.75rem !important;
 }
+/* ── Class Selection Pills ─────────────────────────────────────────────────── */
+.reg-class-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.reg-class-pill-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.5rem 0.75rem;
+  border: 2px solid hsl(240 6% 90%);
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: hsl(240 4% 46%);
+  background: hsl(240 5% 98%);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.reg-class-pill-btn:hover {
+  border-color: hsl(262 83% 58%);
+  color: hsl(262 83% 58%);
+}
+
+.reg-class-pill-btn-active {
+  background: hsl(262 60% 97%);
+  border-color: hsl(262 83% 58%);
+  color: hsl(262 83% 58%);
+}
+
+.mr-1 {
+  margin-right: 0.25rem;
+}

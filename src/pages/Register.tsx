@@ -33,16 +33,16 @@ const BOARDS = [
   { id: 'IB',    label: 'IB / Other',   sub: 'International Baccalaureate' },
 ] as const;
 
+const CLASSES = ['5', '6', '7', '8', '9', '10', '11', '12'];
 type BoardId = typeof BOARDS[number]['id'];
 
 // ─── Validation helpers ────────────────────────────────────────────────────────
 const validatePhone = (num: string) => true // /^[6-9]\d{9}$/.test(num.replace(/\D/g, ''));
 const validateEmail = (e: string) => !e || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
-const validateUsername = (u: string) => /^[a-zA-Z0-9_]{3,30}$/.test(u);
 
 interface FieldErrors {
   full_name?: string;
-  username?: string;
+  selected_class?: string;
   phone_number?: string;
   email?: string;
   password?: string;
@@ -59,7 +59,7 @@ export default function Register() {
 
   const [selectedRole, setSelectedRole] = useState<'STUDENT' | 'TEACHER'>(role || 'STUDENT');
   const [fullName,        setFullName]        = useState('');
-  const [username,        setUsername]        = useState('');
+  const [selectedClasses,  setSelectedClasses] = useState<string[]>([]);
   const [phoneNumber,     setPhoneNumber]     = useState('');
   const [email,           setEmail]           = useState('');
   const [password,        setPassword]        = useState('');
@@ -95,17 +95,23 @@ export default function Register() {
     clearFieldError('phone_number');
   };
 
+  const handleClassToggle = (cls: string) => {
+    if (selectedRole === 'STUDENT') {
+      setSelectedClasses([cls]);
+    } else {
+      setSelectedClasses(prev => 
+        prev.includes(cls) ? prev.filter(c => c !== cls) : [...prev, cls]
+      );
+    }
+    clearFieldError('selected_class');
+  };
+
   // ─── Client-side validation ────────────────────────────────────────────────
   const validate = (): boolean => {
     const errs: FieldErrors = {};
 
     if (!fullName.trim()) errs.full_name = 'Full name is required';
-
-    if (!username.trim()) {
-      errs.username = 'Username is required';
-    } else if (!validateUsername(username.trim())) {
-      errs.username = 'Letters, numbers and underscores only (3–30 chars)';
-    }
+    if (selectedClasses.length === 0) errs.selected_class = 'Please select at least one class';
 
     if (!phoneNumber.trim()) {
       errs.phone_number = 'Phone number is required';
@@ -149,7 +155,7 @@ export default function Register() {
       // Save credentials to context first
       setRegistrationData({
         role: selectedRole,
-        username: username.trim(),
+        class: selectedClasses.sort((a, b) => Number(a) - Number(b)).join(','),
         password,
         phone_number: `${countryCode}${phoneNumber.trim()}`,
         full_name: fullName.trim() || null,
@@ -275,28 +281,28 @@ export default function Register() {
                 {errors.full_name && <span className="reg-field-error" role="alert">⚠ {errors.full_name}</span>}
               </div>
 
-              {/* Username */}
+              {/* Class Selection */}
               <div className="reg-field">
-                <label htmlFor="reg-username" className="reg-label">
-                  Username <span style={{ color: '#EF4444' }}>*</span>
+                <label className="reg-label">
+                  {selectedRole === 'TEACHER' ? 'Classes you teach' : 'Your Class'} <span style={{ color: '#EF4444' }}>*</span>
                 </label>
-                <div className="reg-input-wrap">
-                  <User className="reg-input-icon" />
-                  <input
-                    id="reg-username"
-                    type="text"
-                    value={username}
-                    onChange={e => { setUsername(e.target.value); clearFieldError('username'); }}
-                    placeholder="Choose a username"
-                    className={`reg-input${errors.username ? ' reg-input-error' : ''}`}
-                    required
-                    autoComplete="username"
-                  />
+                <div className="reg-class-grid">
+                  {CLASSES.map(cls => {
+                    const active = selectedClasses.includes(cls);
+                    return (
+                      <button
+                        key={cls}
+                        type="button"
+                        className={`reg-class-pill-btn${active ? ' reg-class-pill-btn-active' : ''}`}
+                        onClick={() => handleClassToggle(cls)}
+                      >
+                        {active && <Check size={12} className="mr-1" />}
+                        Class {cls}
+                      </button>
+                    );
+                  })}
                 </div>
-                <span style={{ fontSize: '0.75rem', color: 'hsl(240 4% 55%)' }}>
-                  Letters, numbers and underscores only
-                </span>
-                {errors.username && <span className="reg-field-error" role="alert">⚠ {errors.username}</span>}
+                {errors.selected_class && <span className="reg-field-error" role="alert">⚠ {errors.selected_class}</span>}
               </div>
 
               {/* Phone */}

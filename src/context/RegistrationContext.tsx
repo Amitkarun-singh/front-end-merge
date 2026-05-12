@@ -21,8 +21,8 @@ export interface RegistrationState {
   otpToken: string | null;
   accessToken: string | null;
   refreshToken: string | null;
+  class: string | null;
   // ── Credentials (saved before school lookup) ──
-  username: string | null;
   password: string | null;
   full_name: string | null;
   email: string | null;
@@ -61,7 +61,7 @@ const defaultState: RegistrationState = {
   otpToken: null,
   accessToken: null,
   refreshToken: null,
-  username: null,
+  class: null,
   password: null,
   full_name: null,
   email: null,

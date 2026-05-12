@@ -22,7 +22,7 @@ export default function VerifyOtp() {
   const navigate = useNavigate();
   const { setAuthData } = useAuth();
   const {
-    phone_number, role, username, password, full_name, email, board, setRegistrationData,
+    phone_number, role, class: userClass, password, full_name, email, board, setRegistrationData,
   } = useRegistration();
 
   // Guard: redirect if no phone (registration not done yet)
@@ -87,13 +87,14 @@ export default function VerifyOtp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           role,
-          username,
+          class: userClass,
           password,
           phone_number,
           full_name,
           email,
           board,
           idToken,
+          self_register: true,
         }),
       });
       const data = await res.json();
