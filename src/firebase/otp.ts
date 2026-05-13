@@ -12,7 +12,9 @@ declare global {
 const auth = getAuth(app);
 
 // STEP 1: setup reCAPTCHA
+let recaptchaSetup = false;
 export const setupRecaptcha = () => {
+  if (recaptchaSetup) return;
   const container = document.getElementById("recaptcha-container");
   if (!container) {
     console.warn("recaptcha-container not found in DOM");
@@ -43,6 +45,7 @@ export const setupRecaptcha = () => {
       }
     }
   );
+  recaptchaSetup = true;
 };
 
 // STEP 2: send OTP
