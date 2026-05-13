@@ -116,7 +116,7 @@ export default function AITutorPage() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-de  const [language, setLanguage] = useState("Auto");
+  const [language, setLanguage] = useState("Auto");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastAudio, setLastAudio] = useState<string | null>(null);
   const { toast } = useToast();

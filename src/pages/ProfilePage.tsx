@@ -32,9 +32,9 @@ export default function ProfilePage() {
   const email = user?.email || null;
   const phone = user?.phone_number || user?.number || null;
   const schoolName = user?.school_name || null;
-  const board = user?.board || null;
-  const className = user?.class || null;
-  const section = user?.section || user?.div || null;
+  const board = user?.board_name || null;
+  const className = user?.class_name || null;
+  const section = user?.section_name || user?.div || null;
   const rollNumber = user?.roll_number || null;
   const address = user?.address || null;
   const gender = user?.gender || null;
@@ -262,9 +262,9 @@ export default function ProfilePage() {
                   </h4>
 
                   <InfoField icon={<School className="w-4 h-4" />} label="School Name" value={schoolName} />
-                  <InfoField icon={<BookOpen className="w-4 h-4" />} label="Board" value={board} />
-                  <InfoField icon={<GraduationCap className="w-4 h-4" />} label="Class" value={className} />
-                  <InfoField icon={<Hash className="w-4 h-4" />} label="Section" value={section} />
+                  <InfoField icon={<BookOpen className="w-4 h-4" />} label="Board" value={board as string} />
+                  <InfoField icon={<GraduationCap className="w-4 h-4" />} label="Class" value={className as string} />
+                  <InfoField icon={<Hash className="w-4 h-4" />} label="Section" value={section as string} />
                   <InfoField icon={<Hash className="w-4 h-4" />} label="Roll Number" value={rollNumber} />
                   <InfoField icon={<MapPin className="w-4 h-4" />} label="Address" value={address} />
                 </div>
