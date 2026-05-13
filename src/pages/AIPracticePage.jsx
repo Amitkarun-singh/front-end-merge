@@ -68,21 +68,41 @@ export default function AIPracticePage() {
   useEffect(() => {
 
     const fetchClasses = async () => {
+      if (!token) return;
       try {
-        const response = await fetch(`${config.server}/api/classes`, {
+        const response = await fetch(`${config.server}/api/class/student`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
         const result = await response.json();
-        if (result.success) {
-          setClasses(result.data);
-          if (result.data.length > 0) {
-            setSelectedClass(result.data[0].class_id.toString());
+        if (result.success && result.data) {
+          if (
+            result.data.classes &&
+            Array.isArray(result.data.classes) &&
+            result.data.classes.length > 0
+          ) {
+            const fetchedClasses = result.data.classes.map((cls) => ({
+              class_id: cls.class_id,
+              class_name: cls.class_name.toString(),
+            }));
+            setClasses(fetchedClasses);
+            if (!selectedClass) {
+              setSelectedClass(fetchedClasses[0].class_name);
+            }
+          } else if (result.data.class_id && result.data.class_name) {
+            const singleClass = {
+              class_id: result.data.class_id,
+              class_name: result.data.class_name.toString(),
+            };
+            setClasses([singleClass]);
+            if (!selectedClass) {
+              setSelectedClass(singleClass.class_name);
+            }
           }
         }
       } catch (error) {
-        console.error("Error fetching classes:", error);
+        console.error("Error fetching class:", error);
       }
     };
 
@@ -97,7 +117,7 @@ export default function AIPracticePage() {
       if (!selectedClass) return;
 
       const currentClass = classes.find(
-        (cls) => cls.class_id.toString() === selectedClass,
+        (cls) => cls.class_name.toString() === selectedClass,
       );
       if (!currentClass) return;
 
@@ -136,7 +156,7 @@ export default function AIPracticePage() {
       if (!selectedClass || !selectedSubject) return;
 
       const currentClass = classes.find(
-        (cls) => cls.class_id.toString() === selectedClass,
+        (cls) => cls.class_name.toString() === selectedClass,
       );
       const currentSubject = subjects.find(
         (sub) => sub.subject_name === selectedSubject,
@@ -221,12 +241,17 @@ export default function AIPracticePage() {
    * @function handleGenerateExam
    */
   const handleGenerateExam = async () => {
+    const currentClass = classes.find(
+      (cls) => cls.class_name.toString() === selectedClass,
+    );
+    if (!currentClass) return;
+
     const data = {
       subject:
         selectedSubject.charAt(0).toUpperCase() + selectedSubject.slice(1),
       chapter: selectedChapters,
       questionType: selectedTypes.map((type) => type.toUpperCase()),
-      class_: Number(selectedClass),
+      class_: Number(currentClass.class_id),
       language:
         selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1),
       questionsCount: questionConfig,
@@ -298,7 +323,7 @@ export default function AIPracticePage() {
                   {classes.map((cls) => (
                     <SelectItem
                       key={cls.class_id}
-                      value={cls.class_id.toString()}
+                      value={cls.class_name.toString()}
                     >
                       {cls.class_name}
                     </SelectItem>
