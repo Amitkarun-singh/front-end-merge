@@ -281,6 +281,7 @@ export default function AINotesPage() {
   const [chapters, setChapters] = useState<string[]>([]);
 
   const [language, setLanguage] = useState("");
+  // Pre-seed className from profile so subjects load immediately after language pick
   const [className, setClassName] = useState("");
   const [subject, setSubject] = useState("");
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
@@ -299,10 +300,22 @@ export default function AINotesPage() {
 
   const { token, user } = useAuth();
 
-  // Determine if the logged-in user is a student with a fixed class
-  const rawRole = typeof user?.role === "string" ? user.role : (user?.role as Record<string, unknown>)?.name as string | undefined;
+  // Derive role & profile class
+  const rawRole = typeof user?.role === "string"
+    ? user.role
+    : (user?.role as Record<string, unknown>)?.name as string | undefined;
   const isStudent = rawRole?.toLowerCase() === "student";
-  const profileClass = isStudent && user?.class ? String(user.class) : null;
+
+  // user.class_name may hold "Grade 10", user.class may hold "10" — handle both
+  const rawProfileClass = user?.class_name
+    ? String(user.class_name).replace(/^grade\s*/i, "").trim()
+    : user?.class
+    ? String(user.class).replace(/^grade\s*/i, "").trim()
+    : null;
+  // profileClass = plain number string (e.g. "10") or null for non-students / no class
+  const profileClass = isStudent && rawProfileClass ? rawProfileClass : null;
+  // Display label shown in the locked field (e.g. "Grade 10")
+  const profileClassLabel = profileClass ? `Grade ${profileClass}` : null;
 
   const resetNotes = () => {
     setShowNotes(false);
@@ -322,21 +335,23 @@ export default function AINotesPage() {
   }, []);
 
   // ── Fetch classes (requires language) ──
+  // Students with a profile class skip the API — their class is already known.
   useEffect(() => {
     if (!language) { setClasses([]); return; }
+
+    if (profileClass) {
+      // Student has a fixed class: no need to fetch all classes.
+      // Just ensure className is set so the subjects effect fires.
+      setClassName(profileClass);
+      return;
+    }
+
     fetch(`${config.server}/api/ainote/classes?language=${language}&board=CBSE`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => {
-        const fetched: string[] = data.data || [];
-        setClasses(fetched);
-        // Auto-select class for students whose profile has a class
-        if (profileClass && fetched.includes(profileClass)) {
-          setClassName(profileClass);
-        }
-      });
+      .then((data) => setClasses(data.data || []));
   }, [language]);
 
   // ── Fetch subjects (requires language + class) ──
@@ -510,35 +525,40 @@ export default function AINotesPage() {
 
             {/* Class */}
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
+              <label className="text-sm font-medium text-foreground mb-2 block">
                 Class
-                {profileClass && (
-                  <span className="text-xs font-normal px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
-                    locked to your grade
-                  </span>
-                )}
               </label>
-              <Select
-                value={className}
-                onValueChange={(val) => {
-                  if (profileClass) return; // students with a profile class cannot change
-                  setClassName(val);
-                  resetNotes();
-                  setSelectedChapter(null);
-                }}
-                disabled={!!profileClass}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select Class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      Grade {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+              {profileClass ? (
+                // Student with profile class → static locked display, no dropdown
+                <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-border bg-muted/40 text-sm font-medium text-foreground">
+                  <span>{profileClassLabel}</span>
+                  <span className="ml-auto text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                    your grade
+                  </span>
+                </div>
+              ) : (
+                // Teacher / student without a profile class → full dropdown
+                <Select
+                  value={className}
+                  onValueChange={(val) => {
+                    setClassName(val);
+                    resetNotes();
+                    setSelectedChapter(null);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select Class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((c) => (
+                      <SelectItem key={c} value={c}>
+                        Grade {c}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             {/* Subject */}
