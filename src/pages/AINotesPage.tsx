@@ -297,7 +297,12 @@ export default function AINotesPage() {
   // Warning shown when user tries to open book before generating notes
   const [showBookWarning, setShowBookWarning] = useState(false);
 
-  const { token } = useAuth();
+  const { token, user } = useAuth();
+
+  // Determine if the logged-in user is a student with a fixed class
+  const rawRole = typeof user?.role === "string" ? user.role : (user?.role as Record<string, unknown>)?.name as string | undefined;
+  const isStudent = rawRole?.toLowerCase() === "student";
+  const profileClass = isStudent && user?.class ? String(user.class) : null;
 
   const resetNotes = () => {
     setShowNotes(false);
@@ -324,7 +329,14 @@ export default function AINotesPage() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => setClasses(data.data || []));
+      .then((data) => {
+        const fetched: string[] = data.data || [];
+        setClasses(fetched);
+        // Auto-select class for students whose profile has a class
+        if (profileClass && fetched.includes(profileClass)) {
+          setClassName(profileClass);
+        }
+      });
   }, [language]);
 
   // ── Fetch subjects (requires language + class) ──
@@ -498,16 +510,23 @@ export default function AINotesPage() {
 
             {/* Class */}
             <div>
-              <label className="text-sm font-medium text-foreground mb-2 block">
+              <label className="text-sm font-medium text-foreground mb-2 flex items-center gap-2">
                 Class
+                {profileClass && (
+                  <span className="text-xs font-normal px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
+                    locked to your grade
+                  </span>
+                )}
               </label>
               <Select
                 value={className}
                 onValueChange={(val) => {
+                  if (profileClass) return; // students with a profile class cannot change
                   setClassName(val);
                   resetNotes();
                   setSelectedChapter(null);
                 }}
+                disabled={!!profileClass}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select Class" />
@@ -515,7 +534,7 @@ export default function AINotesPage() {
                 <SelectContent>
                   {classes.map((c) => (
                     <SelectItem key={c} value={c}>
-                      Class {c}
+                      Grade {c}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -632,7 +651,7 @@ export default function AINotesPage() {
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h2 className="font-display text-xl font-semibold text-foreground">
-                      {note.topic} — CBSE Class {className} {subject}
+                      {note.topic} — CBSE Grade {className} {subject}
                     </h2>
                   </div>
                   <div className="flex gap-2">

@@ -75,6 +75,7 @@ export default function SummarizerPage() {
   const [language, setLanguage] = useState("English");
   const [maxLength, setMaxLength] = useState<string>("__auto__"); // "__auto__" = not sent to backend
   const maxLengthRef = useRef<string>("__auto__"); // always holds the latest value immediately
+  const fileInputRef = useRef<HTMLInputElement>(null); // shared ref for both Upload & Select file buttons
 
   // Sync both state (for UI) and ref (for handleSummarize closure) on change
   const handleMaxLengthChange = (val: string) => {
@@ -183,7 +184,7 @@ export default function SummarizerPage() {
         {/* Header */}
         <div className="text-center mb-8">
           <h1 className="font-display text-3xl font-bold text-foreground">
-            AI PDF Summarizer
+            AI DOC Summarizer
           </h1>
           <p className="text-muted-foreground mt-2 max-w-xl mx-auto">
             Upload any PDF or image and in &lt;30 seconds, get full, easy-to-read
@@ -194,8 +195,21 @@ export default function SummarizerPage() {
         {/* Upload Area */}
         {!showSummary ? (
           <div className="edtech-card">
+            {/* Hidden file input shared by Upload + Select file buttons */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+
             <div className="flex items-center justify-between mb-6">
-              <Button variant="default" className="gradient-button">
+              <Button
+                variant="default"
+                className="gradient-button"
+                onClick={() => fileInputRef.current?.click()}
+              >
                 <Upload className="w-4 h-4 mr-2" />
                 Upload
               </Button>
@@ -278,20 +292,13 @@ export default function SummarizerPage() {
                     Supported Formats: Images, PDF, Doc, Docs, PPT, PPTX; Max size: 20MB.
                   </p>
 
-                  <label>
-                    <input
-                      type="file"
-                      className="hidden"
-                      accept=".pdf,.doc,.docx,.ppt,.pptx,.png,.jpg,.jpeg"
-                      onChange={(e) => setFile(e.target.files?.[0] || null)}
-                    />
-                    <Button asChild className="gradient-button cursor-pointer">
-                      <span>
-                        <FileText className="w-4 h-4 mr-2" />
-                        Select file
-                      </span>
-                    </Button>
-                  </label>
+                  <Button
+                    className="gradient-button"
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <FileText className="w-4 h-4 mr-2" />
+                    Select file
+                  </Button>
                 </>
               )}
             </div>
