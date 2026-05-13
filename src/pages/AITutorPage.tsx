@@ -116,7 +116,7 @@ export default function AITutorPage() {
   const [showAnswer, setShowAnswer] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [language, setLanguage] = useState("English");
+de  const [language, setLanguage] = useState("Auto");
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [lastAudio, setLastAudio] = useState<string | null>(null);
   const { toast } = useToast();
@@ -294,8 +294,9 @@ export default function AITutorPage() {
       // Cancel any ongoing speech
       stopSpeaking();
 
+      const langToUse = language === "Auto" ? "English" : language;
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = language;
+      utterance.lang = langToUse;
 
       utterance.onstart = () => setIsSpeaking(true);
       utterance.onend = () => setIsSpeaking(false);
@@ -304,7 +305,7 @@ export default function AITutorPage() {
       // Optional: find a voice that matches the language
       const voices = window.speechSynthesis.getVoices();
       const voice = voices.find((v) =>
-        v.lang.startsWith(language.split("-")[0]),
+        v.lang.toLowerCase().startsWith(langToUse.toLowerCase().slice(0, 2)),
       );
       if (voice) utterance.voice = voice;
 
@@ -556,8 +557,8 @@ export default function AITutorPage() {
                   <SelectValue placeholder="Language" />
                 </SelectTrigger>
                 <SelectContent >
+                  <SelectItem value="Auto">Auto</SelectItem>
                   <SelectItem value="English">English (US)</SelectItem>
-
                   <SelectItem value="Hindi">Hindi</SelectItem>
                 </SelectContent>
               </Select>
