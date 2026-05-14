@@ -74,6 +74,13 @@ export default function SupportPage() {
           title: "Success",
           description: "Feedback submitted successfully",
         });
+
+        setFormData({
+          name: "",
+          email: "",
+          subject: "",
+          message: "",
+        });
       }
     } catch (err) {
       toast({
@@ -180,7 +187,7 @@ export default function SupportPage() {
                 <div>
                   <h3 className="font-semibold text-foreground">Email Us</h3>
                   <p className="text-muted-foreground">
-                    support@schools2ai.com
+                    admin@schools2ai.com
                   </p>
                 </div>
               </div>
