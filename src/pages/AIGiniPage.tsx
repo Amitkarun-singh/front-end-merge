@@ -44,7 +44,7 @@ import {
   useState,
   useCallback,
 } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { fetchRecentQueries, RecentQuery } from "@/api/historyApi";
 import { Badge } from "@/components/ui/badge";
@@ -1005,11 +1005,25 @@ export default function AIGiniPage() {
     ((convId: string, source?: string) => void) | undefined
   >(undefined);
 
+  // Track whether we've already auto-loaded from navigation state
+  const navLoadedRef = useRef(false);
+
+  // Read navigation state set by HistoryPage when clicking an AI Gini history item
+  const location = useLocation();
+  const navState = location.state as { conversationId?: string; source?: string } | null;
+
   const setLoadConversation = useCallback(
     (fn: (convId: string, source?: string) => void) => {
       loadConversationRef.current = fn;
+
+      // Once the ChatBox registers its loadConversation, auto-load from nav state
+      if (navState?.conversationId && !navLoadedRef.current) {
+        navLoadedRef.current = true;
+        fn(navState.conversationId, navState.source ?? "gini");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     },
-    [],
+    [navState],
   );
 
   const handleLoadConversation = useCallback(

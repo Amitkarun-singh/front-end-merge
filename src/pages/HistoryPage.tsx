@@ -25,6 +25,7 @@ import {
   fetchFeaturesExplored,
   fetchLoginHistory,
   fetchLatestTests,
+  toRelativeTime,
   RecentQuery,
   FeatureExplored,
   LoginRecord,
@@ -84,22 +85,6 @@ function getRelativeToolRoute(tool: string): string {
   if (lower.includes("question"))  return "/question-bank";
   if (lower.includes("more") || lower.includes("tools")) return "/more-tools";
   return "/ai-gini";
-}
-
-// ─── Relative-time helper ────────────────────────────────────────────────────
-function relativeTime(raw: string | undefined): string {
-  if (!raw) return "—";
-  const d = new Date(raw);
-  if (isNaN(d.getTime())) return raw;
-  const diff  = Date.now() - d.getTime();
-  const mins  = Math.floor(diff / 60_000);
-  const hours = Math.floor(diff / 3_600_000);
-  const days  = Math.floor(diff / 86_400_000);
-  if (mins  < 1)  return "Just now";
-  if (mins  < 60) return `${mins} min ago`;
-  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-  if (days  < 2)  return "Yesterday";
-  return `${days} days ago`;
 }
 
 function formatDateTime(raw: string | undefined, type: "date" | "time") {
@@ -248,8 +233,11 @@ export default function HistoryPage() {
     const convId = String(item.conversation_id);
 
     if (source === "tutor") {
-      // AI Tutor → show conversation inline BELOW the student input on /ai-tutor
+      // AI Tutor → show conversation inline on /ai-tutor
       navigate("/ai-tutor", { state: { conversationId: convId, source } });
+    } else if (source === "gini") {
+      // AI Gini → load conversation inline inside the Gini chat box
+      navigate("/ai-gini", { state: { conversationId: convId, source } });
     } else {
       // All other tools → shared ConversationPage
       navigate(`/history/conversation/${convId}?source=${encodeURIComponent(source)}`);
@@ -343,7 +331,7 @@ export default function HistoryPage() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">{feature.name}</p>
                       <p className="text-xs text-muted-foreground">
-                        Last used: {relativeTime(feature.lastUsed)}
+                        Last used: {toRelativeTime(feature.lastUsed)}
                       </p>
                     </div>
                     <div className="text-right flex-shrink-0">
