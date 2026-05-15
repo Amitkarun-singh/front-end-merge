@@ -21,7 +21,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { config } from "../../app.config.js";
 import "katex/dist/katex.min.css";
-import { InlineMath, BlockMath } from "react-katex";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import remarkGfm from "remark-gfm";
 import { useAuth } from "@/context/AuthContext";
 
 interface AINote {
@@ -33,240 +36,289 @@ interface AINote {
 }
 
 // ─────────────────────────────────────────────────────────────
-// Helpers to parse and render the short_notes markdown-like text
+// Normalise raw short_notes string before passing to ReactMarkdown
 // ─────────────────────────────────────────────────────────────
 
-/** Render a single text segment that may contain inline LaTeX \( … \) */
-const renderInlineText = (text: string, key?: number) => {
-  const parts = text.split(/(\\\([\s\S]*?\\\))/g);
-  return (
-    <span key={key}>
-      {parts.map((part, i) => {
-        const match = part.match(/^\\\([\s\S]*?\\\)$/);
-        if (match) {
-          const formula = part
-            .replace(/^\\\(/, "")
-            .replace(/\\\)$/, "")
-            .replace(/\\displaystyle\s*/g, "")
-            .trim();
-          try {
-            return <InlineMath key={i} math={formula} />;
-          } catch {
-            return <span key={i}>{formula}</span>;
-          }
-        }
-        return <span key={i}>{part}</span>;
-      })}
-    </span>
-  );
+/**
+ * The DB stores standard markdown with LaTeX delimiters:
+ *   block  → \[ ... \]    inline → \( ... \)
+ *
+ * Problem: markdown's escape processor turns \[ → [ and \( → ( BEFORE
+ * remark-math can parse them, so KaTeX never renders them.
+ *
+ * Fix:
+ *  1. Un-escape literal \n sequences.
+ *  2. Strip the first # H1 heading — duplicates the card header title.
+ *  3. Convert \[ ... \] → $$ ... $$ (block math, on own lines).
+ *  4. Convert \( ... \) → $ ... $  (inline math).
+ *  "$" is not a markdown escape target, so remark-math sees it cleanly.
+ */
+const normaliseNotes = (raw: string): string => {
+  let text = raw
+    .replace(/\\n/g, "\n")     // literal "\n" two-char → real newline
+    .replace(/^\)\s*/m, "");   // strip accidental leading ")" artifact
+
+  // Remove the very first H1 heading (already shown in the card header above)
+  text = text.replace(/^#\s+.+\n?/, "");
+
+  // Convert block math  \[ ... \]  →  $$ ... $$  (surrounded by blank lines)
+  text = text.replace(/\\\[([\s\S]*?)\\\]/g, (_m, math) => `\n\n$$\n${math.trim()}\n$$\n\n`);
+
+  // Convert inline math  \( ... \)  →  $ ... $
+  text = text.replace(/\\\(([\s\S]*?)\\\)/g, (_m, math) => `$${math}$`);
+
+  return text;
 };
 
-const splitTableCells = (row: string): string[] => {
-  const cells: string[] = [];
-  let current = "";
-  let depth = 0;
-  let i = 0;
-  while (i < row.length) {
-    if (row[i] === "\\" && row[i + 1] === "(") {
-      depth++;
-      current += "\\(";
-      i += 2;
-      continue;
-    }
-    if (row[i] === "\\" && row[i + 1] === ")") {
-      depth = Math.max(0, depth - 1);
-      current += "\\)";
-      i += 2;
-      continue;
-    }
-    if (row[i] === "|" && depth === 0) {
-      cells.push(current);
-      current = "";
-      i++;
-      continue;
-    }
-    current += row[i];
-    i++;
-  }
-  cells.push(current);
-  return cells;
-};
+// ─────────────────────────────────────────────────────────────
+// Custom ReactMarkdown component renderers — clean & consistent
+// ─────────────────────────────────────────────────────────────
 
-const renderLine = (line: string, idx: number) => {
-  const trimmed = line.trim();
-  if (!trimmed) return null;
+/**
+ * Design system:
+ * - Each H2 section gets a colour theme (violet → blue → emerald → amber → rose → cyan).
+ * - Every element INSIDE that section inherits the same accent colour → unified look.
+ * - Bullet dots match the section accent colour (no random emojis).
+ * - Bold text → yellow highlighter style (like a pen marker).
+ * - Ordered steps → single primary gradient badge (consistent across all lists).
+ * - H3 → left accent bar in the current section colour.
+ * - Math blocks → soft tinted card.
+ */
 
-  if (trimmed.startsWith("### ")) {
-    const headingText = trimmed.replace(/^###\s+/, "");
+// Six section colour themes — purely position-driven, never random
+const SECTION_THEMES = [
+  {
+    sectionBg:  "bg-violet-50/70 dark:bg-violet-950/20",
+    leftBorder: "border-l-4 border-violet-400",
+    headerBg:   "bg-violet-100 dark:bg-violet-900/50",
+    headerText: "text-violet-800 dark:text-violet-200",
+    dot:        "bg-violet-400",
+    h3Bar:      "bg-violet-300 dark:bg-violet-600",
+    badge:      "bg-violet-500",
+  },
+  {
+    sectionBg:  "bg-blue-50/70 dark:bg-blue-950/20",
+    leftBorder: "border-l-4 border-blue-400",
+    headerBg:   "bg-blue-100 dark:bg-blue-900/50",
+    headerText: "text-blue-800 dark:text-blue-200",
+    dot:        "bg-blue-400",
+    h3Bar:      "bg-blue-300 dark:bg-blue-600",
+    badge:      "bg-blue-500",
+  },
+  {
+    sectionBg:  "bg-emerald-50/70 dark:bg-emerald-950/20",
+    leftBorder: "border-l-4 border-emerald-400",
+    headerBg:   "bg-emerald-100 dark:bg-emerald-900/50",
+    headerText: "text-emerald-800 dark:text-emerald-200",
+    dot:        "bg-emerald-400",
+    h3Bar:      "bg-emerald-300 dark:bg-emerald-600",
+    badge:      "bg-emerald-500",
+  },
+  {
+    sectionBg:  "bg-amber-50/70 dark:bg-amber-950/20",
+    leftBorder: "border-l-4 border-amber-400",
+    headerBg:   "bg-amber-100 dark:bg-amber-900/50",
+    headerText: "text-amber-800 dark:text-amber-200",
+    dot:        "bg-amber-400",
+    h3Bar:      "bg-amber-300 dark:bg-amber-600",
+    badge:      "bg-amber-500",
+  },
+  {
+    sectionBg:  "bg-rose-50/70 dark:bg-rose-950/20",
+    leftBorder: "border-l-4 border-rose-400",
+    headerBg:   "bg-rose-100 dark:bg-rose-900/50",
+    headerText: "text-rose-800 dark:text-rose-200",
+    dot:        "bg-rose-400",
+    h3Bar:      "bg-rose-300 dark:bg-rose-600",
+    badge:      "bg-rose-500",
+  },
+  {
+    sectionBg:  "bg-cyan-50/70 dark:bg-cyan-950/20",
+    leftBorder: "border-l-4 border-cyan-400",
+    headerBg:   "bg-cyan-100 dark:bg-cyan-900/50",
+    headerText: "text-cyan-800 dark:text-cyan-200",
+    dot:        "bg-cyan-400",
+    h3Bar:      "bg-cyan-300 dark:bg-cyan-600",
+    badge:      "bg-cyan-500",
+  },
+] as const;
+
+// Section-level counters (reset before each render)
+let _sectionIdx    = 0;
+let _listItemIdx   = 0;
+let _globalItemIdx = 0;   // advances across ALL lists — drives emoji cycling
+
+// Current section theme snapshot — set when H2 is rendered so child elements share it
+let _currentTheme = SECTION_THEMES[0];
+
+/**
+ * Study-themed emoji set — cycles deterministically by global item index.
+ * Every position in the document always gets the same emoji → intentional variety.
+ * Grouped: knowledge → math → achievement → exploration → focus → insight
+ */
+const BULLET_EMOJIS = [
+  "📌", "🔑", "💡", "📖",   // knowledge
+  "🔢", "📐", "🧮", "➗",   // math/formula
+  "🎯", "✅", "⭐", "🏆",   // achievement
+  "🔍", "🗺️", "🌐", "🧩",  // exploration
+  "⚡", "🚀", "💫", "🌟",   // energy/focus
+  "🧠", "💭", "🔬", "📊",   // insight/analysis
+] as const;
+
+const makeComponents = () => ({
+  // ── H2 — full-width section card with left colour bar ──────────────────────
+  h2({ children }: { children?: React.ReactNode }) {
+    const theme = SECTION_THEMES[_sectionIdx % SECTION_THEMES.length];
+    _currentTheme = theme;
+    _sectionIdx++;
     return (
-      <h3
-        key={idx}
-        className="text-lg font-bold text-foreground mt-6 mb-2 border-b border-border pb-1"
-      >
-        {headingText}
-      </h3>
+      <div className={`mt-6 mb-3 rounded-xl overflow-hidden shadow-sm border border-border/40`}>
+        {/* Accent top bar */}
+        <div className={`h-1 w-full ${theme.badge}`} />
+        <div className={`flex items-center gap-3 px-4 py-3 ${theme.sectionBg} ${theme.leftBorder}`}>
+          {/* Coloured section number circle */}
+          <span className={`flex-shrink-0 w-7 h-7 rounded-full ${theme.badge} text-white text-xs font-bold flex items-center justify-center`}>
+            {_sectionIdx}
+          </span>
+          <h2 className={`font-bold text-sm ${theme.headerText}`}>{children}</h2>
+        </div>
+      </div>
     );
-  }
+  },
 
-  if (trimmed.startsWith("## ")) {
+  // ── H3 — left coloured accent bar + bold label ─────────────────────────────
+  h3({ children }: { children?: React.ReactNode }) {
+    const t = _currentTheme;
     return (
-      <h2 key={idx} className="text-xl font-bold text-foreground mt-6 mb-3">
-        {trimmed.replace(/^##\s+/, "")}
-      </h2>
+      <div className={`flex items-stretch gap-2.5 mt-4 mb-2`}>
+        <div className={`w-1 rounded-full flex-shrink-0 ${t.h3Bar}`} />
+        <h3 className="text-sm font-semibold text-foreground leading-snug py-0.5">{children}</h3>
+      </div>
     );
-  }
+  },
 
-  if (trimmed.startsWith("# ")) {
+  // ── H1 — stripped by normaliseNotes; fallback only ─────────────────────────
+  h1({ children }: { children?: React.ReactNode }) {
     return (
-      <h1 key={idx} className="text-2xl font-bold text-foreground mt-6 mb-3">
-        {trimmed.replace(/^#\s+/, "")}
+      <h1 className="text-lg font-bold text-foreground mt-2 mb-4 pb-2 border-b border-border">
+        {children}
       </h1>
     );
-  }
+  },
 
-  if (/^\d+\.\s+[A-Z]/.test(trimmed) && !trimmed.includes("|")) {
-    return (
-      <h3
-        key={idx}
-        className="text-lg font-bold text-foreground mt-6 mb-2 border-b border-border pb-1"
-      >
-        {trimmed}
-      </h3>
-    );
-  }
+  // ── Unordered list ──────────────────────────────────────────────────────────
+  ul({ children }: { children?: React.ReactNode }) {
+    _listItemIdx = 0;   // reset per-list idx (for future use)
+    return <ul className="space-y-1.5 my-2">{children}</ul>;
+  },
 
-  const blockMatchBracket = trimmed.match(/^\\\[([\s\S]*?)\\\]$/);
-  if (blockMatchBracket) {
-    return (
-      <div key={idx} className="my-3">
-        <BlockMath math={blockMatchBracket[1].trim()} />
-      </div>
-    );
-  }
+  // ── Ordered list ────────────────────────────────────────────────────────────
+  ol({ children }: { children?: React.ReactNode }) {
+    _listItemIdx = 0;
+    return <ol className="space-y-2 my-2">{children}</ol>;
+  },
 
-  if (
-    trimmed.startsWith("\\") &&
-    !trimmed.startsWith("\\(") &&
-    !trimmed.startsWith("• ") &&
-    !trimmed.startsWith("•")
-  ) {
-    try {
+  // ── List item — emoji + coloured dot (UL) or coloured badge number (OL) ─────
+  li({ children, ordered }: { children?: React.ReactNode; ordered?: boolean }) {
+    const idx = _listItemIdx++;
+    const t   = _currentTheme;
+
+    if (ordered) {
+      // Ordered steps: section-coloured numbered badge — consistent per section
       return (
-        <div key={idx} className="my-3">
-          <BlockMath math={trimmed.replace(/^\\text\{.*?\}\s*/, "")} />
-        </div>
+        <li className="flex items-start gap-3">
+          <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full ${t.badge} text-white text-xs font-bold flex items-center justify-center shadow-sm`}>
+            {idx + 1}
+          </span>
+          <span className="text-muted-foreground text-sm leading-relaxed flex-1">{children}</span>
+        </li>
       );
-    } catch {
-      // fall through to plain text
     }
-  }
 
-  if (trimmed.startsWith("•") || trimmed.startsWith("-") || trimmed.startsWith("*")) {
-    const content = trimmed.replace(/^[•\-\*]\s*/, "");
-    const leadingSpaces = line.match(/^(\s+)/)?.[1]?.length ?? 0;
-    const isSubBullet = leadingSpaces >= 2;
+    // Unordered: emoji (cycles by global position) + coloured accent dot (section colour)
+    const emoji = BULLET_EMOJIS[_globalItemIdx % BULLET_EMOJIS.length];
+    _globalItemIdx++;
+
     return (
-      <div
-        key={idx}
-        className={`flex gap-2 py-0.5 ${isSubBullet ? "ml-6" : ""}`}
-      >
-        <span
-          className={`mt-0.5 flex-shrink-0 text-sm ${
-            isSubBullet ? "text-muted-foreground/50" : "text-primary"
-          }`}
-        >
-          {isSubBullet ? "◦" : "•"}
-        </span>
-        <span className="text-muted-foreground">{renderInlineText(content)}</span>
+      <li className="flex items-start gap-2">
+        {/* Deterministic emoji — same position always gets same emoji */}
+        <span className="flex-shrink-0 text-base leading-none mt-0.5" role="presentation">{emoji}</span>
+        {/* Coloured dot — ties the item visually to its section */}
+        <span className={`flex-shrink-0 w-1.5 h-1.5 rounded-full mt-[7px] ${t.dot}`} />
+        <span className="text-muted-foreground text-sm leading-relaxed flex-1">{children}</span>
+      </li>
+    );
+  },
+
+  // ── Paragraph ───────────────────────────────────────────────────────────────
+  p({ children }: { children?: React.ReactNode }) {
+    return <p className="text-muted-foreground text-sm leading-relaxed mb-2">{children}</p>;
+  },
+
+  // ── Bold — yellow highlighter marker effect ─────────────────────────────────
+  strong({ children }: { children?: React.ReactNode }) {
+    return (
+      <strong className="font-semibold text-foreground bg-yellow-200/60 dark:bg-yellow-800/30 px-1 py-0.5 rounded-sm">
+        {children}
+      </strong>
+    );
+  },
+
+  // ── Italic ──────────────────────────────────────────────────────────────────
+  em({ children }: { children?: React.ReactNode }) {
+    return <em className="italic text-muted-foreground/80">{children}</em>;
+  },
+
+  // ── Blockquote — "Note" box ─────────────────────────────────────────────────
+  blockquote({ children }: { children?: React.ReactNode }) {
+    return (
+      <div className="flex gap-3 my-3 p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border-l-4 border-blue-400">
+        <div className="w-1 flex-shrink-0" />
+        <div className="text-blue-800 dark:text-blue-200 text-sm italic">{children}</div>
       </div>
     );
-  }
+  },
 
-  if (trimmed.startsWith("|")) {
-    return null;
-  }
+  // ── Table ───────────────────────────────────────────────────────────────────
+  table({ children }: { children?: React.ReactNode }) {
+    return (
+      <div className="overflow-x-auto my-4 rounded-xl border border-border shadow-sm">
+        <table className="w-full text-sm border-collapse">{children}</table>
+      </div>
+    );
+  },
+  thead({ children }: { children?: React.ReactNode }) {
+    return <thead className="bg-primary/10">{children}</thead>;
+  },
+  th({ children }: { children?: React.ReactNode }) {
+    return <th className="text-left px-4 py-2.5 font-semibold text-foreground border-b border-border text-xs uppercase tracking-wide">{children}</th>;
+  },
+  td({ children }: { children?: React.ReactNode }) {
+    return <td className="px-4 py-2.5 text-muted-foreground border-b border-border/40 text-sm">{children}</td>;
+  },
+  tr({ children, ...props }: { children?: React.ReactNode; [k: string]: unknown }) {
+    return <tr className="even:bg-muted/20 hover:bg-muted/30 transition-colors duration-150" {...props}>{children}</tr>;
+  },
 
-  return (
-    <p key={idx} className="text-muted-foreground leading-relaxed">
-      {renderInlineText(trimmed)}
-    </p>
-  );
-};
-
-const parseShortNotes = (raw: string) => {
-  const normalised = raw
-    .replace(/\\n/g, "\n")
-    .replace(/^\)\s*/, "")
-    .replace(/---.*$/gm, "");
-
-  const lines = normalised.split("\n");
-  const elements: React.ReactNode[] = [];
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-    const trimmed = line.trim();
-
-    if (trimmed.startsWith("|")) {
-      const tableLines: string[] = [];
-      while (i < lines.length && lines[i].trim().startsWith("|")) {
-        tableLines.push(lines[i]);
-        i++;
-      }
-      const rows = tableLines
-        .filter((l) => !/^\|[\s\-|]+\|$/.test(l.trim()))
-        .map((l) => {
-          const inner = l.trim().replace(/^\|/, "").replace(/\|$/, "");
-          return splitTableCells(inner).map((cell) => cell.trim());
-        });
-
-      if (rows.length > 0) {
-        const [header, ...body] = rows;
-        elements.push(
-          <div key={`table-${i}`} className="overflow-x-auto my-4">
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-primary/10">
-                  {header.map((h, hi) => (
-                    <th
-                      key={hi}
-                      className="text-left p-3 font-semibold text-foreground border border-border"
-                    >
-                      {renderInlineText(h)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {body.map((row, ri) => (
-                  <tr key={ri} className={ri % 2 === 0 ? "bg-muted/30" : ""}>
-                    {row.map((cell, ci) => (
-                      <td
-                        key={ci}
-                        className="p-3 text-muted-foreground border border-border"
-                      >
-                        {renderInlineText(cell)}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-      }
-      continue;
+  // ── Inline code ─────────────────────────────────────────────────────────────
+  code({ children, className }: { children?: React.ReactNode; className?: string }) {
+    if (!className) {
+      return <code className="px-1.5 py-0.5 rounded bg-muted text-primary font-mono text-xs">{children}</code>;
     }
+    return <code className={`${className} block rounded-lg p-3 bg-muted font-mono text-xs overflow-x-auto my-2`}>{children}</code>;
+  },
 
-    const rendered = renderLine(line, i);
-    if (rendered !== null) {
-      elements.push(rendered);
-    }
-    i++;
-  }
-
-  return elements;
-};
+  // ── Horizontal rule — section divider ───────────────────────────────────────
+  hr() {
+    return (
+      <div className="flex items-center gap-3 my-5">
+        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
+        <div className="w-1.5 h-1.5 rounded-full bg-border" />
+        <div className="flex-1 h-px bg-gradient-to-l from-transparent via-border to-transparent" />
+      </div>
+    );
+  },
+});
 
 // ─────────────────────────────────────────────────────────────
 // Main Page Component
@@ -699,10 +751,18 @@ export default function AINotesPage() {
                   </div>
                 </div>
 
-                {/* Rendered short notes */}
+                {/* Rendered short notes — interactive emoji-rich renderer */}
                 <ScrollArea className="h-[520px] pr-2">
-                  <div className="space-y-1 text-sm leading-relaxed">
-                    {parseShortNotes(note.short_notes)}
+                  <div className="space-y-0.5 [&_.katex-display]:my-4 [&_.katex-display]:overflow-x-auto [&_.katex-display]:p-3 [&_.katex-display]:rounded-xl [&_.katex-display]:bg-muted/40 [&_.katex-display]:border [&_.katex-display]:border-border/50">
+                    {/* Reset section counters before each render */}
+                    {(() => { _sectionIdx = 0; _listItemIdx = 0; _globalItemIdx = 0; return null; })()}
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkMath]}
+                      rehypePlugins={[rehypeKatex]}
+                      components={makeComponents()}
+                    >
+                      {normaliseNotes(note.short_notes)}
+                    </ReactMarkdown>
                   </div>
                 </ScrollArea>
               </div>

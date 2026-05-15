@@ -12,6 +12,7 @@ import {
   FileText,
   Flame,
   Target,
+  TrendingUp,
   Languages,
   MapPin,
   Hash,
@@ -42,6 +43,13 @@ export default function ProfilePage() {
   const language = user?.language || null;
   const joiningDate = user?.joining_date || null;
   const avatar = user?.avatar || null;
+
+  // Stats from profile API
+  const overallScore = typeof user?.overall_score === "number" ? user.overall_score : null;
+  const currentStreak = typeof user?.current_streak === "number" ? user.current_streak : null;
+  const longestStreak = typeof user?.longest_streak === "number" ? user.longest_streak : null;
+  // Convert score to percentage (backend returns raw score; max is 100)
+  const scorePercent = overallScore !== null ? Math.min(Math.round((overallScore / 100) * 100), 100) : 0;
 
   const roleName =
     typeof user?.role === "string"
@@ -198,16 +206,49 @@ export default function ProfilePage() {
             {/* Statistics */}
             <div className="edtech-card">
               <h3 className="font-semibold text-foreground mb-4">Statistics</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-3 rounded-lg bg-muted/50">
-                  <Target className="w-5 h-5 mx-auto mb-1 text-primary" />
-                  <p className="text-lg font-bold text-foreground">0%</p>
-                  <p className="text-xs text-muted-foreground">Test Overall%</p>
+              <div className="space-y-4">
+                {/* Overall Score */}
+                <div className="p-3 rounded-lg bg-muted/50">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <Target className="w-4 h-4 text-primary" />
+                      <span className="text-sm text-muted-foreground">Overall Score</span>
+                    </div>
+                    <span className="text-sm font-bold text-foreground">
+                      {overallScore !== null ? `${scorePercent}%` : "—"}
+                    </span>
+                  </div>
+                  <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                    <div
+                      className="h-2 rounded-full transition-all duration-700"
+                      style={{
+                        width: `${scorePercent}%`,
+                        background: scorePercent >= 75
+                          ? "hsl(var(--chart-2))"
+                          : scorePercent >= 40
+                          ? "hsl(var(--chart-4))"
+                          : "hsl(var(--chart-1))",
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="text-center p-3 rounded-lg bg-muted/50">
-                  <Flame className="w-5 h-5 mx-auto mb-1 text-orange-500" />
-                  <p className="text-lg font-bold text-foreground">1 Day</p>
-                  <p className="text-xs text-muted-foreground">Login Days</p>
+
+                {/* Streak row */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <Flame className="w-5 h-5 mx-auto mb-1 text-orange-500" />
+                    <p className="text-lg font-bold text-foreground">
+                      {currentStreak !== null ? currentStreak : "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Current Streak</p>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-muted/50">
+                    <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
+                    <p className="text-lg font-bold text-foreground">
+                      {longestStreak !== null ? longestStreak : "—"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">Longest Streak</p>
+                  </div>
                 </div>
               </div>
             </div>

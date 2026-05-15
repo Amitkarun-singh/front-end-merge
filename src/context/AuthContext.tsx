@@ -39,6 +39,11 @@ interface User {
   dob?: string;
   language?: string;
   joining_date?: string;
+  // Gamification / stats
+  overall_score?: number;
+  current_streak?: number;
+  longest_streak?: number;
+  last_active_date?: string;
   [key: string]: unknown;
 }
 
@@ -85,7 +90,14 @@ function flattenProfile(raw: Record<string, unknown>): User {
     // Already flat — avatarUrl at top level takes priority over avatar key
     const avatarFlat = (raw.avatarUrl as string | null) || (raw.avatar as string | null);
 
-    return { ...raw, avatar: avatarFlat } as User;
+    return {
+      ...raw,
+      avatar: avatarFlat,
+      overall_score: raw.overall_score as number | undefined,
+      current_streak: raw.current_streak as number | undefined,
+      longest_streak: raw.longest_streak as number | undefined,
+      last_active_date: raw.last_active_date as string | undefined,
+    } as User;
   }
 
   // ✅ KEY FIX: backend returns signed S3 URL in raw.avatarUrl (top-level on data object)
@@ -121,6 +133,11 @@ function flattenProfile(raw: Record<string, unknown>): User {
     dob: studentObj.dob as string,
     language: studentObj.language as string,
     joining_date: studentObj.joining_date as string,
+    // Gamification stats (top-level on data object)
+    overall_score: raw.overall_score as number | undefined,
+    current_streak: raw.current_streak as number | undefined,
+    longest_streak: raw.longest_streak as number | undefined,
+    last_active_date: raw.last_active_date as string | undefined,
   };
 }
 

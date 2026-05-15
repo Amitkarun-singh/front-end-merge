@@ -134,6 +134,26 @@ function extractFirstUserMessage(value: string): string {
   return trimmed;
 }
 
+/**
+ * Converts a raw timestamp (ISO string or already-relative text like "Yesterday")
+ * into a human-readable relative string, e.g. "5 min ago", "2 hours ago".
+ * If the value cannot be parsed as a date, it is returned as-is.
+ */
+export function toRelativeTime(raw: string | undefined | null): string {
+  if (!raw) return "—";
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw; // already a human string
+  const diff  = Date.now() - d.getTime();
+  const mins  = Math.floor(diff / 60_000);
+  const hours = Math.floor(diff / 3_600_000);
+  const days  = Math.floor(diff / 86_400_000);
+  if (mins  < 1)  return "Just now";
+  if (mins  < 60) return `${mins} min ago`;
+  if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
+  if (days  < 2)  return "Yesterday";
+  return `${days} days ago`;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normaliseQuery(raw: any): RecentQuery {
   const rawQuery =
@@ -158,8 +178,9 @@ function normaliseQuery(raw: any): RecentQuery {
     raw.category ||
     "AI Gini";
 
-  // time already human-readable ("9 hours ago", "Yesterday") – use as-is
-  const time = raw.time || raw.created_at || raw.timestamp || raw.date || "";
+  // Convert raw ISO timestamp → human-readable relative time
+  const rawTime = raw.time || raw.created_at || raw.timestamp || raw.date || "";
+  const time = toRelativeTime(rawTime);
 
   const conversation_id =
     raw.conversation_id ??
