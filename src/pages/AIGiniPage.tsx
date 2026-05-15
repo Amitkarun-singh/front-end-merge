@@ -864,7 +864,13 @@ function RecentsSection({ loadConversation }: RecentsSectionProps) {
       return;
     }
     fetchRecentQueries(token)
-      .then(setQueries)
+      .then((all) => {
+        // Only show AI Gini conversations in this section
+        const giniOnly = all.filter((item) =>
+          (item.tool || "").toLowerCase().includes("gini"),
+        );
+        setQueries(giniOnly);
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [token]);
