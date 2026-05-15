@@ -86,6 +86,8 @@ export const useChat = () => {
       .finally(() => setHistoryLoading(false));
   }, []);
 
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   /**
    * Sends the current user input and any uploaded file to the AI assistant.
    */
@@ -122,6 +124,7 @@ export const useChat = () => {
 
       let assistantContent = "";
       const controller = new AbortController();
+      abortControllerRef.current = controller;
 
       await fetchEventSource(CHAT_URL, {
         method: "POST",
@@ -196,6 +199,10 @@ export const useChat = () => {
         },
         onerror(err) {
           console.error("SSE Error:", err);
+          if (err instanceof Error && err.name === "AbortError") {
+            // User stopped the response
+            return;
+          }
           toast({
             title: "Connection Error",
             description:
@@ -207,12 +214,26 @@ export const useChat = () => {
         onclose() {
           setIsLoading(false);
           setUploadedFile(null);
+          abortControllerRef.current = null;
         },
       });
     } catch (error) {
-      console.error("Chat error:", error);
+      if (error instanceof Error && error.name === "AbortError") {
+        console.log("Response aborted by user");
+      } else {
+        console.error("Chat error:", error);
+      }
       setIsLoading(false);
       setUploadedFile(null);
+      abortControllerRef.current = null;
+    }
+  };
+
+  /** Aborts the current AI response. */
+  const stopResponse = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      setIsLoading(false);
     }
   };
 
@@ -236,6 +257,7 @@ export const useChat = () => {
 
   /** Resets the chat history and clears any uploaded files. */
   const resetChat = () => {
+    stopResponse();
     setMessages([]);
     setUploadedFile(null);
     setInput("");
@@ -284,6 +306,7 @@ export const useChat = () => {
     handleSend,
     handleFileChange,
     resetChat,
+    stopResponse,
     language,
     setLanguage,
     selectedClass,

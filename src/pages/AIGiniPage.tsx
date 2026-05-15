@@ -9,7 +9,7 @@ import {
   MonitorSmartphone,
   ArrowRight,
   Send,
-  RotateCcw,
+  RotateCcw ,Ban,
   Paperclip,
   Loader2,
   ThumbsUp,
@@ -284,6 +284,7 @@ interface ChatViewProps {
   handleFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   fileInputRef: React.RefObject<HTMLInputElement>;
   resetChat: () => void;
+  stopResponse: () => void;
   uploadedFile: File | null;
 }
 
@@ -299,6 +300,7 @@ const ChatView: FC<ChatViewProps> = ({
   handleFileChange,
   fileInputRef,
   resetChat,
+  stopResponse,
   uploadedFile,
 }) => {
   const { toast } = useToast();
@@ -640,11 +642,10 @@ const ChatView: FC<ChatViewProps> = ({
         <Button
           variant="ghost"
           size="icon"
-          onClick={resetChat}
+          onClick={isLoading ? stopResponse : resetChat}
           className="flex-shrink-0 h-9 w-9 rounded-full hover:bg-white/20"
-          disabled={isLoading}
         >
-          <RotateCcw className="w-4 h-4 text-muted-foreground" />
+          {isLoading ? <Ban className={`w-4 h-4 text-muted-foreground `} /> : <RotateCcw className={`w-4 h-4 text-muted-foreground ${isLoading ? "animate-spin" : ""}`} />}
         </Button>
       </div>
     </div>
@@ -676,6 +677,7 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
     handleSend,
     handleFileChange,
     resetChat,
+    stopResponse,
     loadConversation,
   } = useChat();
 
@@ -817,6 +819,7 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
               handleFileChange={handleFileChange}
               fileInputRef={fileInputRef}
               resetChat={resetChat}
+              stopResponse={stopResponse}
               uploadedFile={uploadedFile}
             />
           )}
