@@ -11,7 +11,7 @@ import { setupRecaptcha, sendOTP as firebaseSendOTP, verifyOTP as firebaseVerify
 
 const COUNTRY_CODES = [
   { code: '+91', flag: '🇮🇳', name: 'India' },
-  { code: '+1',  flag: '🇺🇸', name: 'USA' },
+  { code: '+1', flag: '🇺🇸', name: 'USA' },
   { code: '+44', flag: '🇬🇧', name: 'UK' },
   { code: '+971', flag: '🇦🇪', name: 'UAE' },
   { code: '+65', flag: '🇸🇬', name: 'Singapore' },
@@ -49,7 +49,7 @@ function Requirement({ met, label }: { met: boolean; label: string }) {
     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem' }}>
       {met
         ? <CheckCircle2 style={{ width: 14, height: 14, color: '#22c55e', flexShrink: 0 }} />
-        : <Circle       style={{ width: 14, height: 14, color: '#94a3b8', flexShrink: 0 }} />
+        : <Circle style={{ width: 14, height: 14, color: '#94a3b8', flexShrink: 0 }} />
       }
       <span style={{ color: met ? '#22c55e' : '#94a3b8', transition: 'color 0.2s' }}>{label}</span>
     </div>
@@ -61,31 +61,31 @@ export default function ForgotPasswordPage() {
   const navigate = useNavigate();
 
   // ── shared state ────────────────────────────────────────────────────────────
-  const [step, setStep]               = useState<1 | 2 | 3>(1);
-  const [loading, setLoading]         = useState(false);
-  const [error, setError]             = useState('');
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
   // Step 1
   const [phoneNumber, setPhoneNumber] = useState('');
   const [countryCode, setCountryCode] = useState('+91');
 
   // Step 2
-  const [otp, setOtp]                 = useState('');
-  const [resetToken, setResetToken]   = useState(''); // memory only — never stored
+  const [otp, setOtp] = useState('');
+  const [resetToken, setResetToken] = useState(''); // memory only — never stored
 
   // Step 3
-  const [newPassword, setNewPassword]         = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNew, setShowNew]                 = useState(false);
-  const [showConfirm, setShowConfirm]         = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   // Resend countdown
-  const [countdown, setCountdown]   = useState(0);
-  const timerRef                    = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [countdown, setCountdown] = useState(0);
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const phoneInputRef = useRef<HTMLInputElement>(null);
-  const otpInputRef   = useRef<HTMLInputElement>(null);
-  const newPwRef      = useRef<HTMLInputElement>(null);
+  const otpInputRef = useRef<HTMLInputElement>(null);
+  const newPwRef = useRef<HTMLInputElement>(null);
 
   // Autofocus on step change
   useEffect(() => {
@@ -99,8 +99,8 @@ export default function ForgotPasswordPage() {
 
   // Password validation
   const minLength = newPassword.length >= 8;
-  const pwMatch   = newPassword.length > 0 && newPassword === confirmPassword;
-  const canReset  = minLength && pwMatch && !loading;
+  const pwMatch = newPassword.length > 0 && newPassword === confirmPassword;
+  const canReset = minLength && pwMatch && !loading;
 
   // ── Countdown timer ──────────────────────────────────────────────────────────
   const startCountdown = useCallback(() => {
@@ -134,6 +134,7 @@ export default function ForgotPasswordPage() {
   };
 
   // ── Step 2 — Verify OTP ──────────────────────────────────────────────────────
+
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!otp.trim()) return;
@@ -143,15 +144,16 @@ export default function ForgotPasswordPage() {
     try {
       // Step 1: Verify with Firebase
       const firebaseUser = await firebaseVerifyOTP(otp);
-      
+
       // Step 2: Get ID Token
       const idToken = await firebaseUser.getIdToken();
+      localStorage.setItem('idToken', idToken);
 
       // Step 3: Exchange for resetToken at our backend
-      const res = await fetch(`${API_BASE}/api/auth/forgot-password/firebase`, {
+      const res = await fetch(`${API_BASE}/api/auth/verify-id-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idToken, phone_number: `${countryCode}${phoneNumber}` }),
+        body: JSON.stringify({ idToken, phone_number: phoneNumber }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Invalid OTP. Please try again.');
@@ -172,7 +174,7 @@ export default function ForgotPasswordPage() {
     if (!canReset) return;
     setLoading(true);
     setError('');
-
+    const idToken = localStorage.getItem('idToken');
     try {
       const res = await fetch(`${API_BASE}/api/auth/forgot-password/reset`, {
         method: 'POST',
@@ -180,7 +182,7 @@ export default function ForgotPasswordPage() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${resetToken}`,
         },
-        body: JSON.stringify({ newPassword, confirmPassword }),
+        body: JSON.stringify({ newPassword, confirmPassword, phoneNumber, idToken }),
       });
       const data = await res.json();
 
@@ -221,10 +223,7 @@ export default function ForgotPasswordPage() {
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
     <div className="login-page">
-      <div className="login-blob login-blob-1" />
-      <div className="login-blob login-blob-2" />
-      <div className="login-blob login-blob-3" />
-      <div className="login-blob login-blob-4" />
+
 
       <div className="login-container" style={{ justifyContent: 'center', maxWidth: 480 }}>
         <div className="login-card-wrapper">
@@ -250,11 +249,11 @@ export default function ForgotPasswordPage() {
               gap: 0, marginBottom: '1.5rem',
             }}>
               {stepLabels.map((label, i) => {
-                const num     = i + 1;
-                const active  = num === step;
-                const done    = num < step;
+                const num = i + 1;
+                const active = num === step;
+                const done = num < step;
                 const primary = 'hsl(262 83% 58%)';
-                const muted   = 'hsl(240 6% 85%)';
+                const muted = 'hsl(240 6% 85%)';
                 return (
                   <div key={label} style={{ display: 'flex', alignItems: 'center' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
@@ -491,7 +490,7 @@ export default function ForgotPasswordPage() {
 
                   <div id="fp-requirements" style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
                     <Requirement met={minLength} label="At least 8 characters" />
-                    <Requirement met={pwMatch}   label="Passwords match" />
+                    <Requirement met={pwMatch} label="Passwords match" />
                   </div>
 
                   <button
