@@ -9,6 +9,7 @@ import {
 } from "react";
 import { config } from "../../app.config.js";
 import { setupRecaptcha, sendOTP as firebaseSendOTP, verifyOTP as firebaseVerifyOTP } from "@/firebase/otp";
+import { registerNotificationToken } from "@/firebase/notification";
 
 interface User {
   // Core identity
@@ -103,7 +104,7 @@ function flattenProfile(raw: Record<string, unknown>): User {
   // ✅ KEY FIX: backend returns signed S3 URL in raw.avatarUrl (top-level on data object)
   //    raw.user.avatar is just the S3 key path (e.g. "avatars/1-xxx.undefined") — not usable as <img src>
   const avatarUrl = (raw.avatarUrl as string | null)   // full signed URL  ← use this
-                 || (userObj.avatar as string | null);   // fallback: raw key (may not render)
+    || (userObj.avatar as string | null);   // fallback: raw key (may not render)
 
 
   return {
@@ -191,6 +192,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [authState.isAuthenticated, authState.token, authState.user]);
 
+  // Register notification token after login
+  useEffect(() => {
+    if (authState.isAuthenticated && authState.token) {
+      const token = authState.token;
+      registerNotificationToken(token);
+
+    } else {
+      console.log("[AuthContext] Not authenticated or no token. Skipping notification registration.");
+    }
+  }, [authState.isAuthenticated, authState.token, authState.user?.id, authState.user?.user_id]);
+
+
   /**
    * Fetch user profile from GET /api/auth/profile
    * Flattens nested { user, school, student } into a single object.
@@ -246,7 +259,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (err: unknown) {
       console.error("[fetchProfile] error:", err);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
@@ -279,7 +292,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     await fetchProfile();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchProfile]);
 
   /**
