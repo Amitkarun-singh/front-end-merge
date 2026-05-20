@@ -192,16 +192,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [authState.isAuthenticated, authState.token, authState.user]);
 
-  // Register notification token after login
-  useEffect(() => {
-    if (authState.isAuthenticated && authState.token) {
-      const token = authState.token;
-      registerNotificationToken(token);
+  // // Register notification token after login
+  // useEffect(() => {
+  //   if (authState.isAuthenticated && authState.token) {
+  //     const token = authState.token;
+  //     registerNotificationToken(token);
 
-    } else {
-      console.log("[AuthContext] Not authenticated or no token. Skipping notification registration.");
-    }
-  }, [authState.isAuthenticated, authState.token, authState.user?.id, authState.user?.user_id]);
+  //   } else {
+  //     console.log("[AuthContext] Not authenticated or no token. Skipping notification registration.");
+  //   }
+  // }, [authState.isAuthenticated, authState.token, authState.user?.id, authState.user?.user_id]);
 
 
   /**

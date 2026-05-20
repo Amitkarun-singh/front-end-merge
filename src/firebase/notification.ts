@@ -3,6 +3,8 @@ import { getMessaging, getToken } from "firebase/messaging";
 import fpPromise from '@fingerprintjs/fingerprintjs';
 import { config } from "../../app.config.js";
 
+
+
 export const initializeNotifications = async () => {
   try {
     console.log("[Notification] Initializing...");
@@ -41,8 +43,8 @@ export const registerNotificationToken = async (authToken: string) => {
   console.log("[Notification] Registering ");
   try {
     // console.log(`[Notification] Registering for userId: ${userId}`);
-    const token = await initializeNotifications();
-    if (!token) {
+    const notificaationToken = await initializeNotifications();
+    if (!notificaationToken) {
       console.log("[Notification] Failed to get push token. Aborting registration.");
       return;
     }
@@ -53,7 +55,7 @@ export const registerNotificationToken = async (authToken: string) => {
     const deviceId = result.visitorId;
     console.log(`[Notification] DeviceId: ${deviceId}`);
 
-    const payload = { token, deviceId };
+    const payload = { token: notificaationToken, deviceId };
     console.log("[Notification] Sending POST request with payload:", payload);
 
     const response = await fetch(`${config.server}/notification/register`, {
