@@ -46,17 +46,52 @@ import StudentTestsPage from "./pages/assessment/student/StudentTestsPage";
 import TakeTestPage from "./pages/assessment/student/TakeTestPage";
 import TestResultPage from "./pages/assessment/student/TestResultPage";
 import TestSubmittedPage from "./pages/assessment/student/TestSubmittedPage";
-import { registerNotificationToken } from "./firebase/notification";
+import { saveUserSession, clearUserSession, getCurrentUserId } from "@/indexDB/indexDB";
+import { registerNotificationToken, handleLoginNotifications } from "@/firebase/notification";
+
 
 const queryClient = new QueryClient();
-const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
-const token = local?.token;
-
 const App = () => {
+
   useEffect(() => {
-    console.log("Local storage token:", token);
-    registerNotificationToken(token);
+
+    let uid = localStorage.getItem("userId")
+    if (!uid) {
+      (async () => {
+        uid = await getCurrentUserId()
+        console.log("uid ", uid)
+
+        if (uid) {
+          const userIdStr = uid.toString();
+          console.log("[App] User ID:", userIdStr);
+          saveUserSession(userIdStr)
+            .then(() => {
+              handleLoginNotifications(userIdStr);
+            })
+            .catch((err) => {
+              console.error("[AuthContext] Failed to save user session to IndexedDB:", err);
+            });
+        }
+      })()
+
+    } else {
+      console.log("[App] User ID from useEffect :", uid);
+      if (uid) {
+        const userIdStr = uid.toString();
+        console.log("[App] User ID:", userIdStr);
+        saveUserSession(userIdStr)
+          .then(() => {
+            handleLoginNotifications(userIdStr);
+          })
+          .catch((err) => {
+            console.error("[AuthContext] Failed to save user session to IndexedDB:", err);
+          });
+      }
+
+    }
+
   }, []);
+
 
   return (
     <QueryClientProvider client={queryClient}>

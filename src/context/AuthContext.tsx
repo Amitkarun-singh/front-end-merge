@@ -9,7 +9,8 @@ import {
 } from "react";
 import { config } from "../../app.config.js";
 import { setupRecaptcha, sendOTP as firebaseSendOTP, verifyOTP as firebaseVerifyOTP } from "@/firebase/otp";
-import { registerNotificationToken } from "@/firebase/notification";
+import { registerNotificationToken, handleLoginNotifications } from "@/firebase/notification";
+import { saveUserSession, clearUserSession, getUnreadNotifications } from "@/indexDB/indexDB";
 
 interface User {
   // Core identity
@@ -192,16 +193,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [authState.isAuthenticated, authState.token, authState.user]);
 
-  // // Register notification token after login
-  // useEffect(() => {
-  //   if (authState.isAuthenticated && authState.token) {
-  //     const token = authState.token;
-  //     registerNotificationToken(token);
+  // Register notification token after login
+  useEffect(() => {
+    if (authState.isAuthenticated && authState.token) {
+      const token = authState.token;
+      registerNotificationToken(token);
+    } else {
+      console.log("[AuthContext] Not authenticated or no token. Skipping notification registration.");
+    }
+  }, [authState.isAuthenticated, authState.token, authState.user?.id, authState.user?.user_id]);
 
-  //   } else {
-  //     console.log("[AuthContext] Not authenticated or no token. Skipping notification registration.");
-  //   }
-  // }, [authState.isAuthenticated, authState.token, authState.user?.id, authState.user?.user_id]);
+
 
 
   /**
@@ -338,6 +340,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Extract role from login response
       const role = responseData.role;
 
+      //store userID in index id
+
+
+      const responseUserId = responseData.profile?.userId || responseData.profile?.user_id;
+      if (responseUserId) {
+        const userIdStr = responseUserId.toString();
+        console.log("[AuthContext] User ID:", userIdStr);
+        saveUserSession(userIdStr)
+          .then(() => {
+            handleLoginNotifications(userIdStr);
+          })
+          .catch((err) => {
+            console.error("[AuthContext] Failed to save user session to IndexedDB:", err);
+          });
+      }
+
       // Set minimal user state from login response first
       setAuthState({
         isAuthenticated: true,
@@ -424,6 +442,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const idToken = await firebaseUser.getIdToken();
 
       // Step 3: Exchange the Firebase ID token with our backend for an app token
+
       const res = await fetch(`${API_BASE}/api/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -438,13 +457,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const responseData = data.data || data;
 
-      localStorage.setItem("userId", JSON.stringify(responseData.profile.userId));
+      const responseUserId = responseData.profile?.userId || responseData.profile?.user_id;
+      //store userID in index id
+      if (responseUserId) {
+        const userIdStr = responseUserId.toString();
+        console.log("[AuthContext] User ID:", userIdStr);
+        saveUserSession(userIdStr)
+          .then(() => {
+            handleLoginNotifications(userIdStr);
+          })
+          .catch((err) => {
+            console.error("[AuthContext] Failed to save user session to IndexedDB:", err);
+          });
+      }
+
       const token = responseData.accessToken || responseData.token;
       const role = responseData.role;
 
+
+      console.log("unread notification", await getUnreadNotifications(responseUserId))
+
       setAuthState({
         isAuthenticated: true,
-        user: { role },
+        user: { role, id: responseUserId, user_id: responseUserId },
         token,
         loading: false,
         error: null,
@@ -499,6 +534,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       error: null,
     });
     localStorage.removeItem(AUTH_STORAGE_KEY);
+    clearUserSession().catch((err) => {
+      console.error("[AuthContext] Failed to clear user session on logout:", err);
+    });
 
     if (currentToken) {
       try {

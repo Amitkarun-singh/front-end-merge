@@ -2,6 +2,8 @@ import { app } from "./firebaseConfig.ts";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import fpPromise from '@fingerprintjs/fingerprintjs';
 import { config } from "../../app.config.js";
+import { addNotification, getUnreadNotifications, markAllAsRead, getCurrentUserId } from "../indexDB/indexDB";
+import { toast } from "../hooks/use-toast";
 
 
 
@@ -13,17 +15,17 @@ export const initializeNotifications = async () => {
       return;
     }
 
-    console.log("[Notification] Requesting permission...");
+
     const permission = await Notification.requestPermission();
-    console.log("[Notification] Permission status:", permission);
+
     if (permission !== 'granted') {
       console.warn("[Notification] Notification permission not granted.");
       return;
     }
 
-    console.log("[Notification] Getting messaging instance...");
+
     const messaging = getMessaging(app);
-    console.log("[Notification] Fetching token...");
+
     const token = await getToken(messaging, {
       vapidKey: "BD1cZo6qlMqKDsWop-TerAFWcJEk4hK-5TdPxpf4K4-s_ELPJ7pCXHbiZ962Q7ilDSL_D_liaDdGgWhFqqp6XSk",
     });
@@ -32,13 +34,35 @@ export const initializeNotifications = async () => {
       console.log("[Notification] Firebase Messaging Token:", token);
 
       // Listen for foreground messages
-      onMessage(messaging, (payload) => {
+      onMessage(messaging, async (payload) => {
         console.log("[Notification] Foreground message received:", payload);
-        const title = payload.notification?.title
+        const title = payload.notification?.title || "New Notification";
         const options = {
-          body: payload.notification?.body,
+          body: payload.notification?.body || "",
           icon: payload.notification?.icon
         };
+
+        // Save to IndexedDB if user is logged in
+        try {
+          const userId = await getCurrentUserId();
+
+          if (userId) {
+            await addNotification(userId, {
+              title,
+              body: options.body,
+              icon: options.icon
+            });
+
+          }
+        } catch (dbErr) {
+          console.error("[Notification] Error saving foreground notification to IndexedDB:", dbErr);
+        }
+
+        // Show toast in-app
+        toast({
+          title,
+          description: options.body,
+        });
 
         // Show system notification if in foreground
         if (Notification.permission === 'granted') {
@@ -92,5 +116,39 @@ export const registerNotificationToken = async (authToken: string) => {
     }
   } catch (error) {
     console.error("[Notification] Error in registerNotificationToken:", error);
+  }
+};
+
+export const handleLoginNotifications = async (userId: string) => {
+  try {
+    console.log("[Notification] Checking login notifications for userId:", userId);
+    const unread = await getUnreadNotifications(userId);
+    console.log("[Notification] Unread notifications:", unread);
+    if (unread && unread.length > 0) {
+      if (unread.length === 1) {
+        const n = unread[0];
+        toast({
+          title: n.title,
+          description: n.body,
+        });
+        // if (Notification.permission === 'granted') {
+        //   new Notification(n.title, { body: n.body, icon: n.icon });
+        // }
+      } else {
+        toast({
+          title: "New Notifications",
+          description: `You have ${unread.length} new notifications.`,
+        });
+        if (Notification.permission === 'granted') {
+          new Notification("New Notifications", {
+            body: `You have ${unread.length} new notifications.`,
+          });
+        }
+      }
+      await markAllAsRead(userId);
+      console.log("[Notification] Marked all notifications as read for userId:", userId);
+    }
+  } catch (err) {
+    console.error("[Notification] Error handling login notifications:", err);
   }
 };
