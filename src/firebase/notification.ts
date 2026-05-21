@@ -1,5 +1,5 @@
 import { app } from "./firebaseConfig.ts";
-import { getMessaging, getToken } from "firebase/messaging";
+import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import fpPromise from '@fingerprintjs/fingerprintjs';
 import { config } from "../../app.config.js";
 
@@ -30,6 +30,22 @@ export const initializeNotifications = async () => {
 
     if (token) {
       console.log("[Notification] Firebase Messaging Token:", token);
+
+      // Listen for foreground messages
+      onMessage(messaging, (payload) => {
+        console.log("[Notification] Foreground message received:", payload);
+        const title = payload.notification?.title
+        const options = {
+          body: payload.notification?.body,
+          icon: payload.notification?.icon
+        };
+
+        // Show system notification if in foreground
+        if (Notification.permission === 'granted') {
+          new Notification(title, options);
+        }
+      });
+
       return token;
     } else {
       console.warn("[Notification] No registration token available.");

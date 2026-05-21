@@ -128,10 +128,7 @@ export default function StudentLoginPage() {
   return (
     <div className="login-page">
       {/* Animated background blobs */}
-      <div className="login-blob login-blob-1" />
-      <div className="login-blob login-blob-2" />
-      <div className="login-blob login-blob-3" />
-      <div className="login-blob login-blob-4" />
+      
 
       {/* Floating particles */}
       <div className="login-particles">

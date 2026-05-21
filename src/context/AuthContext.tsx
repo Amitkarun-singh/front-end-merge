@@ -437,6 +437,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const responseData = data.data || data;
+
+      localStorage.setItem("userId", JSON.stringify(responseData.profile.userId));
       const token = responseData.accessToken || responseData.token;
       const role = responseData.role;
 

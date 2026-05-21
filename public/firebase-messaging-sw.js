@@ -19,7 +19,7 @@ console.log("Firebase messaging initialized");
 messaging.onBackgroundMessage((payload) => {
   console.log("Background message received:", payload);
   // Create an objectStore for this database
-  
+
   self.registration.showNotification(payload.notification.title, {
     body: payload.notification.body,
     icon: "/icon.png",
