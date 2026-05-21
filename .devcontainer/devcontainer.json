@@ -1,12 +1,12 @@
 {
   "name": "Frontend Dev Container",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:20",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:20-bullseye",
   "forwardPorts": [
     8080
   ],
   "runArgs": [
     "--network=devnet",
-    "--name=app.schools2ai.com"
+    "--name=app.schools2ai.com",
   ],
   "postCreateCommand": "npm install"
 }
