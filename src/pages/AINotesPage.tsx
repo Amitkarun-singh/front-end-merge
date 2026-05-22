@@ -328,17 +328,19 @@ type PreviewMode = "notes" | "book" | null;
 
 export default function AINotesPage() {
   const [languages, setLanguages] = useState<string[]>([]);
-  const [classes, setClasses] = useState<string[]>([]);
-  const [subjects, setSubjects] = useState<string[]>([]);
-  const [chapters, setChapters] = useState<string[]>([]);
+  const [streams, setStreams]     = useState<string[]>([]);
+  const [classes, setClasses]     = useState<string[]>([]);
+  const [subjects, setSubjects]   = useState<string[]>([]);
+  const [chapters, setChapters]   = useState<string[]>([]);
 
-  const [language, setLanguage] = useState("");
+  const [language, setLanguage]               = useState("");
+  const [stream, setStream]                   = useState("");
   // Pre-seed className from profile so subjects load immediately after language pick
-  const [className, setClassName] = useState("");
-  const [subject, setSubject] = useState("");
+  const [className, setClassName]             = useState("");
+  const [subject, setSubject]                 = useState("");
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
 
-  const [note, setNote] = useState<AINote | null>(null);
+  const [note, setNote]           = useState<AINote | null>(null);
   const [showNotes, setShowNotes] = useState(false);
 
   // Search
@@ -349,6 +351,9 @@ export default function AINotesPage() {
 
   // Warning shown when user tries to open book before generating notes
   const [showBookWarning, setShowBookWarning] = useState(false);
+
+  // Derived: is the selected class one that requires a stream?
+  const needsStream = className === "11" || className === "12";
 
   const { token, user } = useAuth();
 
@@ -369,11 +374,24 @@ export default function AINotesPage() {
   // Display label shown in the locked field (e.g. "Grade 10")
   const profileClassLabel = profileClass ? `Grade ${profileClass}` : null;
 
+  // Board: derived from user profile or fallback to "CBSE" — not user-selectable
+  const board = (user?.board as string) || "CBSE";
+
   const resetNotes = () => {
     setShowNotes(false);
     setNote(null);
     setPreviewMode(null);
     setShowBookWarning(false);
+  };
+
+  // Helper to reset stream-dependent downstream state
+  const resetStream = () => {
+    setStream("");
+    setSubjects([]);
+    setChapters([]);
+    setSubject("");
+    setSelectedChapter(null);
+    resetNotes();
   };
 
   // ── Fetch languages ──
@@ -386,19 +404,17 @@ export default function AINotesPage() {
       .then((data) => setLanguages(data.data || []));
   }, []);
 
-  // ── Fetch classes (requires language) ──
+  // ── Fetch classes (requires language; board is derived automatically) ──
   // Students with a profile class skip the API — their class is already known.
   useEffect(() => {
     if (!language) { setClasses([]); return; }
 
     if (profileClass) {
-      // Student has a fixed class: no need to fetch all classes.
-      // Just ensure className is set so the subjects effect fires.
       setClassName(profileClass);
       return;
     }
 
-    fetch(`${config.server}/api/ainote/classes?language=${language}&board=CBSE`, {
+    fetch(`${config.server}/api/ainote/classes?language=${language}&board=${board}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -406,33 +422,55 @@ export default function AINotesPage() {
       .then((data) => setClasses(data.data || []));
   }, [language]);
 
-  // ── Fetch subjects (requires language + class) ──
+  // ── Fetch streams (only for class 11 & 12; board is derived automatically) ──
+  useEffect(() => {
+    if (!needsStream || !language) { setStreams([]); setStream(""); return; }
+    fetch(
+      `${config.server}/api/ainote/streams?language=${language}&board=${board}`,
+      { method: "GET", headers: { Authorization: `Bearer ${token}` } }
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        const list: string[] = data.data || [];
+        setStreams(list);
+        setStream(""); // reset stream on class change
+      });
+  }, [needsStream, language]);
+
+  // ── Fetch subjects (requires language + class; + stream if class 11/12) ──
   useEffect(() => {
     if (!language || !className) { setSubjects([]); return; }
+    if (needsStream && !stream) { setSubjects([]); return; }
+
+    const streamParam = needsStream && stream ? `&stream=${stream}` : "";
     fetch(
-      `${config.server}/api/ainote/subjects?language=${language}&class=${className}`,
+      `${config.server}/api/ainote/subjects?language=${language}&board=${board}&class=${className}${streamParam}`,
       { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     )
       .then((res) => res.json())
       .then((data) => setSubjects(data.data || []));
-  }, [language, className]);
+  }, [language, className, stream, needsStream]);
 
-  // ── Fetch chapters (requires language + class + subject) ──
+  // ── Fetch chapters (requires language + class + subject; + stream if 11/12) ──
   useEffect(() => {
     if (!language || !className || !subject) { setChapters([]); return; }
+    if (needsStream && !stream) { setChapters([]); return; }
+
+    const streamParam = needsStream && stream ? `&stream=${stream}` : "";
     fetch(
-      `${config.server}/api/ainote/chapters?language=${language}&class=${className}&subject=${subject}`,
+      `${config.server}/api/ainote/chapters?language=${language}&board=${board}&class=${className}&subject=${subject}${streamParam}`,
       { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     )
       .then((res) => res.json())
       .then((data) => setChapters(data.data || []));
-  }, [language, className, subject]);
+  }, [language, className, subject, stream, needsStream]);
 
   // ── Generate notes ──
   const handleGenerateNotes = async () => {
     if (!selectedChapter) return;
+    const streamParam = needsStream && stream ? `&stream=${stream}` : "";
     const res = await fetch(
-      `${config.server}/api/ainote?language=${language}&board=CBSE&class=${className}&subject=${subject}&topic=${selectedChapter}`,
+      `${config.server}/api/ainote?language=${language}&board=${board}&class=${className}&subject=${subject}&topic=${selectedChapter}${streamParam}`,
       { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await res.json();
@@ -548,9 +586,10 @@ export default function AINotesPage() {
         {/* Filters — hidden when PDF open */}
         {!isPdfOpen && (
           <div className="edtech-card mb-6">
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="flex flex-wrap gap-3 items-end">
+
             {/* Language */}
-            <div>
+            <div className="flex-1 min-w-[140px]">
               <label className="text-sm font-medium text-foreground mb-2 block">
                 Language
               </label>
@@ -558,6 +597,8 @@ export default function AINotesPage() {
                 value={language}
                 onValueChange={(val) => {
                   setLanguage(val);
+                  setClassName("");
+                  resetStream();
                   resetNotes();
                   setSelectedChapter(null);
                 }}
@@ -576,7 +617,7 @@ export default function AINotesPage() {
             </div>
 
             {/* Class */}
-            <div>
+            <div className="flex-1 min-w-[140px]">
               <label className="text-sm font-medium text-foreground mb-2 block">
                 Class
               </label>
@@ -595,12 +636,14 @@ export default function AINotesPage() {
                   value={className}
                   onValueChange={(val) => {
                     setClassName(val);
+                    resetStream();
                     resetNotes();
                     setSelectedChapter(null);
                   }}
+                  disabled={!language}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select Class" />
+                    <SelectValue placeholder="Select class" />
                   </SelectTrigger>
                   <SelectContent>
                     {classes.map((c) => (
@@ -613,8 +656,39 @@ export default function AINotesPage() {
               )}
             </div>
 
+            {/* Stream — only for class 11 & 12 */}
+            {needsStream && (
+              <div className="flex-1 min-w-[140px]">
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Stream
+                </label>
+                <Select
+                  value={stream}
+                  onValueChange={(val) => {
+                    setStream(val);
+                    setSubject("");
+                    setSubjects([]);
+                    setChapters([]);
+                    setSelectedChapter(null);
+                    resetNotes();
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select stream" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {streams.map((s) => (
+                      <SelectItem key={s} value={s}>
+                        {s}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             {/* Subject */}
-            <div>
+            <div className="flex-1 min-w-[140px]">
               <label className="text-sm font-medium text-foreground mb-2 block">
                 Subject
               </label>
@@ -625,9 +699,10 @@ export default function AINotesPage() {
                   resetNotes();
                   setSelectedChapter(null);
                 }}
+                disabled={needsStream ? !stream : !className}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select Subject" />
+                  <SelectValue placeholder={needsStream && !stream ? "Select stream first" : "Select subject"} />
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.map((s) => (
@@ -640,7 +715,7 @@ export default function AINotesPage() {
             </div>
 
             {/* Chapter */}
-            <div>
+            <div className="flex-1 min-w-[140px]">
               <label className="text-sm font-medium text-foreground mb-2 block">
                 Chapter
               </label>
@@ -650,9 +725,10 @@ export default function AINotesPage() {
                   setSelectedChapter(val);
                   resetNotes();
                 }}
+                disabled={!subject}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select chapter" />
+                  <SelectValue placeholder={subject ? "Select chapter" : "Select subject first"} />
                 </SelectTrigger>
                 <SelectContent>
                   {chapters.map((chapter) => (
@@ -663,6 +739,7 @@ export default function AINotesPage() {
                 </SelectContent>
               </Select>
             </div>
+
           </div>
           </div>
         )}
