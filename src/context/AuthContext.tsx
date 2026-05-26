@@ -90,10 +90,9 @@ async function handleResponseError(res: Response, fallbackMessage: string): Prom
 
   const errors = data.errors || data.extra?.errors;
   if (type === "VALIDATION_ERROR" && Array.isArray(errors)) {
-    const fieldErrors = errors
-      .map((e: any) => `${e.field || "field"}: ${e.message || "invalid value"}`)
-      .join("; ");
-    message = `Validation failed: ${fieldErrors}`;
+    message = errors
+      .map((e: any) => e.message || "Invalid value")
+      .join(". ");
   }
 
   throw new AuthError(message, type, res.status, extraData);

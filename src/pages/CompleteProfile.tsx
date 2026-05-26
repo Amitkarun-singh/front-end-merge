@@ -3,7 +3,7 @@ import './Register.css';
 import './StudentLoginPage.css';
 import { useNavigate } from 'react-router-dom';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
-import { useRegistration } from '@/context/RegistrationContext';
+import { useRegistration, handleResponseError, RegistrationError } from '@/context/RegistrationContext';
 import ToggleSwitch from '@/components/ToggleSwitch';
 import schools2aiIcon from '@/assets/schools2ai-icon.png';
 import { config } from '../../app.config.js';
@@ -78,14 +78,17 @@ export default function CompleteProfile() {
       const res = await fetch(`${API_BASE}/api/auth/register/onboarding`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message);
+      if (!res.ok) {
+        await handleResponseError(res, "Failed to load onboarding options");
+      }
+      const data = await res.json().catch(() => ({}));
       const od = data.data ?? data;
       setOnboarding(od);
       // Pre-fill language from school defaults if present
       if (od.schoolDefaults?.language_preference) setLanguage(od.schoolDefaults.language_preference);
-    } catch {
-      showToast({ type: 'error', message: 'Failed to load options. Using defaults.' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to load options. Using defaults.';
+      showToast({ type: 'error', message });
       setOnboarding({
         classes: [],
         subjects: [],
@@ -150,11 +153,8 @@ export default function CompleteProfile() {
         body: JSON.stringify(body),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        setInlineError(data.message || 'Profile save failed. Please try again.');
-        return;
+        await handleResponseError(res, "Profile save failed");
       }
 
       // Show success overlay
@@ -172,8 +172,15 @@ export default function CompleteProfile() {
           navigate('/login', { replace: true });
         }
       }, 1000);
-    } catch {
-      showToast({ type: 'error', message: 'Connection error. Please try again.' });
+    } catch (err: unknown) {
+      let message = 'Connection error. Please try again.';
+      if (err instanceof RegistrationError) {
+        message = err.message;
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+      setInlineError(message);
+      showToast({ type: 'error', message });
     } finally {
       setLoading(false);
     }

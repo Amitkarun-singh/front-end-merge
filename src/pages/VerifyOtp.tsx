@@ -3,7 +3,7 @@ import './Register.css';
 import './StudentLoginPage.css';
 import { useNavigate } from 'react-router-dom';
 import { Phone, ArrowLeft, ArrowRight, RefreshCw } from 'lucide-react';
-import { useRegistration } from '@/context/RegistrationContext';
+import { useRegistration, handleResponseError, RegistrationError } from '@/context/RegistrationContext';
 import { useAuth } from '@/context/AuthContext';
 import OtpInput from '@/components/OtpInput';
 import schools2aiIcon from '@/assets/schools2ai-icon.png';
@@ -97,21 +97,12 @@ export default function VerifyOtp() {
           self_register: true,
         }),
       });
-      const data = await res.json();
 
       if (!res.ok) {
-        let msg: string = data.message || 'Invalid or expired OTP';
-        
-        if (data.type === 'VALIDATION_ERROR' && Array.isArray(data.errors)) {
-          msg = data.errors.map((e: any) => e.message).join('. ');
-        }
-        
-        setError(msg);
-        triggerShake();
-        setOtp(Array(6).fill(''));  
-        return;
+        await handleResponseError(res, "OTP verification failed");
       }
 
+      const data = await res.json().catch(() => ({}));
       const d = data.data ?? data;
       const profile = d.profile || {};
       
@@ -122,7 +113,11 @@ export default function VerifyOtp() {
         user_id: profile.user_id || d.user_id || (d.user && d.user.id),
       };
 
-      setRegistrationData(authData);
+      setRegistrationData({
+        ...authData,
+        error: null,
+        errorDetails: null,
+      });
 
       // Use AuthContext to log the user in
       setAuthData({
@@ -135,8 +130,28 @@ export default function VerifyOtp() {
       });
 
       navigate('/', { replace: true });
-    } catch {
-      showToast({ type: 'error', message: 'Connection error. Please try again.' });
+    } catch (err: unknown) {
+      let message = 'Connection error. Please try again.';
+      let errDetails = null;
+
+      if (err instanceof RegistrationError) {
+        message = err.message;
+        errDetails = {
+          message: err.message,
+          type: err.type,
+          statusCode: err.statusCode,
+          errors: err.errors,
+          ...err.extra,
+        };
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+      console.log("error message ",message)
+      setError(message);
+      setRegistrationData({ error: message, errorDetails: errDetails });
+      showToast({ type: 'error', message });
+      triggerShake();
+      setOtp(Array(6).fill(''));
     } finally {
       setLoading(false);
     }

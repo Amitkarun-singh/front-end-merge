@@ -37,7 +37,14 @@ const CLASSES = ['5', '6', '7', '8', '9', '10', '11', '12'];
 type BoardId = typeof BOARDS[number]['id'];
 
 // ─── Validation helpers ────────────────────────────────────────────────────────
-const validatePhone = (num: string) => true // /^[6-9]\d{9}$/.test(num.replace(/\D/g, ''));
+const validatePhone = (num: string, code: string) => {
+ 
+  const digitsOnly = num.replace(/\D/g, '');
+  if (code === '+91') {
+    return /^[6-9]\d{9}$/.test(digitsOnly);
+  }
+  return digitsOnly.length >= 7 && digitsOnly.length <= 15;
+};
 const validateEmail = (e: string) => !e || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
 interface FieldErrors {
@@ -115,8 +122,10 @@ export default function Register() {
 
     if (!phoneNumber.trim()) {
       errs.phone_number = 'Phone number is required';
-    } else if (!validatePhone(phoneNumber)) {
-      errs.phone_number = 'Enter a valid 10-digit mobile number (starting with 6–9)';
+    } else if (!validatePhone(phoneNumber, countryCode)) {
+      errs.phone_number = countryCode === '+91'
+        ? 'Enter a valid 10-digit mobile number (starting with 6–9)'
+        : 'Enter a valid phone number (7 to 15 digits)';
     }
 
     if (email && !validateEmail(email)) {
@@ -165,6 +174,8 @@ export default function Register() {
         school_id: null,
         school_name: null,
         school_address: null,
+        error: null,
+        errorDetails: null,
       });
 
       // Step 2: Send OTP via Firebase
@@ -172,8 +183,9 @@ export default function Register() {
       await firebaseSendOTP(fullNumber);
 
       navigate('/register/verify');
-    } catch {
-      showToast({ type: 'error', message: 'Network error. Please check your connection.' });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Network error. Please check your connection.';
+      showToast({ type: 'error', message });
     } finally {
       setSubmitting(false);
     }

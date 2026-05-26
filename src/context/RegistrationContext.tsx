@@ -14,6 +14,55 @@ export interface ConfirmedSchool {
   is_manual?: boolean;
 }
 
+export interface RegistrationErrorDetails {
+  message: string;
+  type: string;
+  statusCode: number;
+  errors?: Array<{ field: string; message: string }>;
+  [key: string]: unknown;
+}
+
+export class RegistrationError extends Error {
+  type: string;
+  statusCode: number;
+  errors?: Array<{ field: string; message: string }>;
+  extra?: Record<string, unknown>;
+
+  constructor(message: string, type: string, statusCode: number, extra?: Record<string, unknown>) {
+    super(message);
+    this.name = "RegistrationError";
+    this.type = type;
+    this.statusCode = statusCode;
+    
+    const errs = extra?.errors || extra?.extra?.errors;
+    if (Array.isArray(errs)) {
+      this.errors = errs as Array<{ field: string; message: string }>;
+    }
+    this.extra = extra;
+  }
+}
+
+export async function handleResponseError(res: Response, fallbackMessage: string): Promise<never> {
+  const data = await res.json().catch(() => ({}));
+  let message = data.message || fallbackMessage;
+  const type = data.type || "UNKNOWN_ERROR";
+
+  const retryAfterHeader = res.headers.get("Retry-After");
+  const extraData = {
+    ...data,
+    ...(retryAfterHeader ? { retryAfter: retryAfterHeader } : {}),
+  };
+
+  const errors = data.errors || data.extra?.errors;
+  if (type === "VALIDATION_ERROR" && Array.isArray(errors)) {
+    message = errors
+      .map((e: any) => e.message || "Invalid value")
+      .join(". ");
+  }
+
+  throw new RegistrationError(message, type, res.status, extraData);
+}
+
 export interface RegistrationState {
   role: RegistrationRole;
   user_id: number | null;
@@ -44,12 +93,16 @@ export interface RegistrationState {
   school_id: number | null;
   school_name: string | null;
   school_address: string | null;
+  // ── Error handling ──
+  error: string | null;
+  errorDetails: RegistrationErrorDetails | null;
 }
 
 interface RegistrationContextType extends RegistrationState {
   setRole: (role: RegistrationRole) => void;
   setRegistrationData: (data: Partial<RegistrationState>) => void;
   clearRegistration: () => void;
+  clearError: () => void;
 }
 
 const SESSION_KEY = 'schools2ai_reg';
@@ -79,6 +132,8 @@ const defaultState: RegistrationState = {
   school_id: null,
   school_name: null,
   school_address: null,
+  error: null,
+  errorDetails: null,
 };
 
 function loadFromSession(): RegistrationState {
@@ -110,8 +165,12 @@ export function RegistrationProvider({ children }: { children: ReactNode }) {
     setState({ ...defaultState });
   };
 
+  const clearError = () => {
+    setState(prev => ({ ...prev, error: null, errorDetails: null }));
+  };
+
   return (
-    <RegistrationContext.Provider value={{ ...state, setRole, setRegistrationData, clearRegistration }}>
+    <RegistrationContext.Provider value={{ ...state, setRole, setRegistrationData, clearRegistration, clearError }}>
       {children}
     </RegistrationContext.Provider>
   );
