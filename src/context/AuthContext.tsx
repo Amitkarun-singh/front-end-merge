@@ -49,12 +49,63 @@ interface User {
   [key: string]: unknown;
 }
 
+export interface AuthErrorDetails {
+  message: string;
+  type: string;
+  statusCode: number;
+  errors?: Array<{ field: string; message: string }>;
+  [key: string]: unknown;
+}
+
+export class AuthError extends Error {
+  type: string;
+  statusCode: number;
+  errors?: Array<{ field: string; message: string }>;
+  extra?: Record<string, unknown>;
+
+  constructor(message: string, type: string, statusCode: number, extra?: Record<string, unknown>) {
+    super(message);
+    this.name = "AuthError";
+    this.type = type;
+    this.statusCode = statusCode;
+    
+    const errs = extra?.errors || extra?.extra?.errors;
+    if (Array.isArray(errs)) {
+      this.errors = errs as Array<{ field: string; message: string }>;
+    }
+    this.extra = extra;
+  }
+}
+
+async function handleResponseError(res: Response, fallbackMessage: string): Promise<never> {
+  const data = await res.json().catch(() => ({}));
+  let message = data.message || fallbackMessage;
+  const type = data.type || "UNKNOWN_ERROR";
+
+  const retryAfterHeader = res.headers.get("Retry-After");
+  const extraData = {
+    ...data,
+    ...(retryAfterHeader ? { retryAfter: retryAfterHeader } : {}),
+  };
+
+  const errors = data.errors || data.extra?.errors;
+  if (type === "VALIDATION_ERROR" && Array.isArray(errors)) {
+    const fieldErrors = errors
+      .map((e: any) => `${e.field || "field"}: ${e.message || "invalid value"}`)
+      .join("; ");
+    message = `Validation failed: ${fieldErrors}`;
+  }
+
+  throw new AuthError(message, type, res.status, extraData);
+}
+
 interface AuthState {
   isAuthenticated: boolean;
   user: User | null;
   token: string | null;
   loading: boolean;
   error: string | null;
+  errorDetails: AuthErrorDetails | null;
 }
 
 interface AuthContextType extends AuthState {
@@ -173,6 +224,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     token: stored.token ?? null,
     loading: false,
     error: null,
+    errorDetails: null,
   });
 
   // Keep a ref to the latest token to avoid stale closures in callbacks
@@ -229,9 +281,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         },
       });
 
-      const data = await res.json();
-
-
       if (!res.ok) {
         if (res.status === 401) {
           setAuthState({
@@ -240,13 +289,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             token: null,
             loading: false,
             error: "Session expired. Please login again.",
+            errorDetails: {
+              message: "Session expired. Please login again.",
+              type: "SESSION_EXPIRED",
+              statusCode: 401,
+            },
           });
           localStorage.removeItem(AUTH_STORAGE_KEY);
           return;
         }
-        throw new Error(data.message || "Failed to fetch profile");
+        await handleResponseError(res, "Failed to fetch profile");
       }
 
+      const data = await res.json().catch(() => ({}));
       const raw: Record<string, unknown> = data.data ?? data;
       const profile = flattenProfile(raw);
 
@@ -285,12 +340,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       body: formData,
     });
 
-    const data = await res.json().catch(() => ({}));
-
     if (!res.ok) {
-      const errMsg = (data as { message?: string }).message || `Upload failed (HTTP ${res.status})`;
-      console.error("[updateAvatar] FAILED:", errMsg);
-      throw new Error(errMsg);
+      await handleResponseError(res, "Avatar upload failed");
     }
 
     await fetchProfile();
@@ -311,7 +362,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Password login — POST /api/auth/login
    */
   const login = async (payload: Record<string, string>) => {
-    setAuthState((prev) => ({ ...prev, loading: true, error: null }));
+    setAuthState((prev) => ({ ...prev, loading: true, error: null, errorDetails: null }));
 
     try {
       const res = await fetch(`${API_BASE}/api/auth/login`, {
@@ -320,12 +371,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(payload),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        throw new Error(data.message || "Login failed");
+        await handleResponseError(res, "Login failed");
       }
 
+      const data = await res.json().catch(() => ({}));
       const responseData = data.data || data;
 
       // ── First-time login: password reset required ─────────────────────────
@@ -366,6 +416,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         loading: false,
         error: null,
+        errorDetails: null,
       });
 
       // Immediately fetch full profile after login
@@ -378,9 +429,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         });
 
-        const profileData = await profileRes.json();
-
         if (profileRes.ok) {
+          const profileData = await profileRes.json().catch(() => ({}));
           const raw: Record<string, unknown> = profileData.data ?? profileData;
           const profile = flattenProfile(raw);
           // Merge role from login into profile
@@ -393,11 +443,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Could not fetch profile after login, using login response data.");
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Login failed";
+      let message = "Login failed";
+      let errorDetails: AuthErrorDetails | null = null;
+
+      if (err instanceof AuthError) {
+        message = err.message;
+        errorDetails = {
+          message: err.message,
+          type: err.type,
+          statusCode: err.statusCode,
+          errors: err.errors,
+          ...err.extra,
+        };
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+
       setAuthState((prev) => ({
         ...prev,
         loading: false,
         error: message,
+        errorDetails,
       }));
       throw err;
     }
@@ -407,7 +473,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * Send OTP via Firebase — uses otp.ts sendOTP which calls signInWithPhoneNumber
    */
   const sendOtp = async (phoneNumber: string) => {
-    setAuthState((prev) => ({ ...prev, loading: true, error: null }));
+    setAuthState((prev) => ({ ...prev, loading: true, error: null, errorDetails: null }));
 
     try {
       await firebaseSendOTP(phoneNumber);
@@ -418,6 +484,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...prev,
         loading: false,
         error: message,
+        errorDetails: null,
       }));
       throw err;
     }
@@ -432,7 +499,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     phone_number: string;
     otp: string;
   }) => {
-    setAuthState((prev) => ({ ...prev, loading: true, error: null }));
+    setAuthState((prev) => ({ ...prev, loading: true, error: null, errorDetails: null }));
 
     try {
       // Step 1: Verify the OTP with Firebase and get the Firebase user
@@ -449,12 +516,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ idToken, phone_number: payload.phone_number }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
-        throw new Error(data.message || "OTP verification failed");
+        await handleResponseError(res, "OTP verification failed");
       }
 
+      const data = await res.json().catch(() => ({}));
       const responseData = data.data || data;
 
       const responseUserId = responseData.profile?.userId || responseData.profile?.user_id;
@@ -483,6 +549,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         token,
         loading: false,
         error: null,
+        errorDetails: null,
       });
 
       // Step 4: Fetch full profile after OTP login
@@ -495,9 +562,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           },
         });
 
-        const profileData = await profileRes.json();
-
         if (profileRes.ok) {
+          const profileData = await profileRes.json().catch(() => ({}));
           const raw: Record<string, unknown> = profileData.data ?? profileData;
           const profile = flattenProfile(raw);
           setAuthState((prev) => ({
@@ -509,12 +575,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.warn("Could not fetch profile after OTP login.");
       }
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "OTP verification failed";
+      let message = "OTP verification failed";
+      let errorDetails: AuthErrorDetails | null = null;
+
+      if (err instanceof AuthError) {
+        message = err.message;
+        errorDetails = {
+          message: err.message,
+          type: err.type,
+          statusCode: err.statusCode,
+          errors: err.errors,
+          ...err.extra,
+        };
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+
       setAuthState((prev) => ({
         ...prev,
         loading: false,
         error: message,
+        errorDetails,
       }));
       throw err;
     }
@@ -532,6 +613,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token: null,
       loading: false,
       error: null,
+      errorDetails: null,
     });
     localStorage.removeItem(AUTH_STORAGE_KEY);
     clearUserSession().catch((err) => {
@@ -561,11 +643,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       token: data.token,
       loading: false,
       error: null,
+      errorDetails: null,
     });
   }, []);
 
   const clearError = () => {
-    setAuthState((prev) => ({ ...prev, error: null }));
+    setAuthState((prev) => ({ ...prev, error: null, errorDetails: null }));
   };
 
   return (
