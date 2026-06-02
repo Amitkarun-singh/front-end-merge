@@ -258,7 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   /**
-   * Fetch user profile from GET /api/auth/profile
+   * Fetch user profile from GET /api/V1/auth/profile
    * Flattens nested { user, school, student } into a single object.
    */
   const fetchProfile = useCallback(async () => {
@@ -268,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const url = `${API_BASE}/api/auth/profile`;
+    const url = `${API_BASE}/api/V1/auth/profile`;
 
 
     try {
@@ -319,7 +319,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * Upload avatar image — POST /api/auth/update-avatar
+   * Upload avatar image — POST /api/V1/auth/update-avatar
    */
   const updateAvatar = useCallback(async (file: File) => {
     const currentToken = tokenRef.current;
@@ -330,7 +330,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     formData.append("file", file);
 
 
-    const res = await fetch(`${API_BASE}/api/auth/update-avatar`, {
+    const res = await fetch(`${API_BASE}/api/V1/auth/update-avatar`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${currentToken}`,
@@ -358,13 +358,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * Password login — POST /api/auth/login
+   * Password login — POST /api/V1/auth/login
    */
   const login = async (payload: Record<string, string>) => {
     setAuthState((prev) => ({ ...prev, loading: true, error: null, errorDetails: null }));
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
+      const res = await fetch(`${API_BASE}/api/V1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -420,7 +420,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Immediately fetch full profile after login
       try {
-        const profileRes = await fetch(`${API_BASE}/api/auth/profile`, {
+        const profileRes = await fetch(`${API_BASE}/api/V1/auth/profile`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -491,7 +491,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /**
    * Verify OTP via Firebase, then exchange the Firebase idToken with the backend.
-   * Backend endpoint: POST /api/auth/login  { idToken }
+   * Backend endpoint: POST /api/V1/auth/login  { idToken }
    * Server verifies the idToken using Firebase Admin SDK and returns an app token.
    */
   const verifyOtp = async (payload: {
@@ -509,7 +509,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Step 3: Exchange the Firebase ID token with our backend for an app token
 
-      const res = await fetch(`${API_BASE}/api/auth/login`, {
+      const res = await fetch(`${API_BASE}/api/V1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, phone_number: payload.phone_number }),
@@ -553,7 +553,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Step 4: Fetch full profile after OTP login
       try {
-        const profileRes = await fetch(`${API_BASE}/api/auth/profile`, {
+        const profileRes = await fetch(`${API_BASE}/api/V1/auth/profile`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -601,7 +601,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Logout — POST /api/auth/logout
+   * Logout — POST /api/V1/auth/logout
    */
   const logout = async () => {
     const currentToken = authState.token;
@@ -621,7 +621,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (currentToken) {
       try {
-        await fetch(`${API_BASE}/api/auth/logout`, {
+        await fetch(`${API_BASE}/api/V1/auth/logout`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

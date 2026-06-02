@@ -150,7 +150,7 @@ export default function ForgotPasswordPage() {
       localStorage.setItem('idToken', idToken);
 
       // Step 3: Exchange for resetToken at our backend
-      const res = await fetch(`${API_BASE}/api/auth/verify-id-token`, {
+      const res = await fetch(`${API_BASE}/api/V1/auth/verify-id-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idToken, phone_number: phoneNumber }),
@@ -176,7 +176,7 @@ export default function ForgotPasswordPage() {
     setError('');
     const idToken = localStorage.getItem('idToken');
     try {
-      const res = await fetch(`${API_BASE}/api/auth/forgot-password/reset`, {
+      const res = await fetch(`${API_BASE}/api/V1/auth/forgot-password/reset`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

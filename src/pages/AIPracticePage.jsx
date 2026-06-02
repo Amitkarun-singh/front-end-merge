@@ -70,7 +70,7 @@ export default function AIPracticePage() {
     const fetchClasses = async () => {
       if (!token) return;
       try {
-        const response = await fetch(`${config.server}/api/class/student`, {
+        const response = await fetch(`${config.server}/api/V1/class/student`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -126,7 +126,7 @@ export default function AIPracticePage() {
         const language =
           selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1);
         const response = await fetch(
-          `${config.server}/api/subjects?class_id=${currentClass.class_id}&board=${board}&language=${language}`,
+          `${config.server}/api/V1/subjects?class_id=${currentClass.class_id}&board=${board}&language=${language}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -169,7 +169,7 @@ export default function AIPracticePage() {
         const language =
           selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1);
         const response = await fetch(
-          `${config.server}/api/subjects/${currentClass.class_id}/chapters/${currentSubject.subject_id}?board=${board}&language=${language}`,
+          `${config.server}/api/V1/subjects/${currentClass.class_id}/chapters/${currentSubject.subject_id}?board=${board}&language=${language}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,

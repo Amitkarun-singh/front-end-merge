@@ -75,7 +75,7 @@ export default function CompleteProfile() {
     if (!accessToken) return;
     setOnboardingLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/auth/register/onboarding`, {
+      const res = await fetch(`${API_BASE}/api/V1/auth/register/onboarding`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (!res.ok) {
@@ -144,7 +144,7 @@ export default function CompleteProfile() {
         };
       }
 
-      const res = await fetch(`${API_BASE}/api/auth/register/complete-profile`, {
+      const res = await fetch(`${API_BASE}/api/V1/auth/register/complete-profile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

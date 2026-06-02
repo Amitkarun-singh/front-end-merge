@@ -82,7 +82,7 @@ export default function VerifyOtp() {
       const idToken = await firebaseUser.getIdToken();
 
       // Step 3: Send registration data to backend
-      const res = await fetch(`${API_BASE}/api/auth/register`, {
+      const res = await fetch(`${API_BASE}/api/V1/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

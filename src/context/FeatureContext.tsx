@@ -77,7 +77,7 @@ export function FeatureProvider({ children }: { children: ReactNode }) {
        * It also applies school-level + class/section/role overrides so the result
        * is the final effective access for this specific user.
        */
-      const res = await fetch(`${API_BASE}/api/features/my-access`, {
+      const res = await fetch(`${API_BASE}/api/V1/features/my-access`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",

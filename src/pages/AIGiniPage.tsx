@@ -696,7 +696,7 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
     const fetchClasses = async () => {
       if (!token) return;
       try {
-        const response = await fetch(`${config.server}/api/class/student`, {
+        const response = await fetch(`${config.server}/api/V1/class/student`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -747,7 +747,7 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
         const board = auth?.user?.board || "CBSE";
 
         const response = await fetch(
-          `${config.server}/api/subjects?class_id=${currentClass.class_id}&board=${board}&language=${language}`,
+          `${config.server}/api/V1/subjects?class_id=${currentClass.class_id}&board=${board}&language=${language}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
