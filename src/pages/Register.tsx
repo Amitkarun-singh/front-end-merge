@@ -38,7 +38,7 @@ type BoardId = typeof BOARDS[number]['id'];
 
 // ─── Validation helpers ────────────────────────────────────────────────────────
 const validatePhone = (num: string, code: string) => {
- 
+ return true
   const digitsOnly = num.replace(/\D/g, '');
   if (code === '+91') {
     return /^[6-9]\d{9}$/.test(digitsOnly);
