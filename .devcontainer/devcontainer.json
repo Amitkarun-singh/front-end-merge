@@ -11,7 +11,8 @@
 	// Use 'forwardPorts' to make a list of ports inside the container available locally.
 	 "forwardPorts": [8080],
 	 "runArgs": ["--name",
-				"app.schools2ai.com"]
+				"app.schools2ai.com",
+				"--memory=512m"]
 
 	// Use 'postCreateCommand' to run commands after the container is created.
 	// "postCreateCommand": "yarn install",
