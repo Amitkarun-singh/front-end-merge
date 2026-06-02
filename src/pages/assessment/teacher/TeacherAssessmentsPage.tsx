@@ -582,7 +582,7 @@ function CreateAssessmentDrawer({
       } catch { return {}; }
     })();
 
-    fetch(`${config.server}/api/classes`, {
+    fetch(`${config.server}/api/V1/classes`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
@@ -620,7 +620,7 @@ function CreateAssessmentDrawer({
     const board    = user?.board ?? "CBSE";
     const language = "English";
 
-    fetch(`${config.server}/api/subjects?class_id=${selectedClassId}&board=${board}&language=${language}`, {
+    fetch(`${config.server}/api/V1/subjects?class_id=${selectedClassId}&board=${board}&language=${language}`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())

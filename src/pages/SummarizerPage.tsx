@@ -117,7 +117,7 @@ export default function SummarizerPage() {
         formData.append("maxlength", wordLimit);  // correct spelling fallback
       }
 
-      const res = await fetch(`${config.server}/api/summarize`, {
+      const res = await fetch(`${config.server}/api/V1/summarize`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -142,7 +142,7 @@ export default function SummarizerPage() {
     setFeedbackSent(true);
 
     try {
-      await fetch(`${config.server}/api/summarize/feedback`, {
+      await fetch(`${config.server}/api/V1/summarize/feedback`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

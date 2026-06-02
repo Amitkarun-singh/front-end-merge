@@ -118,85 +118,85 @@ export interface AssignmentResult {
 // ─── Teacher APIs ──────────────────────────────────────────────────────────────
 
 export const teacherApi = {
-  // GET /api/assessments/teacher/my
+  // GET /api/V1/assessments/teacher/my
   getMyAssessments: (params?: Record<string, string | number>) =>
-    api.get("/api/assessments/teacher/my", { params }),
+    api.get("/api/V1/assessments/teacher/my", { params }),
 
   createAssessment: (data: Record<string, unknown>) =>
-    api.post("/api/assessments", data),
+    api.post("/api/V1/assessments", data),
 
-  // GET /api/assessments/:assessment_id  (returns { assessment, questions })
+  // GET /api/V1/assessments/:assessment_id  (returns { assessment, questions })
   getAssessmentQuestions: (id: number) =>
-    api.get(`/api/assessments/${id}`),
+    api.get(`/api/V1/assessments/${id}`),
 
   patchQuestion: (questionId: number, data: Record<string, unknown>) =>
-    api.patch(`/api/assessments/questions/${questionId}`, data),
+    api.patch(`/api/V1/assessments/questions/${questionId}`, data),
 
   approveAllQuestions: (assessmentId: number) =>
-    api.patch(`/api/assessments/${assessmentId}/questions/approve-all`),
+    api.patch(`/api/V1/assessments/${assessmentId}/questions/approve-all`),
 
   addQuestion: (assessmentId: number, data: Record<string, unknown>) =>
-    api.post(`/api/assessments/${assessmentId}/questions`, data),
+    api.post(`/api/V1/assessments/${assessmentId}/questions`, data),
 
   publishAssessment: (id: number) =>
-    api.patch(`/api/assessments/${id}/publish`),
+    api.patch(`/api/V1/assessments/${id}/publish`),
 
   assignAssessment: (id: number, data: Record<string, unknown>) =>
-    api.post(`/api/assessments/${id}/assign`, data),
+    api.post(`/api/V1/assessments/${id}/assign`, data),
 
   getAssignmentResults: (assignmentId: number) =>
-    api.get(`/api/assessments/assignment/${assignmentId}/results`),
+    api.get(`/api/V1/assessments/assignment/${assignmentId}/results`),
 
-  // DELETE /api/assessments/:id (archive/soft-delete)
+  // DELETE /api/V1/assessments/:id (archive/soft-delete)
   deleteAssessment: (id: number) =>
-    api.delete(`/api/assessments/${id}`),
+    api.delete(`/api/V1/assessments/${id}`),
 
-  // GET /api/assessments/:id/all-results — all student results for an assessment
+  // GET /api/V1/assessments/:id/all-results — all student results for an assessment
   getAssessmentResults: (assessmentId: number) =>
-    api.get(`/api/assessments/${assessmentId}/all-results`),
+    api.get(`/api/V1/assessments/${assessmentId}/all-results`),
 };
 
 // ─── Student APIs ──────────────────────────────────────────────────────────────
 
 export const studentApi = {
-  getAssignedTests: () => api.get("/api/assessments/student/assigned"),
+  getAssignedTests: () => api.get("/api/V1/assessments/student/assigned"),
 
   startAttempt: (assignment_id: number) =>
-    api.post("/api/assessments/attempt/start", { assignment_id }),
+    api.post("/api/V1/assessments/attempt/start", { assignment_id }),
 
   submitAttempt: (data: {
     attempt_id: number;
     answers: { question_id: number; answer_text: string }[];
     is_auto_submit: boolean;
-  }) => api.post("/api/assessments/attempt/submit", data),
+  }) => api.post("/api/V1/assessments/attempt/submit", data),
 
   getAttemptResult: (attempt_id: number) =>
-    api.get(`/api/assessments/attempt/${attempt_id}/result`),
+    api.get(`/api/V1/assessments/attempt/${attempt_id}/result`),
 
   getAttemptQuestions: (attempt_id: number) =>
-    api.get(`/api/assessments/attempt/${attempt_id}/questions`),
+    api.get(`/api/V1/assessments/attempt/${attempt_id}/questions`),
 };
 
 // ─── Shared APIs ───────────────────────────────────────────────────────────────
 
 export const sharedApi = {
-  // GET /api/class/:class_id/sections
+  // GET /api/V1/class/:class_id/sections
   getSections: (class_id: number) =>
-    api.get(`/api/class/${class_id}/sections`),
+    api.get(`/api/V1/class/${class_id}/sections`),
 
   // Same endpoints used by AIPracticePage
   getClasses: () =>
-    api.get("/api/classes"),
+    api.get("/api/V1/classes"),
 
-  // GET /api/subjects?class_id=&board=&language=
+  // GET /api/V1/subjects?class_id=&board=&language=
   getSubjectsByClass: (class_id: number | string, board = "CBSE", language = "English") =>
-    api.get("/api/subjects", { params: { class_id, board, language } }),
+    api.get("/api/V1/subjects", { params: { class_id, board, language } }),
 
   getSubjects: () =>
-    api.get("/api/subjects"),
+    api.get("/api/V1/subjects"),
 
-  // GET /api/subjects/:class_id/chapters/:subject_id
+  // GET /api/V1/subjects/:class_id/chapters/:subject_id
   getChaptersBySubject: (class_id: number | string, subject_id: number | string) =>
-    api.get(`/api/subjects/${class_id}/chapters/${subject_id}`),
+    api.get(`/api/V1/subjects/${class_id}/chapters/${subject_id}`),
 };
 

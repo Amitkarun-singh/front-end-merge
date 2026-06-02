@@ -396,7 +396,7 @@ export default function AINotesPage() {
 
   // ── Fetch languages ──
   useEffect(() => {
-    fetch(`${config.server}/api/ainote/languages`, {
+    fetch(`${config.server}/api/V1/ainote/languages`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -414,7 +414,7 @@ export default function AINotesPage() {
       return;
     }
 
-    fetch(`${config.server}/api/ainote/classes?language=${language}&board=${board}`, {
+    fetch(`${config.server}/api/V1/ainote/classes?language=${language}&board=${board}`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -426,7 +426,7 @@ export default function AINotesPage() {
   useEffect(() => {
     if (!needsStream || !language) { setStreams([]); setStream(""); return; }
     fetch(
-      `${config.server}/api/ainote/streams?language=${language}&board=${board}`,
+      `${config.server}/api/V1/ainote/streams?language=${language}&board=${board}`,
       { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     )
       .then((res) => res.json())
@@ -444,7 +444,7 @@ export default function AINotesPage() {
 
     const streamParam = needsStream && stream ? `&stream=${stream}` : "";
     fetch(
-      `${config.server}/api/ainote/subjects?language=${language}&board=${board}&class=${className}${streamParam}`,
+      `${config.server}/api/V1/ainote/subjects?language=${language}&board=${board}&class=${className}${streamParam}`,
       { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     )
       .then((res) => res.json())
@@ -458,7 +458,7 @@ export default function AINotesPage() {
 
     const streamParam = needsStream && stream ? `&stream=${stream}` : "";
     fetch(
-      `${config.server}/api/ainote/chapters?language=${language}&board=${board}&class=${className}&subject=${subject}${streamParam}`,
+      `${config.server}/api/V1/ainote/chapters?language=${language}&board=${board}&class=${className}&subject=${subject}${streamParam}`,
       { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     )
       .then((res) => res.json())
@@ -470,7 +470,7 @@ export default function AINotesPage() {
     if (!selectedChapter) return;
     const streamParam = needsStream && stream ? `&stream=${stream}` : "";
     const res = await fetch(
-      `${config.server}/api/ainote?language=${language}&board=${board}&class=${className}&subject=${subject}&topic=${selectedChapter}${streamParam}`,
+      `${config.server}/api/V1/ainote?language=${language}&board=${board}&class=${className}&subject=${subject}&topic=${selectedChapter}${streamParam}`,
       { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await res.json();

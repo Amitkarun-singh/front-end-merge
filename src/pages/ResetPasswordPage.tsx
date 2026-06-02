@@ -52,7 +52,7 @@ export default function ResetPasswordPage() {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/auth/reset-first-time-password`, {
+      const res = await fetch(`${API_BASE}/api/V1/auth/reset-first-time-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

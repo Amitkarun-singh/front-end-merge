@@ -315,7 +315,7 @@ async function apiFetch<T>(endpoint: string, token: string): Promise<T> {
 export async function fetchRecentQueries(
   token: string,
 ): Promise<RecentQuery[]> {
-  const raw = await apiFetch<unknown[]>("/api/history/recent-queries", token);
+  const raw = await apiFetch<unknown[]>("/api/V1/history/recent-queries", token);
   const arr = Array.isArray(raw) ? raw : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return arr.map((r: any) => normaliseQuery(r));
@@ -325,7 +325,7 @@ export async function fetchFeaturesExplored(
   token: string,
 ): Promise<FeatureExplored[]> {
   const raw = await apiFetch<unknown[]>(
-    "/api/history/features-explored",
+    "/api/V1/history/features-explored",
     token,
   );
   const arr = Array.isArray(raw) ? raw : [];
@@ -334,7 +334,7 @@ export async function fetchFeaturesExplored(
 }
 
 export async function fetchLoginHistory(token: string): Promise<LoginRecord[]> {
-  const raw = await apiFetch<unknown[]>("/api/history/login-history", token);
+  const raw = await apiFetch<unknown[]>("/api/V1/history/login-history", token);
   const arr = Array.isArray(raw) ? raw : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return arr.map((r: any) => normaliseLogin(r));
@@ -343,7 +343,7 @@ export async function fetchLoginHistory(token: string): Promise<LoginRecord[]> {
 export async function fetchWeekActivity(
   token: string,
 ): Promise<WeekActivity[]> {
-  const raw = await apiFetch<unknown>("/api/history/week-activity", token);
+  const raw = await apiFetch<unknown>("/api/V1/history/week-activity", token);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const r = raw as any;
   const arr = Array.isArray(raw)
@@ -363,7 +363,7 @@ export async function fetchWeekActivity(
 }
 
 export async function fetchHistoryStats(token: string): Promise<HistoryStats> {
-  const raw = await apiFetch<HistoryStats>("/api/history/stats", token);
+  const raw = await apiFetch<HistoryStats>("/api/V1/history/stats", token);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return normaliseStats(raw as any);
 }
@@ -394,9 +394,9 @@ function normaliseLatestTest(raw: any): LatestTest {
   return { subject, score };
 }
 
-/** GET /api/history/latest-tests — returns last 3 practice test results */
+/** GET /api/V1/history/latest-tests — returns last 3 practice test results */
 export async function fetchLatestTests(token: string): Promise<LatestTest[]> {
-  const raw = await apiFetch<unknown[]>("/api/history/latest-tests", token);
+  const raw = await apiFetch<unknown[]>("/api/V1/history/latest-tests", token);
   const arr = Array.isArray(raw) ? raw : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return arr.map((r: any) => normaliseLatestTest(r));
@@ -410,7 +410,7 @@ export async function fetchConversation(
   const qs = source ? `?source=${encodeURIComponent(source)}` : "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raw = await apiFetch<any>(
-    `/api/history/conversation/${conversationId}${qs}`,
+    `/api/V1/history/conversation/${conversationId}${qs}`,
     token,
   );
 

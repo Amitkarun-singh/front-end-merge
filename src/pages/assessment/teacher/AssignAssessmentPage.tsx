@@ -71,7 +71,7 @@ export default function AssignAssessmentPage() {
   // ── 1. Fetch classes ───────────────────────────────────────────────────────
   useEffect(() => {
     const token = getToken();
-    fetch(`${config.server}/api/classes`, {
+    fetch(`${config.server}/api/V1/classes`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
@@ -90,7 +90,7 @@ export default function AssignAssessmentPage() {
     setSelectedSections([]);
 
     const token = getToken();
-    const url = `${config.server}/api/class/${selectedClassId}/sections`;
+    const url = `${config.server}/api/V1/class/${selectedClassId}/sections`;
 
 
     fetch(url, { headers: { Authorization: `Bearer ${token}` } })

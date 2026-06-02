@@ -70,7 +70,7 @@ export default function CreateAssessmentPage() {
   // ── 1. Fetch classes on mount ─────────────────────────────────────────────
   useEffect(() => {
     const { token } = getAuth();
-    fetch(`${config.server}/api/classes`, {
+    fetch(`${config.server}/api/V1/classes`, {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
@@ -101,7 +101,7 @@ export default function CreateAssessmentPage() {
 
     const { token, board } = getAuth();
     fetch(
-      `${config.server}/api/subjects?class_id=${selectedClassId}&board=${board}&language=English`,
+      `${config.server}/api/V1/subjects?class_id=${selectedClassId}&board=${board}&language=English`,
       { headers: { Authorization: `Bearer ${token}` } }
     )
       .then((r) => r.json())
