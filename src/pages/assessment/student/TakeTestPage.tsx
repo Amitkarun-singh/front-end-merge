@@ -133,6 +133,7 @@ export default function TakeTestPage() {
   const [showHint,      setShowHint]      = useState(false);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [submitting,    setSubmitting]    = useState(false);
+  const [paletteOpen,   setPaletteOpen]   = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -275,8 +276,6 @@ export default function TakeTestPage() {
   const currentQ      = questions[currentIdx];
   const answeredCount = Object.keys(answers).length;
   const currentQId    = currentQ ? qId(currentQ) : 0;
-
-  const [paletteOpen, setPaletteOpen] = useState(false);
 
   return (
     <div className="h-screen bg-background flex flex-col lg:flex-row overflow-hidden">

@@ -534,7 +534,17 @@ function QuestionCard({ question: q, index, expanded, editing, regenerating,
 function AddQuestionDrawer({ assessmentId, onClose, onSuccess }: {
   assessmentId: number; onClose: () => void; onSuccess: () => void;
 }) {
-  const { register, handleSubmit, watch } = useForm({
+  const { register, handleSubmit, watch } = useForm<{
+    question_text: string;
+    question_type: string;
+    option_a: string;
+    option_b: string;
+    option_c: string;
+    option_d: string;
+    correct_answer: string;
+    hint: string;
+    marks: number;
+  }>({
     defaultValues: {
       question_text: "", question_type: "mcq",
       option_a: "", option_b: "", option_c: "", option_d: "",
@@ -547,8 +557,32 @@ function AddQuestionDrawer({ assessmentId, onClose, onSuccess }: {
 
   const onSubmit = async (data: Record<string, unknown>) => {
     setSubmitting(true);
-    try { await teacherApi.addQuestion(assessmentId, data); onSuccess(); }
-    catch { showToast("Failed to add question", "error"); }
+    try {
+      // Transform flat option_a/b/c/d fields → [{key, text}] array expected by backend
+      const { option_a, option_b, option_c, option_d, ...rest } = data as {
+        option_a: string; option_b: string; option_c: string; option_d: string;
+        [k: string]: unknown;
+      };
+
+      const payload: Record<string, unknown> = { ...rest };
+
+      if (rest.question_type === "mcq") {
+        const optPairs: { key: string; text: string }[] = [
+          { key: "A", text: String(option_a ?? "").trim() },
+          { key: "B", text: String(option_b ?? "").trim() },
+          { key: "C", text: String(option_c ?? "").trim() },
+          { key: "D", text: String(option_d ?? "").trim() },
+        ].filter((o) => o.text !== "");
+        payload.options = optPairs;
+      }
+
+      await teacherApi.addQuestion(assessmentId, payload);
+      onSuccess();
+    }
+    catch (err) {
+      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+      showToast(msg || "Failed to add question", "error");
+    }
     finally { setSubmitting(false); }
   };
 
@@ -566,7 +600,7 @@ function AddQuestionDrawer({ assessmentId, onClose, onSuccess }: {
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto px-6 py-5 space-y-5 custom-scrollbar">
+        <form id="add-question-form" onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto px-6 py-5 space-y-5 custom-scrollbar">
           <div>
             <label className="text-sm font-medium text-foreground mb-1.5 block">Question Type</label>
             <select {...register("question_type")}
@@ -574,8 +608,6 @@ function AddQuestionDrawer({ assessmentId, onClose, onSuccess }: {
                 focus:outline-none focus:ring-2 focus:ring-ring">
               <option value="mcq">MCQ</option>
               <option value="true_false">True / False</option>
-              <option value="short_answer">Short Answer</option>
-              <option value="essay">Essay</option>
             </select>
           </div>
           <div>
@@ -588,14 +620,18 @@ function AddQuestionDrawer({ assessmentId, onClose, onSuccess }: {
 
           {qType === "mcq" && (
             <div className="space-y-3">
-              {["A","B","C","D"].map((l) => (
-                <div key={l}>
-                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Option {l}</label>
-                  <input {...register(`option_${l.toLowerCase()}`)}
-                    className="w-full bg-background border border-input rounded-lg px-3 py-2 text-foreground text-sm
-                      focus:outline-none focus:ring-2 focus:ring-ring" />
-                </div>
-              ))}
+              {(["A","B","C","D"] as const).map((l) => {
+                const fieldName = `option_${l.toLowerCase()}` as
+                  "option_a" | "option_b" | "option_c" | "option_d";
+                return (
+                  <div key={l}>
+                    <label className="text-xs font-medium text-muted-foreground mb-1 block">Option {l}</label>
+                    <input {...register(fieldName)}
+                      className="w-full bg-background border border-input rounded-lg px-3 py-2 text-foreground text-sm
+                        focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                );
+              })}
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Correct Answer</label>
                 <select {...register("correct_answer")}
@@ -640,7 +676,7 @@ function AddQuestionDrawer({ assessmentId, onClose, onSuccess }: {
             className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium text-muted-foreground hover:bg-accent transition-all">
             Cancel
           </button>
-          <button type="submit" form="" onClick={handleSubmit(onSubmit)} disabled={submitting}
+          <button type="submit" form="add-question-form" disabled={submitting}
             className="flex-1 flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-primary-foreground
               py-2.5 rounded-xl text-sm font-semibold transition-all shadow-edtech disabled:opacity-60">
             {submitting ? <Spinner size="sm" /> : <Plus className="w-4 h-4" />}
