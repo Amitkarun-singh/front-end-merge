@@ -52,7 +52,7 @@ export default function QuestionBankPage() {
   const handlePreview = async (type: "pyq" | "predict", filePath: string) => {
     try {
       const response = await fetch(
-        `${config.server}/${type}/papers/preview?filePath=${encodeURIComponent(filePath)}`,
+        `${config.server}/${type}/api/v1/papers/preview?filePath=${encodeURIComponent(filePath)}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -72,7 +72,7 @@ export default function QuestionBankPage() {
   const handleDownload = async (type: "pyq" | "predict", filePath: string) => {
     try {
       const response = await fetch(
-        `${config.server}/${type}/papers/download/?filePath=${encodeURIComponent(filePath)}`,
+        `${config.server}/${type}/api/v1/papers/download/?filePath=${encodeURIComponent(filePath)}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -99,7 +99,7 @@ export default function QuestionBankPage() {
 
       try {
         const response = await fetch(
-          `${config.server}/pyq/papers/years?board=CBSE`,
+          `${config.server}/api/v1/pyq/papers/years?board=CBSE`,
           {
             headers: { Authorization: `Bearer ${token}` },
           },
@@ -123,7 +123,7 @@ export default function QuestionBankPage() {
   useEffect(() => {
     const fetchClasses = async () => {
       const type = activeTab === "pyq" ? "pyq" : "predict";
-      let url = `${config.server}/${type}/papers/classes?board=CBSE`;
+      let url = `${config.server}/api/v1/${type}/papers/classes?board=CBSE`;
       
       if (activeTab === "pyq") {
         if (!selectedYear) return;
@@ -161,7 +161,7 @@ export default function QuestionBankPage() {
       const type = activeTab === "pyq" ? "pyq" : "predict";
       const classNameValue = selectedClass.replace("class-", "");
       
-      let url = `${config.server}/${type}/papers/subject?board=CBSE&className=${classNameValue}`;
+      let url = `${config.server}/api/v1/${type}/papers/subject?board=CBSE&className=${classNameValue}`;
       
       if (activeTab === "pyq") {
         if (!selectedYear) return;
@@ -200,7 +200,7 @@ export default function QuestionBankPage() {
         subject: subjectValue,
       });
 
-      const url = `${config.server}/pyq/papers?${queryParams.toString()}`;
+      const url = `${config.server}/api/v1/pyq/papers?${queryParams.toString()}`;
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -226,7 +226,7 @@ export default function QuestionBankPage() {
         subject: subjectValue,
       });
 
-      const url = `${config.server}/predict/papers?${queryParams.toString()}`;
+      const url = `${config.server}/api/v1/predict/papers?${queryParams.toString()}`;
       const response = await fetch(url, {
         headers: { Authorization: `Bearer ${token}` },
       });

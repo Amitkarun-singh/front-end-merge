@@ -70,7 +70,7 @@ export default function AIPracticePage() {
     const fetchClasses = async () => {
       if (!token) return;
       try {
-        const response = await fetch(`${config.server}/api/V1/class/student`, {
+        const response = await fetch(`${config.server}/api/v1/class/student`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -126,7 +126,7 @@ export default function AIPracticePage() {
         const language =
           selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1);
         const response = await fetch(
-          `${config.server}/api/V1/subjects?class_id=${currentClass.class_id}&board=${board}&language=${language}`,
+          `${config.server}/api/v1/subjects?class_id=${currentClass.class_id}&board=${board}&language=${language}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -169,7 +169,7 @@ export default function AIPracticePage() {
         const language =
           selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1);
         const response = await fetch(
-          `${config.server}/api/V1/subjects/${currentClass.class_id}/chapters/${currentSubject.subject_id}?board=${board}&language=${language}`,
+          `${config.server}/api/v1/subjects/${currentClass.class_id}/chapters/${currentSubject.subject_id}?board=${board}&language=${language}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -261,7 +261,7 @@ export default function AIPracticePage() {
     setLoading(true);
 
     try {
-      const res = await fetch(`${config.server}/gini/practice/questions`, {
+      const res = await fetch(`${config.server}/api/v1/gini/practice/questions`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

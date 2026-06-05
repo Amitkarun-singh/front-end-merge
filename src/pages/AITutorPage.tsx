@@ -340,7 +340,7 @@ export default function AITutorPage() {
     setHistoryConv(null);
 
     try {
-
+      
       const messagePayload = [
         ...conversation,
         { role: "user", content: voiceBlob ? "[Voice message]" : query },
@@ -355,7 +355,8 @@ export default function AITutorPage() {
         formData.append("user_audio", voiceBlob, `recording.${extension}`);
       }
 
-      const response = await fetch(`${config.server}/gini/voice-bot?language=${encodeURIComponent(language)}`, {
+      
+      const response = await fetch(`${config.server}/api/v1/gini/voice-bot?language=${encodeURIComponent(language)}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,

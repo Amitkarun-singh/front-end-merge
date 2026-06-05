@@ -697,6 +697,7 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
       if (!token) return;
       try {
         const response = await fetch(`${config.server}/api/V1/class/student`, {
+        const response = await fetch(`${config.server}/api/v1/class/student`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

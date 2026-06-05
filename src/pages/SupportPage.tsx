@@ -53,7 +53,7 @@ export default function SupportPage() {
     const { name, email, subject, message } = formData;
 
     try {
-      const res = await fetch(`${config.server}/feedback`, {
+      const res = await fetch(`${config.server}/api/v1/feedback`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

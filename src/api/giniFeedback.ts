@@ -1,6 +1,6 @@
 import { config } from "../../app.config.js";
 
-const BASE_URL = `${config.server}/gini/ai`;
+const BASE_URL = `${config.server}/api/v1/gini/ai`;
 
 /**
  * Submits thumbs up feedback to the API with the user message and AI response.

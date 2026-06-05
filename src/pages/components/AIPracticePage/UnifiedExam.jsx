@@ -50,7 +50,7 @@ const UnifiedExam = ({ examData }) => {
   const fetchResults = async () => {
     try {
       const response = await fetch(
-        `${config.server}/gini/practice/questions/test/result/${examData.testId}`,
+        `${config.server}/api/v1/gini/practice/questions/test/result/${examData.testId}`,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -81,7 +81,7 @@ const UnifiedExam = ({ examData }) => {
     setSubmitting(true);
     try {
       const response = await fetch(
-        `${config.server}/gini/practice/questions/answer-submit`,
+        `${config.server}/api/v1/gini/practice/questions/answer-submit`,
         {
           method: "POST",
           headers: {

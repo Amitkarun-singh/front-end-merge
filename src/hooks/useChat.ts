@@ -15,7 +15,7 @@ interface Message {
 }
 
 /** Endpoint for the AI Gini chat service. */
-const CHAT_URL = `${config.server}/gini/ai/gini`;
+const CHAT_URL = `${config.server}/api/v1/gini/ai/gini`;
 
 /**
  * A custom hook to manage chat state and interactions with the AI assistant.

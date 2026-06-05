@@ -98,7 +98,7 @@ export const registerNotificationToken = async (authToken: string) => {
     const payload = { token: notificaationToken, deviceId };
     console.log("[Notification] Sending POST request with payload:", payload);
 
-    const response = await fetch(`${config.server}/notification/register`, {
+    const response = await fetch(`${config.server}/api/v1/notification/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -69,7 +69,7 @@ export default function PerformancePage() {
       try {
 
 
-        const res = await fetch(`${config.server}/student/performance/${1}`, {
+        const res = await fetch(`${config.server}/api/v1/student/performance/${1}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
