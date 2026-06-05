@@ -52,7 +52,7 @@ export default function QuestionBankPage() {
   const handlePreview = async (type: "pyq" | "predict", filePath: string) => {
     try {
       const response = await fetch(
-        `${config.server}/${type}/api/v1/papers/preview?filePath=${encodeURIComponent(filePath)}`,
+        `${config.server}/api/v1/${type}/papers/preview?filePath=${encodeURIComponent(filePath)}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
@@ -72,7 +72,7 @@ export default function QuestionBankPage() {
   const handleDownload = async (type: "pyq" | "predict", filePath: string) => {
     try {
       const response = await fetch(
-        `${config.server}/${type}/api/v1/papers/download/?filePath=${encodeURIComponent(filePath)}`,
+        `${config.server}/api/v1/${type}/papers/download/?filePath=${encodeURIComponent(filePath)}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
