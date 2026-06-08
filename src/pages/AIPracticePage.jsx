@@ -15,6 +15,7 @@ import UnifiedExam from "@/pages/components/AIPracticePage/UnifiedExam";
 import LoadingScreen from "@/pages/components/LoadingScreen";
 
 import { config } from "../../app.config.js";
+import { getClasses, getStreams, getSubjects, getChapters } from "../api/curriculum";
 
 /**
  * @typedef {Object} QuestionType
@@ -47,12 +48,22 @@ export default function AIPracticePage() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [selectedClass, setSelectedClass] = useState("");
   const [classes, setClasses] = useState([]);
+  const [streams, setStreams] = useState([]);
+  const [selectedStream, setSelectedStream] = useState("");
   const [subjects, setSubjects] = useState([]);
   const [chapters, setChapters] = useState([]);
   const [selectedLanguage, setSelectedLanguage] = useState("english");
   const [selectedSubject, setSelectedSubject] = useState("");
   const [examData, setExamData] = useState({});
   const [loading, setLoading] = useState(false);
+
+  // Helper to determine if a stream is needed for the selected class (Grade 11 & 12)
+  const needsStream = selectedClass && (
+    selectedClass.toString().trim() === "11" ||
+    selectedClass.toString().trim() === "12" ||
+    selectedClass.toString().includes("11") ||
+    selectedClass.toString().includes("12")
+  );
 
   /**
    * Configuration for question counts or year ranges.
@@ -66,39 +77,14 @@ export default function AIPracticePage() {
    * Effect: Fetch available classes on mount.
    */
   useEffect(() => {
-
     const fetchClasses = async () => {
       if (!token) return;
       try {
-        const response = await fetch(`${config.server}/api/v1/class/student`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const result = await response.json();
-        if (result.success && result.data) {
-          if (
-            result.data.classes &&
-            Array.isArray(result.data.classes) &&
-            result.data.classes.length > 0
-          ) {
-            const fetchedClasses = result.data.classes.map((cls) => ({
-              class_id: cls.class_id,
-              class_name: cls.class_name.toString(),
-            }));
-            setClasses(fetchedClasses);
-            if (!selectedClass) {
-              setSelectedClass(fetchedClasses[0].class_name);
-            }
-          } else if (result.data.class_id && result.data.class_name) {
-            const singleClass = {
-              class_id: result.data.class_id,
-              class_name: result.data.class_name.toString(),
-            };
-            setClasses([singleClass]);
-            if (!selectedClass) {
-              setSelectedClass(singleClass.class_name);
-            }
+        const fetchedClasses = await getClasses(token);
+        if (Array.isArray(fetchedClasses) && fetchedClasses.length > 0) {
+          setClasses(fetchedClasses);
+          if (!selectedClass) {
+            setSelectedClass(fetchedClasses[0].class_name.toString());
           }
         }
       } catch (error) {
@@ -110,7 +96,26 @@ export default function AIPracticePage() {
   }, [token]);
 
   /**
-   * Effect: Fetch subjects based on the selected class.
+   * Effect: Fetch available streams on mount.
+   */
+  useEffect(() => {
+    const fetchStreams = async () => {
+      if (!token) return;
+      try {
+        const fetchedStreams = await getStreams(token);
+        if (Array.isArray(fetchedStreams) && fetchedStreams.length > 0) {
+          setStreams(fetchedStreams);
+        }
+      } catch (error) {
+        console.error("Error fetching streams:", error);
+      }
+    };
+
+    fetchStreams();
+  }, [token]);
+
+  /**
+   * Effect: Fetch subjects based on the selected class and stream.
    */
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -121,23 +126,35 @@ export default function AIPracticePage() {
       );
       if (!currentClass) return;
 
+      if (needsStream && !selectedStream) {
+        setSubjects([]);
+        return;
+      }
+
+      const generalStream = streams.find(
+        (s) => s.stream_name.toLowerCase() === "general" || s.slug === "general"
+      );
+      const defaultStreamId = generalStream ? generalStream.id : 4;
+
+      const currentStream = streams.find(
+        (s) => s.stream_name === selectedStream,
+      );
+
       try {
         const board = local?.user?.board || "CBSE";
-        const language =
-          selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1);
-        const response = await fetch(
-          `${config.server}/api/v1/subjects?class_id=${currentClass.class_id}&board=${board}&language=${language}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
+        const fetchedSubjects = await getSubjects(
+          token,
+          currentClass.id,
+          board,
+          needsStream && currentStream ? currentStream.id : defaultStreamId,
+          selectedLanguage
         );
-        const result = await response.json();
-        if (result.success) {
-          setSubjects(result.data);
-          if (result.data.length > 0) {
-            setSelectedSubject(result.data[0].subject_name);
+        if (Array.isArray(fetchedSubjects)) {
+          setSubjects(fetchedSubjects);
+          if (fetchedSubjects.length > 0) {
+            setSelectedSubject(fetchedSubjects[0].subject_name);
+          } else {
+            setSelectedSubject("");
           }
         }
       } catch (error) {
@@ -146,10 +163,10 @@ export default function AIPracticePage() {
     };
 
     fetchSubjects();
-  }, [selectedClass, classes, token]);
+  }, [selectedClass, selectedStream, classes, streams, token, needsStream, selectedLanguage]);
 
   /**
-   * Effect: Fetch chapters based on the selected class and subject.
+   * Effect: Fetch chapters based on the selected class, subject, and stream.
    */
   useEffect(() => {
     const fetchChapters = async () => {
@@ -164,21 +181,33 @@ export default function AIPracticePage() {
 
       if (!currentClass || !currentSubject) return;
 
+      if (needsStream && !selectedStream) {
+        setChapters([]);
+        return;
+      }
+
+      const generalStream = streams.find(
+        (s) => s.stream_name.toLowerCase() === "general" || s.slug === "general"
+      );
+      const defaultStreamId = generalStream ? generalStream.id : 4;
+
+      const currentStream = streams.find(
+        (s) => s.stream_name === selectedStream,
+      );
+
       try {
         const board = local?.user?.board || "CBSE";
-        const language =
-          selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1);
-        const response = await fetch(
-          `${config.server}/api/v1/subjects/${currentClass.class_id}/chapters/${currentSubject.subject_id}?board=${board}&language=${language}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
+        const language = selectedLanguage;
+        const fetchedChapters = await getChapters(
+          token,
+          currentClass.id,
+          currentSubject.id,
+          board,
+          needsStream && currentStream ? currentStream.id : defaultStreamId,
+          language,
         );
-        const result = await response.json();
-        if (result.success) {
-          setChapters(result.data);
+        if (Array.isArray(fetchedChapters)) {
+          setChapters(fetchedChapters);
           setSelectedChapters([]); // Reset selections when context changes
         }
       } catch (error) {
@@ -190,10 +219,14 @@ export default function AIPracticePage() {
   }, [
     selectedClass,
     selectedSubject,
+    selectedStream,
     classes,
     subjects,
+    streams,
     token,
     selectedLanguage,
+    needsStream,
+    selectedLanguage
   ]);
 
   /**
@@ -251,7 +284,7 @@ export default function AIPracticePage() {
         selectedSubject.charAt(0).toUpperCase() + selectedSubject.slice(1),
       chapter: selectedChapters,
       questionType: selectedTypes.map((type) => type.toUpperCase()),
-      class_: Number(currentClass.class_id),
+      class_: Number(currentClass.id),
       language:
         selectedLanguage.charAt(0).toUpperCase() + selectedLanguage.slice(1),
       questionsCount: questionConfig,
@@ -314,7 +347,14 @@ export default function AIPracticePage() {
               </h3>
               <Select
                 value={selectedClass}
-                onValueChange={(val) => setSelectedClass(val)}
+                onValueChange={(val) => {
+                  setSelectedClass(val);
+                  setSelectedStream("");
+                  setSelectedSubject("");
+                  setSubjects([]);
+                  setChapters([]);
+                  setSelectedChapters([]);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select class" />
@@ -322,7 +362,7 @@ export default function AIPracticePage() {
                 <SelectContent>
                   {classes.map((cls) => (
                     <SelectItem
-                      key={cls.class_id}
+                      key={cls.id}
                       value={cls.class_name.toString()}
                     >
                       {cls.class_name}
@@ -332,13 +372,51 @@ export default function AIPracticePage() {
               </Select>
             </div>
 
+            {needsStream && (
+              <div className="edtech-card">
+                <h3 className="font-semibold text-foreground mb-4">
+                  Select Stream
+                </h3>
+                <Select
+                  value={selectedStream}
+                  onValueChange={(val) => {
+                    setSelectedStream(val);
+                    setSelectedSubject("");
+                    setSubjects([]);
+                    setChapters([]);
+                    setSelectedChapters([]);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select stream" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {streams.map((stream) => (
+                      <SelectItem
+                        key={stream.id}
+                        value={stream.stream_name.toString()}
+                      >
+                        {stream.stream_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
             <div className="edtech-card">
               <h3 className="font-semibold text-foreground mb-4">
                 Select Language
               </h3>
               <Select
                 defaultValue={selectedLanguage}
-                onValueChange={(val) => setSelectedLanguage(val)}
+                onValueChange={(val) => {
+                  setSelectedLanguage(val);
+                  setSelectedSubject("");
+                  setSubjects([]);
+                  setChapters([]);
+                  setSelectedChapters([]);
+                }}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select language" />
@@ -356,14 +434,19 @@ export default function AIPracticePage() {
               </h3>
               <Select
                 value={selectedSubject}
-                onValueChange={(val) => setSelectedSubject(val)}
+                onValueChange={(val) => {
+                  setSelectedSubject(val);
+                  setChapters([]);
+                  setSelectedChapters([]);
+                }}
+                disabled={needsStream && !selectedStream}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select subject" />
+                  <SelectValue placeholder={needsStream && !selectedStream ? "Select stream first" : "Select subject"} />
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.map((sub) => (
-                    <SelectItem key={sub.subject_id} value={sub.subject_name}>
+                    <SelectItem key={sub.id} value={sub.subject_name}>
                       {sub.subject_name}
                     </SelectItem>
                   ))}
@@ -382,7 +465,7 @@ export default function AIPracticePage() {
                     }
                     onCheckedChange={(checked) =>
                       setSelectedChapters(
-                        checked ? chapters.map((c) => c.chapter_name) : [],
+                        checked ? chapters.map((c) => c.name) : [],
                       )
                     }
                     disabled={chapters.length === 0}
@@ -390,19 +473,19 @@ export default function AIPracticePage() {
                   <span className="ml-2 text-sm font-medium">Select All</span>
                 </div>
                 {chapters.map((chapter) => (
-                  <div key={chapter.chapter_id} className="flex items-center">
+                  <div key={chapter.id} className="flex items-center">
                     <Checkbox
-                      checked={selectedChapters.includes(chapter.chapter_name)}
+                      checked={selectedChapters.includes(chapter.name)}
                       onCheckedChange={() =>
-                        toggleChapter(chapter.chapter_name)
+                        toggleChapter(chapter.name)
                       }
                     />
-                    <span className="ml-2 text-sm">{chapter.chapter_name}</span>
+                    <span className="ml-2 text-sm">{chapter.name}</span>
                   </div>
                 ))}
                 {chapters.length === 0 && (
                   <p className="text-sm text-muted-foreground">
-                    No chapters available
+                    {needsStream && !selectedStream ? "Select stream first" : "No chapters available"}
                   </p>
                 )}
               </div>

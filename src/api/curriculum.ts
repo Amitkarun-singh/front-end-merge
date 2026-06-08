@@ -72,7 +72,8 @@ export const getSubjects = async (
   token: string,
   classId: number,
   board: string,
-  streamId: number
+  streamId: number,
+  lang: string = "english"
 ) => {
   const api = createApiClient(token);
 
@@ -82,6 +83,7 @@ export const getSubjects = async (
       params: {
         board,
         streamId,
+        lang
       },
     }
   );
@@ -112,3 +114,34 @@ export const getChapters = async (
 
   return response.data.data;
 };
+
+// export const getCurriculumData = async (
+//   token: string,
+//   classId?: number,
+//   subjectId?: number,
+//   board: string = "CBSE",
+//   streamId?: number,
+//   lang: string = "english"
+// ) => {
+//   const [classes, streams] = await Promise.all([
+//     getClasses(token),
+//     getStreams(token),
+//   ]);
+
+//   let subjects = [];
+//   if (classId !== undefined && streamId !== undefined) {
+//     subjects = await getSubjects(token, classId, board, streamId);
+//   }
+
+//   let chapters = [];
+//   if (classId !== undefined && subjectId !== undefined && streamId !== undefined) {
+//     chapters = await getChapters(token, classId, subjectId, board, streamId, lang);
+//   }
+
+//   return {
+//     classes,
+//     streams,
+//     subjects,
+//     chapters,
+//   };
+// };
