@@ -1,17 +1,11 @@
 import { useState, useEffect } from "react";
 import {
-  FileQuestion,
-  Clock,
-  BookOpen,
-  Search,
-  Filter,
-  ChevronRight,
-  Star,
+
   Calendar,
   Brain,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+
 import {
   Select,
   SelectContent,
@@ -23,6 +17,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 
 import { config } from "../../app.config.js";
+import type {Class} from "../api/curriculum.js"
 
 /**
  * QuestionBankPage Component
