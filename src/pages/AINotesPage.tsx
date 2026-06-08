@@ -26,6 +26,8 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import remarkGfm from "remark-gfm";
 import { useAuth } from "@/context/AuthContext";
+import { getClasses, getStreams, getSubjects, getChapters } from "@/api/curriculum";
+import type { Class, Stream, Subject, Chapter } from "@/api/curriculum";
 
 interface AINote {
   topic: string;
@@ -149,7 +151,7 @@ let _listItemIdx   = 0;
 let _globalItemIdx = 0;   // advances across ALL lists — drives emoji cycling
 
 // Current section theme snapshot — set when H2 is rendered so child elements share it
-let _currentTheme = SECTION_THEMES[0];
+let _currentTheme: any = SECTION_THEMES[0];
 
 /**
  * Study-themed emoji set — cycles deterministically by global item index.
@@ -328,10 +330,10 @@ type PreviewMode = "notes" | "book" | null;
 
 export default function AINotesPage() {
   const [languages, setLanguages] = useState<string[]>([]);
-  const [streams, setStreams]     = useState<string[]>([]);
-  const [classes, setClasses]     = useState<string[]>([]);
-  const [subjects, setSubjects]   = useState<string[]>([]);
-  const [chapters, setChapters]   = useState<string[]>([]);
+  const [streams, setStreams]     = useState<Stream[]>([]);
+  const [classes, setClasses]     = useState<Class[]>([]);
+  const [subjects, setSubjects]   = useState<Subject[]>([]);
+  const [chapters, setChapters]   = useState<Chapter[]>([]);
 
   const [language, setLanguage]               = useState("");
   const [stream, setStream]                   = useState("");
@@ -410,60 +412,121 @@ export default function AINotesPage() {
     if (!language) { setClasses([]); return; }
 
     if (profileClass) {
-      setClassName(profileClass);
+      const fetchClassesForStudent = async () => {
+        try {
+          const fetchedClasses = await getClasses(token);
+          if (Array.isArray(fetchedClasses)) {
+            setClasses(fetchedClasses);
+            setClassName(profileClass);
+          }
+        } catch (error) {
+          console.error("Error fetching class list:", error);
+        }
+      };
+      fetchClassesForStudent();
       return;
     }
 
-    fetch(`${config.server}/api/V1/ainote/classes?language=${language}&board=${board}`, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => res.json())
-      .then((data) => setClasses(data.data || []));
-  }, [language]);
+    const fetchClasses = async () => {
+      try {
+        const fetchedClasses = await getClasses(token);
+        if (Array.isArray(fetchedClasses)) {
+          setClasses(fetchedClasses);
+        }
+      } catch (error) {
+        console.error("Error fetching classes:", error);
+      }
+    };
+    fetchClasses();
+  }, [language, token, profileClass]);
 
   // ── Fetch streams (only for class 11 & 12; board is derived automatically) ──
   useEffect(() => {
     if (!needsStream || !language) { setStreams([]); setStream(""); return; }
-    fetch(
-      `${config.server}/api/V1/ainote/streams?language=${language}&board=${board}`,
-      { method: "GET", headers: { Authorization: `Bearer ${token}` } }
-    )
-      .then((res) => res.json())
-      .then((data) => {
-        const list: string[] = data.data || [];
-        setStreams(list);
-        setStream(""); // reset stream on class change
-      });
-  }, [needsStream, language]);
+
+    const fetchStreams = async () => {
+      try {
+        const fetchedStreams = await getStreams(token);
+        if (Array.isArray(fetchedStreams)) {
+          setStreams(fetchedStreams);
+          setStream(""); // reset stream on class change
+        }
+      } catch (error) {
+        console.error("Error fetching streams:", error);
+      }
+    };
+    fetchStreams();
+  }, [needsStream, language, token]);
 
   // ── Fetch subjects (requires language + class; + stream if class 11/12) ──
   useEffect(() => {
     if (!language || !className) { setSubjects([]); return; }
     if (needsStream && !stream) { setSubjects([]); return; }
 
-    const streamParam = needsStream && stream ? `&stream=${stream}` : "";
-    fetch(
-      `${config.server}/api/V1/ainote/subjects?language=${language}&board=${board}&class=${className}${streamParam}`,
-      { method: "GET", headers: { Authorization: `Bearer ${token}` } }
-    )
-      .then((res) => res.json())
-      .then((data) => setSubjects(data.data || []));
-  }, [language, className, stream, needsStream]);
+    const currentClass = classes.find((c) => c.slug === className);
+    if (!currentClass) return;
+
+    const generalStream = streams.find(
+      (s) => s.stream_name.toLowerCase() === "general" || s.slug === "general"
+    );
+    const defaultStreamId = generalStream ? generalStream.id : 4;
+
+    const currentStream = streams.find((s) => s.stream_name === stream);
+
+    const fetchSubjectsData = async () => {
+      try {
+        const fetchedSubjects = await getSubjects(
+          token,
+          currentClass.id,
+          board,
+          needsStream && currentStream ? currentStream.id : defaultStreamId,
+          language
+        );
+        if (Array.isArray(fetchedSubjects)) {
+          setSubjects(fetchedSubjects);
+        }
+      } catch (error) {
+        console.error("Error fetching subjects:", error);
+      }
+    };
+    fetchSubjectsData();
+  }, [language, className, stream, needsStream, classes, streams, token, board]);
 
   // ── Fetch chapters (requires language + class + subject; + stream if 11/12) ──
   useEffect(() => {
     if (!language || !className || !subject) { setChapters([]); return; }
     if (needsStream && !stream) { setChapters([]); return; }
 
-    const streamParam = needsStream && stream ? `&stream=${stream}` : "";
-    fetch(
-      `${config.server}/api/V1/ainote/chapters?language=${language}&board=${board}&class=${className}&subject=${subject}${streamParam}`,
-      { method: "GET", headers: { Authorization: `Bearer ${token}` } }
-    )
-      .then((res) => res.json())
-      .then((data) => setChapters(data.data || []));
-  }, [language, className, subject, stream, needsStream]);
+    const currentClass = classes.find((c) => c.slug === className);
+    const currentSubject = subjects.find((s) => s.subject_name === subject);
+    if (!currentClass || !currentSubject) return;
+
+    const generalStream = streams.find(
+      (s) => s.stream_name.toLowerCase() === "general" || s.slug === "general"
+    );
+    const defaultStreamId = generalStream ? generalStream.id : 4;
+
+    const currentStream = streams.find((s) => s.stream_name === stream);
+
+    const fetchChaptersData = async () => {
+      try {
+        const fetchedChapters = await getChapters(
+          token,
+          currentClass.id,
+          currentSubject.id,
+          board,
+          needsStream && currentStream ? currentStream.id : defaultStreamId,
+          language
+        );
+        if (Array.isArray(fetchedChapters)) {
+          setChapters(fetchedChapters);
+        }
+      } catch (error) {
+        console.error("Error fetching chapters:", error);
+      }
+    };
+    fetchChaptersData();
+  }, [language, className, subject, stream, needsStream, classes, subjects, streams, token, board]);
 
   // ── Generate notes ──
   const handleGenerateNotes = async () => {
@@ -647,8 +710,8 @@ export default function AINotesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {classes.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        Grade {c}
+                      <SelectItem key={c.id} value={c.slug}>
+                        {c.class_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -678,8 +741,8 @@ export default function AINotesPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {streams.map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
+                      <SelectItem key={s.id} value={s.stream_name}>
+                        {s.stream_name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -706,8 +769,8 @@ export default function AINotesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {subjects.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s}
+                    <SelectItem key={s.id} value={s.subject_name}>
+                      {s.subject_name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -732,8 +795,8 @@ export default function AINotesPage() {
                 </SelectTrigger>
                 <SelectContent>
                   {chapters.map((chapter) => (
-                    <SelectItem key={chapter} value={chapter}>
-                      {chapter}
+                    <SelectItem key={chapter.id} value={chapter.name}>
+                      {chapter.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -762,25 +825,25 @@ export default function AINotesPage() {
               <div className="space-y-1">
                 {chapters
                   .filter((ch) =>
-                    ch.toLowerCase().includes(searchQuery.toLowerCase())
+                    ch.name.toLowerCase().includes(searchQuery.toLowerCase())
                   )
                   .map((chapter) => (
                     <button
-                      key={chapter}
+                      key={chapter.id}
                       onClick={() => {
-                        setSelectedChapter(chapter);
+                        setSelectedChapter(chapter.name);
                         resetNotes();
                       }}
                       className={`w-full flex items-center justify-between p-3 rounded-lg text-left text-sm transition-colors ${
-                        selectedChapter === chapter
+                        selectedChapter === chapter.name
                           ? "bg-primary/10 text-primary font-medium"
                           : "hover:bg-muted text-foreground"
                       }`}
                     >
-                      <span>{chapter}</span>
+                      <span>{chapter.name}</span>
                       <div
                         className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                          selectedChapter === chapter
+                          selectedChapter === chapter.name
                             ? "border-primary bg-primary"
                             : "border-muted-foreground/30"
                         }`}
