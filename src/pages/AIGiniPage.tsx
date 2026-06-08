@@ -33,6 +33,7 @@ import {
 import { QuickTool } from "@/components/ui/tool-card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useChat } from "@/hooks/useChat";
+import { getClasses, getStreams, getSubjects } from "@/api/curriculum";
 import { submitThumbsUp, submitFeedback } from "@/api/giniFeedback";
 import { useToast } from "@/hooks/use-toast";
 import heroBg from "@/assets/hero-bg.jpg";
@@ -74,13 +75,21 @@ interface MessageFeedbackState {
 }
 
 interface ClassItem {
-  class_id: number;
+  id: number;
   class_name: string;
+  slug: string;
+}
+
+interface StreamItem {
+  id: number;
+  stream_name: string;
+  slug: string;
 }
 
 interface SubjectItem {
-  subject_id: number;
+  id: number;
   subject_name: string;
+  slug: string;
 }
 
 /**
@@ -132,14 +141,21 @@ interface WelcomeScreenProps {
   setLanguage: (value: string) => void;
   selectedClass: string;
   setSelectedClass: (value: string) => void;
+  selectedStream: string;
+  setSelectedStream: (value: string) => void;
   selectedSubject: string;
   setSelectedSubject: (value: string) => void;
   classes: ClassItem[];
+  streams: StreamItem[];
   subjects: SubjectItem[];
   handleSend: () => void;
   isLoading: boolean;
   handleFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
   uploadedFile: File | null;
+  needsStream: boolean;
+  onClassChange: (val: string) => void;
+  onStreamChange: (val: string) => void;
+  onSubjectChange: (val: string) => void;
 }
 
 /**
@@ -151,15 +167,19 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
   language,
   setLanguage,
   selectedClass,
-  setSelectedClass,
+  selectedStream,
   selectedSubject,
-  setSelectedSubject,
   classes,
+  streams,
   subjects,
   handleSend,
   isLoading,
   handleFileChange,
   uploadedFile,
+  needsStream,
+  onClassChange,
+  onStreamChange,
+  onSubjectChange,
 }) => (
   <div className="flex flex-col md:flex-row items-center gap-6">
     {/* Mascot — width-only, no fixed height, so the image keeps its natural proportions
@@ -208,7 +228,7 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
           </SelectContent>
         </Select>
 
-        <Select value={selectedClass} onValueChange={setSelectedClass}>
+        <Select value={selectedClass} onValueChange={onClassChange}>
           <SelectTrigger className="w-fit h-7 border border-border/40 bg-muted/60 rounded-full px-3 text-xs text-muted-foreground gap-1 focus:ring-0 focus:ring-offset-0">
             <MonitorSmartphone className="w-3 h-3" />
             <SelectValue placeholder="Class" />
@@ -216,22 +236,38 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
           <SelectContent>
             <SelectItem value="all">Class</SelectItem>
             {classes.map((cls) => (
-              <SelectItem key={cls.class_id} value={cls.class_name.toString()}>
+              <SelectItem key={cls.id} value={cls.class_name.toString()}>
                 {cls.class_name}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select value={selectedSubject} onValueChange={setSelectedSubject}>
+        {needsStream && (
+          <Select value={selectedStream} onValueChange={onStreamChange}>
+            <SelectTrigger className="w-fit h-7 border border-border/40 bg-muted/60 rounded-full px-3 text-xs text-muted-foreground gap-1 focus:ring-0 focus:ring-offset-0">
+              <MonitorSmartphone className="w-3 h-3" />
+              <SelectValue placeholder="Stream" />
+            </SelectTrigger>
+            <SelectContent>
+              {streams.map((stream) => (
+                <SelectItem key={stream.id} value={stream.stream_name.toString()}>
+                  {stream.stream_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+
+        <Select value={selectedSubject} onValueChange={onSubjectChange} disabled={needsStream && !selectedStream}>
           <SelectTrigger className="w-fit h-7 border border-border/40 bg-muted/60 rounded-full px-3 text-xs text-muted-foreground gap-1 focus:ring-0 focus:ring-offset-0">
             <BookOpen className="w-3 h-3" />
-            <SelectValue placeholder="Subject" />
+            <SelectValue placeholder={needsStream && !selectedStream ? "Select Stream First" : "Subject"} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Subject</SelectItem>
             {subjects.map((sub) => (
-              <SelectItem key={sub.subject_id} value={sub.subject_name}>
+              <SelectItem key={sub.id} value={sub.subject_name}>
                 {sub.subject_name}
               </SelectItem>
             ))}
@@ -668,6 +704,8 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
     setLanguage,
     selectedClass,
     setSelectedClass,
+    selectedStream,
+    setSelectedStream,
     selectedSubject,
     setSelectedSubject,
     isLoading,
@@ -687,41 +725,50 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
   }, [loadConversation, setLoadConversation]);
 
   const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [streams, setStreams] = useState<StreamItem[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
 
   const localAuth = localStorage.getItem("schools2ai_auth");
   const token = localAuth ? JSON.parse(localAuth).token : null;
 
+  // Helper to determine if a stream is needed for the selected class (Grade 11 & 12)
+  const needsStream = selectedClass && (
+    selectedClass.toString().trim() === "11" ||
+    selectedClass.toString().trim() === "12" ||
+    selectedClass.toString().includes("11") ||
+    selectedClass.toString().includes("12") ||
+    selectedClass.toString().includes("Grade 11") ||
+    selectedClass.toString().includes("Grade 12")
+  );
+
+  // Cascade handlers
+  const handleClassChange = (val: string) => {
+    setSelectedClass(val);
+    setSelectedStream("");
+    setSelectedSubject("all");
+    setSubjects([]);
+  };
+
+  const handleStreamChange = (val: string) => {
+    setSelectedStream(val);
+    setSelectedSubject("all");
+    setSubjects([]);
+  };
+
+  const handleSubjectChange = (val: string) => {
+    setSelectedSubject(val);
+  };
+
+  // ── Fetch Classes ──
   useEffect(() => {
     const fetchClasses = async () => {
       if (!token) return;
       try {
-       
-        const response = await fetch(`${config.server}/api/v1/class/student`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        const result = await response.json();
-        if (result.success && result.data) {
-          if (result.data.classes && Array.isArray(result.data.classes) && result.data.classes.length > 0) {
-            const fetchedClasses = result.data.classes.map((cls: any) => ({
-              class_id: cls.class_id,
-              class_name: cls.class_name.toString(),
-            }));
-            setClasses(fetchedClasses);
-            if (!selectedClass) {
-              setSelectedClass(fetchedClasses[0].class_name);
-            }
-          } else if (result.data.class_id && result.data.class_name) {
-            const singleClass = {
-              class_id: result.data.class_id,
-              class_name: result.data.class_name.toString(),
-            };
-            setClasses([singleClass]);
-            if (!selectedClass) {
-              setSelectedClass(singleClass.class_name);
-            }
+        const fetchedClasses = await getClasses(token);
+        if (Array.isArray(fetchedClasses) && fetchedClasses.length > 0) {
+          setClasses(fetchedClasses);
+          if (!selectedClass) {
+            setSelectedClass(fetchedClasses[0].class_name.toString());
           }
         }
       } catch (error) {
@@ -730,35 +777,63 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
     };
 
     fetchClasses();
-  }, [token, setSelectedClass, selectedClass]);
+  }, [token]);
 
+  // ── Fetch Streams ──
+  useEffect(() => {
+    const fetchStreams = async () => {
+      if (!token) return;
+      try {
+        const fetchedStreams = await getStreams(token);
+        if (Array.isArray(fetchedStreams) && fetchedStreams.length > 0) {
+          setStreams(fetchedStreams);
+        }
+      } catch (error) {
+        console.error("Error fetching streams:", error);
+      }
+    };
+
+    fetchStreams();
+  }, [token]);
+
+  // ── Fetch Subjects ──
   useEffect(() => {
     const fetchSubjects = async () => {
       if (!selectedClass || !token) return;
 
-      const currentClass = classes.find((cls) => {
-        if (cls.class_name.toString() === selectedClass) {
-          return cls.class_id;
-        }
-      });
+      const currentClass = classes.find(
+        (cls) => cls.class_name.toString() === selectedClass,
+      );
       if (!currentClass) return;
+
+      if (needsStream && !selectedStream) {
+        setSubjects([]);
+        return;
+      }
+
+      const generalStream = streams.find(
+        (s) => s.stream_name.toLowerCase() === "general" || s.slug === "general"
+      );
+      const defaultStreamId = generalStream ? generalStream.id : 4;
+
+      const currentStream = streams.find(
+        (s) => s.stream_name === selectedStream,
+      );
 
       try {
         const auth = localAuth ? JSON.parse(localAuth) : null;
         const board = auth?.user?.board || "CBSE";
 
-        const response = await fetch(
-          `${config.server}/api/V1/subjects?class_id=${currentClass.class_id}&board=${board}&language=${language}`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          },
+        const fetchedSubjects = await getSubjects(
+          token,
+          currentClass.id,
+          board,
+          needsStream && currentStream ? currentStream.id : defaultStreamId,
+          language
         );
-        const result = await response.json();
-        if (result.success) {
-          setSubjects(result.data);
-          if (result.data.length > 0) {
+        if (Array.isArray(fetchedSubjects)) {
+          setSubjects(fetchedSubjects);
+          if (fetchedSubjects.length > 0) {
             setSelectedSubject("all");
           }
         }
@@ -768,7 +843,7 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
     };
 
     fetchSubjects();
-  }, [selectedClass, classes, token, setSelectedSubject, language, localAuth]);
+  }, [selectedClass, selectedStream, classes, streams, token, needsStream, language, localAuth, setSelectedSubject]);
 
   // In chat mode, give a taller card; in welcome mode, auto-height compact card
   const isInChat = messages.length > 0 || historyLoading;
@@ -801,14 +876,21 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
               setLanguage={setLanguage}
               selectedClass={selectedClass}
               setSelectedClass={setSelectedClass}
+              selectedStream={selectedStream}
+              setSelectedStream={setSelectedStream}
               selectedSubject={selectedSubject}
               setSelectedSubject={setSelectedSubject}
               classes={classes}
+              streams={streams}
               subjects={subjects}
               handleSend={handleSend}
               isLoading={isLoading}
               handleFileChange={handleFileChange}
               uploadedFile={uploadedFile}
+              needsStream={needsStream}
+              onClassChange={handleClassChange}
+              onStreamChange={handleStreamChange}
+              onSubjectChange={handleSubjectChange}
             />
           ) : (
             <ChatView

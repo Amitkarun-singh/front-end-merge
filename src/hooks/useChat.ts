@@ -27,6 +27,7 @@ export const useChat = () => {
   const [input, setInput] = useState("");
   const [language, setLanguage] = useState("English");
   const [selectedClass, setSelectedClass] = useState("");
+  const [selectedStream, setSelectedStream] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [conversationId, setConversationId] = useState<string>(() =>
@@ -116,6 +117,7 @@ export const useChat = () => {
       formData.append("conversation_id", conversationId);
 
       if (selectedClass) formData.append("class", selectedClass);
+      if (selectedStream) formData.append("stream", selectedStream);
       if (selectedSubject) formData.append("subject", selectedSubject);
       if (uploadedFile) formData.append("file", uploadedFile);
 
@@ -311,6 +313,8 @@ export const useChat = () => {
     setLanguage,
     selectedClass,
     setSelectedClass,
+    selectedStream,
+    setSelectedStream,
     selectedSubject,
     setSelectedSubject,
     loadConversation,
