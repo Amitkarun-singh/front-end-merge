@@ -52,10 +52,10 @@ export const createApiClient = (token: string) => {
   });
 };
 
-export const getClasses = async (token: string) => {
+export const getClasses = async (token: string,type:string) => {
   const api = createApiClient(token);
 
-  const response = await api.get("/curriculum/class");
+  const response = await api.get("/curriculum/class",{params : {type}});
 
   return response.data.data;
 };

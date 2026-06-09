@@ -268,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const url = `${API_BASE}/api/V1/auth/profile`;
+    const url = `${API_BASE}/api/v1/profile/profile`;
 
 
     try {
