@@ -414,7 +414,7 @@ export default function AINotesPage() {
     if (profileClass) {
       const fetchClassesForStudent = async () => {
         try {
-          const fetchedClasses = await getClasses(token);
+          const fetchedClasses = await getClasses(token,"ai-notes");
           if (Array.isArray(fetchedClasses)) {
             setClasses(fetchedClasses);
             setClassName(profileClass);
@@ -429,7 +429,7 @@ export default function AINotesPage() {
 
     const fetchClasses = async () => {
       try {
-        const fetchedClasses = await getClasses(token);
+        const fetchedClasses = await getClasses(token,"ai-notes");
         if (Array.isArray(fetchedClasses)) {
           setClasses(fetchedClasses);
         }
