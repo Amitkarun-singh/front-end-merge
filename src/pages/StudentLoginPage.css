@@ -765,3 +765,210 @@
 .reg-input-has-icon {
   padding-left: 2.75rem !important;
 }
+
+/* ======================================
+   Account Picker — Schools2AI
+   ====================================== */
+
+/* Scrollable list of account cards */
+.account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: 340px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  /* Custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: hsl(262 83% 80%) transparent;
+}
+
+.account-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.account-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.account-list::-webkit-scrollbar-thumb {
+  background: hsl(262 83% 80%);
+  border-radius: 2px;
+}
+
+/* Individual account card */
+.account-item {
+  display: flex;
+  align-items: center;
+  gap: 0.875rem;
+  padding: 0.875rem 1rem;
+  border: 2px solid hsl(240 6% 90%);
+  border-radius: 1rem;
+  background: hsl(240 5% 98%);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.account-item:hover:not(:disabled) {
+  border-color: hsl(262 83% 72%);
+  background: hsl(262 83% 99%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px hsl(262 83% 58% / 0.1);
+}
+
+.account-item:active:not(:disabled) {
+  transform: translateY(0) scale(0.99);
+}
+
+.account-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+/* Selected state */
+.account-item-selected {
+  border-color: hsl(262 83% 58%);
+  background: hsl(262 83% 98%);
+  box-shadow:
+    0 0 0 3px hsl(262 83% 58% / 0.12),
+    0 4px 16px hsl(262 83% 58% / 0.12);
+}
+
+.account-item-selected:hover:not(:disabled) {
+  border-color: hsl(262 83% 52%);
+  background: hsl(262 83% 97%);
+}
+
+/* Inactive card */
+.account-item-inactive {
+  opacity: 0.75;
+}
+
+.account-item-inactive:hover:not(:disabled) {
+  border-color: hsl(0 84% 75%);
+  background: hsl(0 84% 99%);
+  box-shadow: 0 4px 16px hsl(0 84% 60% / 0.08);
+}
+
+/* Avatar circle */
+.account-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: white;
+  letter-spacing: 0.03em;
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Info column */
+.account-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.account-name {
+  font-size: 0.925rem;
+  font-weight: 600;
+  color: hsl(240 10% 15%);
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+/* Role badge */
+.account-role-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: 1px solid;
+  letter-spacing: 0.03em;
+  text-transform: capitalize;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* School label */
+.account-school {
+  font-size: 0.78rem;
+  color: hsl(240 4% 55%);
+  font-weight: 500;
+}
+
+/* Inactive badge */
+.account-inactive-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  background: hsl(0 84% 96%);
+  color: hsl(0 84% 40%);
+  border: 1px solid hsl(0 84% 82%);
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* Selection checkmark */
+.account-check-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+  color: hsl(262 83% 58%);
+  flex-shrink: 0;
+  animation: checkPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes checkPop {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
+/* Back link */
+.account-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: hsl(240 4% 55%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+  transition: color 0.2s, background 0.2s;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.account-back-link:hover:not(:disabled) {
+  color: hsl(262 83% 50%);
+  background: hsl(262 83% 98%);
+}
+
+.account-back-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

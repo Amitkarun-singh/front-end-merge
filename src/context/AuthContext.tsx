@@ -49,6 +49,16 @@ interface User {
   [key: string]: unknown;
 }
 
+/** Shape of each account returned by the multi-account login response */
+export interface AccountInfo {
+  user_id: number;
+  full_name: string;
+  role: string;
+  school_id: number;
+  status: string;
+  avatar: string | null;
+}
+
 export interface AuthErrorDetails {
   message: string;
   type: string;
@@ -68,12 +78,26 @@ export class AuthError extends Error {
     this.name = "AuthError";
     this.type = type;
     this.statusCode = statusCode;
-    
+
     const errs = extra?.errors || extra?.extra?.errors;
     if (Array.isArray(errs)) {
       this.errors = errs as Array<{ field: string; message: string }>;
     }
     this.extra = extra;
+  }
+}
+
+/** Roles permitted to access this portal. All others are rejected at login. */
+const ALLOWED_ROLES = ["teacher", "student"] as const;
+
+function assertRoleAllowed(role: unknown): void {
+  const normalized = (typeof role === "string" ? role : "").toLowerCase().trim();
+  if (!ALLOWED_ROLES.includes(normalized as typeof ALLOWED_ROLES[number])) {
+    throw new AuthError(
+      "Access denied. Only teachers and students can log in to this portal.",
+      "ROLE_NOT_ALLOWED",
+      403
+    );
   }
 }
 
@@ -105,6 +129,10 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   errorDetails: AuthErrorDetails | null;
+  /** Non-null when the login response requires account selection */
+  pendingAccounts: AccountInfo[] | null;
+  /** Accounts linked to the same phone number — populated after login / on boot */
+  linkedAccounts: AccountInfo[];
 }
 
 interface AuthContextType extends AuthState {
@@ -113,7 +141,12 @@ interface AuthContextType extends AuthState {
   verifyOtp: (payload: {
     phone_number: string;
     otp: string;
-  }) => Promise<void>;
+  }) => Promise<{ requiresAccountSelection?: boolean; accounts?: AccountInfo[] } | void>;
+  selectAccount: (userId: number) => Promise<{ requiresPasswordReset?: boolean }>;
+  /** Fetch all accounts linked to the current user's phone number */
+  fetchLinkedAccounts: () => Promise<void>;
+  /** Switch the active session to a different linked account */
+  switchAccount: (userId: number) => Promise<{ requiresPasswordReset?: boolean }>;
   logout: () => Promise<void>;
   setAuthData: (data: { token: string; user: any }) => void;
   fetchProfile: () => Promise<void>;
@@ -224,6 +257,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading: false,
     error: null,
     errorDetails: null,
+    pendingAccounts: null,
+    linkedAccounts: [],
   });
 
   // Keep a ref to the latest token to avoid stale closures in callbacks
@@ -258,7 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   /**
-   * Fetch user profile from GET /api/V1/auth/profile
+   * Fetch user profile from GET /api/V1/profile/profile
    * Flattens nested { user, school, student } into a single object.
    */
   const fetchProfile = useCallback(async () => {
@@ -268,7 +303,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const url = `${API_BASE}/api/V1/auth/profile`;
+    const url = `${API_BASE}/api/V1/profile/profile`;
 
 
     try {
@@ -319,6 +354,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
+   * Fetch all accounts linked to the current user's phone number.
+   * GET /api/V1/auth/accounts
+   * Non-fatal — never throws; silently skips if no token or request fails.
+   * Uses tokenRef.current (stale-closure-safe) — exact same pattern as fetchProfile.
+   */
+  const fetchLinkedAccounts = useCallback(async () => {
+    const currentToken = tokenRef.current;
+    if (!currentToken) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/api/V1/auth/accounts`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+      });
+
+      if (!res.ok) {
+        if (res.status === 401) return;   // session expired — handled by 401 flow elsewhere
+        console.warn("[fetchLinkedAccounts] non-200 response:", res.status);
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      const accounts: AccountInfo[] = ((data.data ?? data).accounts) ?? [];
+      setAuthState((prev) => ({ ...prev, linkedAccounts: accounts }));
+    } catch (err) {
+      console.warn("[fetchLinkedAccounts] error:", err);   // non-fatal
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /**
    * Upload avatar image — POST /api/V1/auth/update-avatar
    */
   const updateAvatar = useCallback(async (file: File) => {
@@ -330,7 +399,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     formData.append("file", file);
 
 
-    const res = await fetch(`${API_BASE}/api/V1/auth/update-avatar`, {
+    const res = await fetch(`${API_BASE}/api/V1/profile/update-avatar`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${currentToken}`,
@@ -348,11 +417,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [fetchProfile]);
 
   /**
-   * On mount, if we have a stored token, fetch fresh profile data.
+   * On mount, if we have a stored token, fetch fresh profile data and linked accounts.
    */
   useEffect(() => {
     if (authState.isAuthenticated && tokenRef.current) {
       fetchProfile();
+      fetchLinkedAccounts();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -389,6 +459,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Extract role from login response
       const role = responseData.role;
 
+      // ── Portal access guard ───────────────────────────────────────────────
+      assertRoleAllowed(role);
+
       //store userID in index id
 
 
@@ -406,7 +479,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Set minimal user state from login response first
-      setAuthState({
+      setAuthState((prev) => ({
         isAuthenticated: true,
         user: {
           role,
@@ -416,11 +489,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading: false,
         error: null,
         errorDetails: null,
-      });
+        pendingAccounts: null,
+        linkedAccounts: prev.linkedAccounts ?? [],  // preserve — never wipe on login
+      }));
 
       // Immediately fetch full profile after login
       try {
-        const profileRes = await fetch(`${API_BASE}/api/V1/auth/profile`, {
+        const profileRes = await fetch(`${API_BASE}/api/V1/profile/profile`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -441,6 +516,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         console.warn("Could not fetch profile after login, using login response data.");
       }
+
+      // Populate the account switcher immediately after login
+      fetchLinkedAccounts();
     } catch (err: unknown) {
       let message = "Login failed";
       let errorDetails: AuthErrorDetails | null = null;
@@ -497,7 +575,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyOtp = async (payload: {
     phone_number: string;
     otp: string;
-  }) => {
+  }): Promise<{ requiresAccountSelection?: boolean } | void> => {
     setAuthState((prev) => ({ ...prev, loading: true, error: null, errorDetails: null }));
 
     try {
@@ -508,7 +586,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const idToken = await firebaseUser.getIdToken();
 
       // Step 3: Exchange the Firebase ID token with our backend for an app token
-
       const res = await fetch(`${API_BASE}/api/V1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -521,6 +598,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const data = await res.json().catch(() => ({}));
       const responseData = data.data || data;
+
+      // ── Multi-account: let the caller navigate to the account picker ─────
+      if (responseData.requiresAccountSelection === true) {
+        const accounts: AccountInfo[] = responseData.accounts ?? [];
+        setAuthState((prev) => ({
+          ...prev,
+          loading: false,
+          pendingAccounts: accounts,
+        }));
+        // Return accounts so the caller can pass them via router state
+        // as a race-condition-safe fallback for AccountPickerPage
+        return { requiresAccountSelection: true, accounts };
+      }
 
       const responseUserId = responseData.profile?.userId || responseData.profile?.user_id;
       //store userID in index id
@@ -539,21 +629,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = responseData.accessToken || responseData.token;
       const role = responseData.role;
 
+      // ── Portal access guard ───────────────────────────────────────────────
+      assertRoleAllowed(role);
 
       console.log("unread notification", await getUnreadNotifications(responseUserId))
 
-      setAuthState({
+      setAuthState((prev) => ({
         isAuthenticated: true,
         user: { role, id: responseUserId, user_id: responseUserId },
         token,
         loading: false,
         error: null,
         errorDetails: null,
-      });
+        pendingAccounts: null,
+        linkedAccounts: prev.linkedAccounts ?? [],  // preserve — never wipe on login
+      }));
 
       // Step 4: Fetch full profile after OTP login
       try {
-        const profileRes = await fetch(`${API_BASE}/api/V1/auth/profile`, {
+        const profileRes = await fetch(`${API_BASE}/api/V1/profile/profile`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -573,8 +667,234 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         console.warn("Could not fetch profile after OTP login.");
       }
+
+      // Populate the account switcher immediately after OTP login
+      fetchLinkedAccounts();
     } catch (err: unknown) {
       let message = "OTP verification failed";
+      let errorDetails: AuthErrorDetails | null = null;
+
+      if (err instanceof AuthError) {
+        message = err.message;
+        errorDetails = {
+          message: err.message,
+          type: err.type,
+          statusCode: err.statusCode,
+          errors: err.errors,
+          ...err.extra,
+        };
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+
+      setAuthState((prev) => ({
+        ...prev,
+        loading: false,
+        error: message,
+        errorDetails,
+      }));
+      throw err;
+    }
+  };
+
+  /**
+   * Switch active session to a different linked account.
+   * POST /api/V1/auth/switch-account
+   *
+   * NOTE: The previous session token is NOT explicitly closed (no /auth/logout
+   * call is made for the outgoing account). This is a conscious design choice —
+   * short-lived access tokens expire naturally and the user may want to switch
+   * back. Add a POST /auth/logout with the old token here if session-history
+   * accuracy becomes a requirement.
+   *
+   * tokenRef is updated via a useEffect (asynchronous), so we capture the
+   * current token into a local variable immediately. The inline profile fetch
+   * below also uses this local variable rather than calling fetchProfile() to
+   * avoid the race where tokenRef still holds the old token.
+   */
+  const switchAccount = async (userId: number): Promise<{ requiresPasswordReset?: boolean }> => {
+    const currentToken = tokenRef.current;   // capture before any state update
+    setAuthState((prev) => ({ ...prev, loading: true, error: null, errorDetails: null }));
+
+    try {
+      const res = await fetch(`${API_BASE}/api/V1/auth/switch-account`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${currentToken}`,
+        },
+        body: JSON.stringify({ user_id: userId }),
+      });
+
+      if (!res.ok) {
+        await handleResponseError(res, "Account switch failed");
+      }
+
+      const data = await res.json().catch(() => ({}));
+      const responseData = data.data ?? data;
+
+      // ── Password reset required ───────────────────────────────────────────
+      if (responseData.requiresPasswordReset && responseData.tempToken) {
+        sessionStorage.setItem("tempToken", responseData.tempToken);
+        setAuthState((prev) => ({ ...prev, loading: false }));
+        // Return flag — AccountSwitcher calls navigate('/reset-password', { replace: true })
+        return { requiresPasswordReset: true };
+      }
+
+      // ── Normal success ────────────────────────────────────────────────────
+      const token = responseData.accessToken ?? responseData.token;
+      const role = responseData.role;
+
+      // ── Portal access guard ───────────────────────────────────────────────
+      assertRoleAllowed(role);
+
+      setAuthState((prev) => ({
+        isAuthenticated: true,
+        token,
+        loading: false,
+        error: null,
+        errorDetails: null,
+        pendingAccounts: null,
+        linkedAccounts: prev.linkedAccounts,   // preserve — do NOT clear on switch
+        user: {
+          role,
+          ...(responseData.profile
+            ? flattenProfile(responseData.profile as Record<string, unknown>)
+            : {}),
+        },
+      }));
+
+      // Inline profile fetch using the new local `token` variable.
+      // We cannot call fetchProfile() here because tokenRef.current is updated
+      // via a useEffect and still holds the OLD token at this point.
+      try {
+        const profileRes = await fetch(`${API_BASE}/api/V1/profile/profile`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json().catch(() => ({}));
+          const raw: Record<string, unknown> = profileData.data ?? profileData;
+          const profile = flattenProfile(raw);
+          setAuthState((prev) => ({ ...prev, user: { ...profile, role } }));
+        }
+      } catch {
+        console.warn("Could not fetch profile after account switch.");
+      }
+
+      return {};
+    } catch (err: unknown) {
+      let message = "Account switch failed";
+      let errorDetails: AuthErrorDetails | null = null;
+
+      if (err instanceof AuthError) {
+        message = err.message;
+        errorDetails = {
+          message: err.message,
+          type: err.type,
+          statusCode: err.statusCode,
+          errors: err.errors,
+          ...err.extra,
+        };
+      } else if (err instanceof Error) {
+        message = err.message;
+      }
+
+      setAuthState((prev) => ({ ...prev, loading: false, error: message, errorDetails }));
+      throw err;   // re-throw so AccountSwitcher can display it inline
+    }
+  };
+
+  /**
+   * Account selection — POST /api/V1/auth/select-account
+   * Called after the user picks one account from the multi-account picker.
+   * On success, completes login exactly like a normal login response.
+   */
+  const selectAccount = async (userId: number): Promise<{ requiresPasswordReset?: boolean }> => {
+    setAuthState((prev) => ({ ...prev, loading: true, error: null, errorDetails: null }));
+
+    try {
+      const res = await fetch(`${API_BASE}/api/V1/auth/select-account`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      });
+
+      if (!res.ok) {
+        await handleResponseError(res, "Account selection failed");
+      }
+
+      const data = await res.json().catch(() => ({}));
+      const responseData = data.data || data;
+
+      // ── Password reset required ───────────────────────────────────────────
+      if (responseData.requiresPasswordReset && responseData.tempToken) {
+        sessionStorage.setItem('tempToken', responseData.tempToken);
+        setAuthState((prev) => ({ ...prev, loading: false }));
+        return { requiresPasswordReset: true };
+      }
+
+      // ── Normal success ────────────────────────────────────────────────────
+      const token = responseData.accessToken || responseData.token;
+      const role = responseData.role;
+
+      // ── Portal access guard ───────────────────────────────────────────────
+      assertRoleAllowed(role);
+
+      const responseUserId = responseData.profile?.userId || responseData.profile?.user_id;
+      if (responseUserId) {
+        const userIdStr = responseUserId.toString();
+        saveUserSession(userIdStr)
+          .then(() => { handleLoginNotifications(userIdStr); })
+          .catch((err) => {
+            console.error("[AuthContext] Failed to save user session to IndexedDB:", err);
+          });
+      }
+
+      setAuthState((prev) => ({
+        isAuthenticated: true,
+        user: {
+          role,
+          ...(responseData.profile
+            ? flattenProfile(responseData.profile as Record<string, unknown>)
+            : {}),
+        },
+        token,
+        loading: false,
+        error: null,
+        errorDetails: null,
+        pendingAccounts: null,
+        linkedAccounts: prev.linkedAccounts ?? [],  // preserve — never wipe on account select
+      }));
+
+      // Fetch full profile
+      try {
+        const profileRes = await fetch(`${API_BASE}/api/V1/profile/profile`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (profileRes.ok) {
+          const profileData = await profileRes.json().catch(() => ({}));
+          const raw: Record<string, unknown> = profileData.data ?? profileData;
+          const profile = flattenProfile(raw);
+          setAuthState((prev) => ({ ...prev, user: { ...profile, role } }));
+        }
+      } catch {
+        console.warn("Could not fetch profile after account selection.");
+      }
+
+      // Populate the account switcher immediately after account selection
+      fetchLinkedAccounts();
+
+      return {};
+    } catch (err: unknown) {
+      let message = "Account selection failed";
       let errorDetails: AuthErrorDetails | null = null;
 
       if (err instanceof AuthError) {
@@ -613,6 +933,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading: false,
       error: null,
       errorDetails: null,
+      pendingAccounts: null,
+      linkedAccounts: [],   // clear on logout so a subsequent user sees no stale accounts
     });
     localStorage.removeItem(AUTH_STORAGE_KEY);
     clearUserSession().catch((err) => {
@@ -657,6 +979,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         login,
         sendOtp,
         verifyOtp,
+        selectAccount,
+        fetchLinkedAccounts,
+        switchAccount,
         logout,
         setAuthData,
         fetchProfile,

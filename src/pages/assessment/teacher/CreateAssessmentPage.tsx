@@ -7,7 +7,6 @@ import {
 import { teacherApi, sharedApi } from "@/api/assessmentApi";
 import { Spinner } from "@/components/assessment/SharedComponents";
 import { useToast } from "@/components/assessment/ToastProvider";
-import { config } from "../../../../app.config.js";
 
 const STEPS = ["Setup", "AI Generates", "Review Questions"];
 
@@ -16,8 +15,14 @@ const QUESTION_TYPES = [
   { value: "true_false",   label: "True / False" },
 ];
 
-interface ClassItem   { class_id: number; class_name: string; }
-interface SubjectItem { subject_id: number; subject_name: string; }
+const LANGUAGES = [
+  { value: "english", label: "English" },
+  { value: "hindi",   label: "Hindi"   },
+];
+
+interface ClassItem   { id: number; class_id?: number; class_name: string; }
+interface SubjectItem { id: number; subject_id?: number; subject_name: string; }
+interface StreamItem  { id: number; stream_name: string; }
 
 interface FormData {
   title:         string;
@@ -29,17 +34,16 @@ interface FormData {
   num_questions: number;
 }
 
-// ── Token helper ──────────────────────────────────────────────────────────────
-function getAuth(): { token: string; board: string } {
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getBoard(): string {
   try {
-    const parsed = JSON.parse(localStorage.getItem("schools2ai_auth") || "{}");
-    return {
-      token: parsed?.token ?? "",
-      board: parsed?.user?.board ?? "CBSE",
-    };
-  } catch {
-    return { token: "", board: "CBSE" };
-  }
+    return JSON.parse(localStorage.getItem("schools2ai_auth") || "{}")?.user?.board ?? "CBSE";
+  } catch { return "CBSE"; }
+}
+
+function classNumber(className: string): number {
+  const m = className.match(/\d+/);
+  return m ? parseInt(m[0], 10) : 0;
 }
 
 export default function CreateAssessmentPage() {
@@ -52,43 +56,57 @@ export default function CreateAssessmentPage() {
 
   // ── Cascading dropdown state ──────────────────────────────────────────────
   const [classes,          setClasses]          = useState<ClassItem[]>([]);
+  const [streams,          setStreams]          = useState<StreamItem[]>([]);
   const [subjects,         setSubjects]         = useState<SubjectItem[]>([]);
-  const [chapters,         setChapters]         = useState<string[]>([]);
-  const [selectedClassId,  setSelectedClassId]  = useState("");
+  const [chapters,         setChapters]         = useState<{ id: number; name: string }[]>([]);
+
+  const [selectedClassId,   setSelectedClassId]   = useState("");
+  const [selectedClassName, setSelectedClassName] = useState("");
   const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
   const [selectedSubjectName, setSelectedSubjectName] = useState(""); // fallback hint only
+  const [selectedStreamId,  setSelectedStreamId]  = useState<number>(4); // 4 = General
+  const [selectedLanguage,  setSelectedLanguage]  = useState<string>("english");
 
   const [loadingClasses,  setLoadingClasses]  = useState(true);
   const [loadingSubjects, setLoadingSubjects] = useState(false);
   const [loadingChapters, setLoadingChapters] = useState(false);
+
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const isSenior = classNumber(selectedClassName) > 10;
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } =
     useForm<FormData>({ defaultValues: { difficulty: "medium", num_questions: 10 } });
 
   const difficulty = watch("difficulty");
 
-  // ── 1. Fetch classes on mount ─────────────────────────────────────────────
+  // ── 1. Fetch classes + streams on mount ───────────────────────────────────
   useEffect(() => {
-    const { token } = getAuth();
-    fetch(`${config.server}/api/V1/classes`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
+    sharedApi.getClasses()
       .then((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          setClasses(res.data);
-          if (res.data.length > 0) {
-            const first = res.data[0];
-            setSelectedClassId(String(first.class_id));
-            setValue("class_id", String(first.class_id));
+        const data = res.data?.data ?? res.data;
+        if (Array.isArray(data)) {
+          setClasses(data);
+          if (data.length > 0) {
+            const first = data[0];
+            const firstId = String(first.id ?? first.class_id);
+            setSelectedClassId(firstId);
+            setSelectedClassName(first.class_name ?? "");
+            setValue("class_id", firstId);
           }
         }
       })
       .catch(() => showToast("Failed to load classes", "error"))
       .finally(() => setLoadingClasses(false));
+
+    sharedApi.getStreams()
+      .then((res) => {
+        const data = res.data?.data ?? res.data;
+        if (Array.isArray(data)) setStreams(data);
+      })
+      .catch(() => {/* streams not critical */});
   }, []);
 
-  // ── 2. Fetch subjects whenever class changes ──────────────────────────────
+  // ── 2. Fetch subjects when class / stream / language changes ──────────────
   useEffect(() => {
     if (!selectedClassId) return;
     setLoadingSubjects(true);
@@ -99,28 +117,24 @@ export default function CreateAssessmentPage() {
     setSelectedSubjectId(null);
     setSelectedSubjectName("");
 
-    const { token, board } = getAuth();
-    fetch(
-      `${config.server}/api/V1/subjects?class_id=${selectedClassId}&board=${board}&language=English`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    )
-      .then((r) => r.json())
+    sharedApi.getSubjectsByClass(selectedClassId, getBoard(), selectedStreamId, selectedLanguage)
       .then((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          setSubjects(res.data);
-          if (res.data.length > 0) {
-            const first = res.data[0];
+        const data = res.data?.data ?? res.data;
+        if (Array.isArray(data)) {
+          setSubjects(data);
+          if (data.length > 0) {
+            const first = data[0];
             setValue("subject_name", first.subject_name);
-            setSelectedSubjectId(first.subject_id);
+            setSelectedSubjectId(first.id ?? first.subject_id ?? null);
             setSelectedSubjectName(first.subject_name);
           }
         }
       })
       .catch(() => showToast("Failed to load subjects", "error"))
       .finally(() => setLoadingSubjects(false));
-  }, [selectedClassId]);
+  }, [selectedClassId, selectedStreamId, selectedLanguage]);
 
-  // ── 3. Fetch chapters using class_id + subject_id (REST path params) ─────────
+  // ── 3. Fetch chapters when subject / stream / language changes ────────────
   useEffect(() => {
     if (!selectedClassId || !selectedSubjectId) {
       setChapters([]);
@@ -133,20 +147,24 @@ export default function CreateAssessmentPage() {
     setValue("topic", "");
 
     sharedApi
-      .getChaptersBySubject(selectedClassId, selectedSubjectId)
+      .getChaptersBySubject(selectedClassId, selectedSubjectId, getBoard(), selectedStreamId, selectedLanguage)
       .then((res) => {
         const data = res.data?.data ?? res.data;
         if (Array.isArray(data)) {
-          // Backend returns objects {chapter_id, chapter_name} or plain strings
-          const names = data.map((ch: { chapter_name?: string } | string) =>
-            typeof ch === "string" ? ch : ch.chapter_name ?? ""
-          ).filter(Boolean);
-          setChapters(names);
+          // Chapter objects: { id, name } — curriculum API uses 'name' field
+          const items = data
+            .map((ch: { id?: number; name?: string; chapter_name?: string; chapter_id?: number }) => ({
+              id:   ch.id ?? ch.chapter_id ?? 0,
+              name: ch.name ?? ch.chapter_name ?? "",
+            }))
+            .filter((ch) => ch.name);
+          setChapters(items);
+          if (items.length > 0) setValue("topic", items[0].name);
         }
       })
       .catch(() => setChapters([]))
       .finally(() => setLoadingChapters(false));
-  }, [selectedClassId, selectedSubjectId]);
+  }, [selectedClassId, selectedSubjectId, selectedStreamId, selectedLanguage]);
 
   const toggleType = (val: string) =>
     setSelectedTypes((prev) =>
@@ -157,19 +175,18 @@ export default function CreateAssessmentPage() {
     setLoading(true);
     setStep(1);
     try {
-      const cls = classes.find((c) => String(c.class_id) === data.class_id);
       const res = await teacherApi.createAssessment({
         title:               data.title,
         subject_id:          selectedSubjectId!,
         class_id:            Number(data.class_id),
+        stream_id:           selectedStreamId,
+        language:            selectedLanguage,
         topic:               data.topic || undefined,
         difficulty:          data.difficulty,
         time_limit_minutes:  data.time_limit ? Number(data.time_limit) : undefined,
         question_count:      data.num_questions,
         question_types:      selectedTypes,
       });
-      // DEBUG: log full response to find correct path
-
 
       const d = res.data;
       const newId =
@@ -179,8 +196,6 @@ export default function CreateAssessmentPage() {
         d?.assessment?.assessment_id ??
         d?.assessment_id ??
         d?.id;
-
-
 
       if (!newId) {
         showToast("Assessment created but could not get ID. Check console.", "warning");
@@ -285,6 +300,30 @@ export default function CreateAssessmentPage() {
               {errors.title && <p className="text-red-400 text-xs mt-1">{errors.title.message}</p>}
             </div>
 
+            {/* Language */}
+            <div>
+              <label className="block text-sm text-white/70 mb-2">Language</label>
+              <div className="flex gap-3">
+                {LANGUAGES.map((lang) => {
+                  const sel = selectedLanguage === lang.value;
+                  return (
+                    <button
+                      key={lang.value}
+                      type="button"
+                      onClick={() => setSelectedLanguage(lang.value)}
+                      className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                        sel
+                          ? "border-indigo-500 bg-indigo-600/20 text-indigo-300"
+                          : "border-white/10 text-white/50 hover:border-white/20"
+                      }`}
+                    >
+                      {lang.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Class */}
             <div>
               <label className="block text-sm text-white/70 mb-1.5">
@@ -300,14 +339,20 @@ export default function CreateAssessmentPage() {
                   value={selectedClassId}
                   onChange={(e) => {
                     const id = e.target.value;
+                    const cls = classes.find((c) => String(c.id ?? c.class_id) === id);
+                    const clsName = cls?.class_name ?? "";
                     setSelectedClassId(id);
+                    setSelectedClassName(clsName);
                     setValue("class_id", id);
+                    // Senior (>10) → default Science (1); junior → General (4)
+                    const clsNum = parseInt((clsName.match(/\d+/) || ["0"])[0], 10);
+                    setSelectedStreamId(clsNum > 10 ? 1 : 4);
                   }}
                   className={fieldCls}
                 >
                   <option value="">Select class</option>
                   {classes.map((c) => (
-                    <option key={c.class_id} value={String(c.class_id)}>
+                    <option key={c.id ?? c.class_id} value={String(c.id ?? c.class_id)}>
                       {c.class_name}
                     </option>
                   ))}
@@ -315,6 +360,43 @@ export default function CreateAssessmentPage() {
               )}
               {errors.class_id && <p className="text-red-400 text-xs mt-1">{errors.class_id.message}</p>}
             </div>
+
+            {/* Stream — only for classes above 10, exactly 3 options (no General) */}
+            {isSenior && (
+              <div>
+                <label className="block text-sm text-white/70 mb-2">
+                  Stream
+                  <span className="ml-1.5 text-xs text-white/40 font-normal">(Class 11 &amp; above)</span>
+                </label>
+                {streams.filter((s) => s.id !== 4).length === 0 ? (
+                  <div className="flex items-center gap-2 text-white/40 text-sm py-3">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading streams…
+                  </div>
+                ) : (
+                  <div className="flex gap-3">
+                    {streams
+                      .filter((s) => s.id !== 4)   // exclude General
+                      .map((s) => {
+                        const sel = selectedStreamId === s.id;
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setSelectedStreamId(s.id)}
+                            className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                              sel
+                                ? "border-indigo-500 bg-indigo-600/20 text-indigo-300"
+                                : "border-white/10 text-white/50 hover:border-white/20"
+                            }`}
+                          >
+                            {s.stream_name}
+                          </button>
+                        );
+                      })}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Subject */}
             <div>
@@ -333,7 +415,7 @@ export default function CreateAssessmentPage() {
                     const sn  = e.target.value;
                     const sub = subjects.find((s) => s.subject_name === sn);
                     setValue("subject_name", sn);
-                    setSelectedSubjectId(sub?.subject_id ?? null);
+                    setSelectedSubjectId(sub?.id ?? sub?.subject_id ?? null);
                     setSelectedSubjectName(sn);
                   }}
                   className={fieldCls + " disabled:opacity-50"}
@@ -346,7 +428,7 @@ export default function CreateAssessmentPage() {
                       : "Select subject"}
                   </option>
                   {subjects.map((s) => (
-                    <option key={s.subject_id} value={s.subject_name}>
+                    <option key={s.id ?? s.subject_id} value={s.subject_name}>
                       {s.subject_name}
                     </option>
                   ))}
@@ -372,7 +454,7 @@ export default function CreateAssessmentPage() {
                 >
                   <option value="">Select chapter</option>
                   {chapters.map((ch) => (
-                    <option key={ch} value={ch}>{ch}</option>
+                    <option key={ch.id} value={ch.name}>{ch.name}</option>
                   ))}
                 </select>
               ) : (

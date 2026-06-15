@@ -180,23 +180,26 @@ export const studentApi = {
 // ─── Shared APIs ───────────────────────────────────────────────────────────────
 
 export const sharedApi = {
-  // GET /api/V1/class/:class_id/sections
-  getSections: (class_id: number) =>
-    api.get(`/api/V1/class/${class_id}/sections`),
+  // GET /api/v1/curriculum/section — all sections via curriculum proxy
+  getSections: () =>
+    api.get("/api/v1/curriculum/section"),
 
-  // Same endpoints used by AIPracticePage
+  // GET /api/v1/curriculum/class — classes via curriculum proxy
   getClasses: () =>
-    api.get("/api/V1/classes"),
+    api.get("/api/v1/curriculum/class"),
 
-  // GET /api/V1/subjects?class_id=&board=&language=
-  getSubjectsByClass: (class_id: number | string, board = "CBSE", language = "English") =>
-    api.get("/api/V1/subjects", { params: { class_id, board, language } }),
+  // GET /api/v1/curriculum/stream — streams via curriculum proxy
+  getStreams: () =>
+    api.get("/api/v1/curriculum/stream"),
+
+  // GET /api/v1/curriculum/class/:classId/subject?board=&streamId=&lang=
+  getSubjectsByClass: (class_id: number | string, board = "CBSE", streamId: number | string = 4, lang = "english") =>
+    api.get(`/api/v1/curriculum/class/${class_id}/subject`, { params: { board, streamId, lang } }),
 
   getSubjects: () =>
-    api.get("/api/V1/subjects"),
+    api.get("/api/v1/curriculum/class"),
 
-  // GET /api/V1/subjects/:class_id/chapters/:subject_id
-  getChaptersBySubject: (class_id: number | string, subject_id: number | string) =>
-    api.get(`/api/V1/subjects/${class_id}/chapters/${subject_id}`),
+  // GET /api/v1/curriculum/class/:classId/subject/:subjectId/chapter?board=&streamId=&lang=
+  getChaptersBySubject: (class_id: number | string, subject_id: number | string, board = "CBSE", streamId: number | string = 4, lang = "english") =>
+    api.get(`/api/v1/curriculum/class/${class_id}/subject/${subject_id}/chapter`, { params: { board, streamId, lang } }),
 };
-

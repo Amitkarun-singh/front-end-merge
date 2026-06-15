@@ -7,11 +7,14 @@ import {
 import { teacherApi } from "@/api/assessmentApi";
 import { Spinner } from "@/components/assessment/SharedComponents";
 import { useToast } from "@/components/assessment/ToastProvider";
-import { config } from "../../../../app.config.js";
+import { getSections } from "@/api/curriculum";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-interface SectionItem { section_id: number; section_name: string; }
+interface SectionItem {
+  section_id: number;   // normalised — may come from `id` or `section_id` in the API response
+  section_name: string;
+}
 
 interface FormData {
   start_datetime: string;
@@ -85,7 +88,7 @@ export default function AssignAssessmentPage() {
       .finally(() => setLoadingAssessment(false));
   }, [assessmentId]);
 
-  // ── 2. Fetch sections once we know the locked class ────────────────────────
+  // ── 2. Fetch sections via curriculum service ──────────────────────────────
   useEffect(() => {
     if (!assessmentClassId) { setSections([]); return; }
     setLoadingSections(true);
@@ -93,13 +96,14 @@ export default function AssignAssessmentPage() {
     setSelectedSections([]);
 
     const token = getToken();
-    fetch(`${config.server}/api/V1/class/${assessmentClassId}/sections`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
-      .then((res) => {
-        const data = res.data ?? res;
-        setSections(Array.isArray(data) ? data : []);
+    getSections(token)
+      .then((data) => {
+        const list = (Array.isArray(data) ? data : []).map((s: Record<string, unknown>) => ({
+          // Curriculum service returns `id` (not section_id) — normalise here
+          section_id:   Number((s.id ?? s.section_id) ?? 0),
+          section_name: String(s.section_name ?? s.name ?? ""),
+        })).filter((s) => s.section_id > 0 && s.section_name);
+        setSections(list);
       })
       .catch((err) => {
         console.error("[Sections] fetch error:", err);

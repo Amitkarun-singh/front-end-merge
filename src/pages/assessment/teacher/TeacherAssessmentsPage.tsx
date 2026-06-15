@@ -10,7 +10,6 @@ import {
 import { teacherApi, sharedApi } from "@/api/assessmentApi";
 import { useToast } from "@/components/assessment/ToastProvider";
 import { Spinner, ConfirmDialog } from "@/components/assessment/SharedComponents";
-import { config } from "../../../../app.config.js";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -35,8 +34,9 @@ interface Assessment {
   assignment_count?: number;           // new backend field
 }
 
-interface ClassItem   { class_id: number;   class_name: string;   }
-interface SubjectItem { subject_id: number;  subject_name: string; }
+interface ClassItem   { id: number; class_id?: number; class_name: string; }
+interface SubjectItem { id: number; subject_id?: number; subject_name: string; }
+interface StreamItem  { id: number; stream_name: string; }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -52,6 +52,17 @@ const QTYPES = [
   { value: "mcq",          label: "MCQ"          },
   { value: "true_false",   label: "True / False" },
 ];
+
+const LANGUAGES = [
+  { value: "english", label: "English" },
+  { value: "hindi",   label: "Hindi"   },
+];
+
+// Class numeric value — used to decide if stream picker is needed (>10 = senior)
+function classNumber(className: string): number {
+  const m = className.match(/\d+/);
+  return m ? parseInt(m[0], 10) : 0;
+}
 
 // ─── Badge helpers ────────────────────────────────────────────────────────────
 
@@ -546,7 +557,7 @@ export default function TeacherAssessmentsPage() {
   );
 }
 
-// ─── Create Assessment Drawer (class → subject from real API) ─────────────────
+// ─── Create Assessment Drawer ─────────────────────────────────────────────────
 
 function CreateAssessmentDrawer({
   onClose, onSuccess,
@@ -556,17 +567,29 @@ function CreateAssessmentDrawer({
 }) {
   const { showToast } = useToast();
 
+  // ── Dropdown data ─────────────────────────────────────────────────────────
   const [classes,          setClasses]          = useState<ClassItem[]>([]);
+  const [streams,          setStreams]          = useState<StreamItem[]>([]);
   const [subjects,         setSubjects]         = useState<SubjectItem[]>([]);
-  const [chapters,         setChapters]         = useState<string[]>([]);
+  const [chapters,         setChapters]         = useState<{ id: number; name: string }[]>([]);
+
+  // ── Loading states ────────────────────────────────────────────────────────
   const [loadingClasses,   setLoadingClasses]   = useState(true);
   const [loadingSubjects,  setLoadingSubjects]  = useState(false);
   const [loadingChapters,  setLoadingChapters]  = useState(false);
-  const [selectedClassId,  setSelectedClassId]  = useState<string>("");
-  const [selectedSubjectId, setSelectedSubjectId] = useState<number | null>(null);
-  const [selectedSubjectName, setSelectedSubjectName] = useState<string>(""); // for fallback hint only
-  const [selectedTypes,    setSelectedTypes]    = useState<string[]>(["mcq"]);
   const [aiRunning,        setAiRunning]         = useState(false);
+
+  // ── Selection state ───────────────────────────────────────────────────────
+  const [selectedClassId,    setSelectedClassId]    = useState<string>("");
+  const [selectedClassName,  setSelectedClassName]  = useState<string>("");
+  const [selectedSubjectId,  setSelectedSubjectId]  = useState<number | null>(null);
+  const [selectedSubjectName, setSelectedSubjectName] = useState<string>("");
+  const [selectedStreamId,   setSelectedStreamId]   = useState<number>(4); // default = General
+  const [selectedLanguage,   setSelectedLanguage]   = useState<string>("english");
+  const [selectedTypes,      setSelectedTypes]      = useState<string[]>(["mcq"]);
+
+  // ── Derived: is senior class (class number > 10)? ─────────────────────────
+  const isSenior = classNumber(selectedClassName) > 10;
 
   const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<CreateFormData>({
     defaultValues: { difficulty: "medium", num_questions: 10 },
@@ -574,33 +597,41 @@ function CreateAssessmentDrawer({
 
   const difficulty = watch("difficulty");
 
-  // ── 1. Fetch classes on mount (same as AIPracticePage) ──
-  useEffect(() => {
-    const { token } = (() => {
-      try {
-        return JSON.parse(localStorage.getItem("schools2ai_auth") || "{}");
-      } catch { return {}; }
-    })();
+  // ── Helper: read board from auth ──────────────────────────────────────────
+  function getBoard(): string {
+    try {
+      return JSON.parse(localStorage.getItem("schools2ai_auth") || "{}")?.user?.board ?? "CBSE";
+    } catch { return "CBSE"; }
+  }
 
-    fetch(`${config.server}/api/V1/classes`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
+  // ── 1. Fetch classes + streams on mount ───────────────────────────────────
+  useEffect(() => {
+    sharedApi.getClasses()
       .then((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          setClasses(res.data);
-          if (res.data.length > 0) {
-            const first = res.data[0];
-            setSelectedClassId(String(first.class_id));
-            setValue("class_id", String(first.class_id));
+        const data = res.data?.data ?? res.data;
+        if (Array.isArray(data)) {
+          setClasses(data);
+          if (data.length > 0) {
+            const first = data[0];
+            const firstId = String(first.id ?? first.class_id);
+            setSelectedClassId(firstId);
+            setSelectedClassName(first.class_name ?? "");
+            setValue("class_id", firstId);
           }
         }
       })
       .catch(() => showToast("Failed to load classes", "error"))
       .finally(() => setLoadingClasses(false));
+
+    sharedApi.getStreams()
+      .then((res) => {
+        const data = res.data?.data ?? res.data;
+        if (Array.isArray(data)) setStreams(data);
+      })
+      .catch(() => {/* streams not critical */});
   }, []);
 
-  // ── 2. Fetch subjects whenever class changes ──
+  // ── 2. Fetch subjects when class / stream / language changes ──────────────
   useEffect(() => {
     if (!selectedClassId) return;
     setLoadingSubjects(true);
@@ -611,35 +642,26 @@ function CreateAssessmentDrawer({
     setSelectedSubjectId(null);
     setSelectedSubjectName("");
 
-    const { token, user } = (() => {
-      try {
-        return JSON.parse(localStorage.getItem("schools2ai_auth") || "{}");
-      } catch { return {} as { token?: string; user?: { board?: string } }; }
-    })();
+    const board = getBoard();
 
-    const board    = user?.board ?? "CBSE";
-    const language = "English";
-
-    fetch(`${config.server}/api/V1/subjects?class_id=${selectedClassId}&board=${board}&language=${language}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((r) => r.json())
+    sharedApi.getSubjectsByClass(selectedClassId, board, selectedStreamId, selectedLanguage)
       .then((res) => {
-        if (res.success && Array.isArray(res.data)) {
-          setSubjects(res.data);
-          if (res.data.length > 0) {
-            const first = res.data[0];
+        const data = res.data?.data ?? res.data;
+        if (Array.isArray(data)) {
+          setSubjects(data);
+          if (data.length > 0) {
+            const first = data[0];
             setValue("subject_name", first.subject_name);
-            setSelectedSubjectId(first.subject_id);
+            setSelectedSubjectId(first.id ?? first.subject_id ?? null);
             setSelectedSubjectName(first.subject_name);
           }
         }
       })
       .catch(() => showToast("Failed to load subjects", "error"))
       .finally(() => setLoadingSubjects(false));
-  }, [selectedClassId]);
+  }, [selectedClassId, selectedStreamId, selectedLanguage]);
 
-  // ── 3. Fetch chapters using class_id + subject_id (REST path params) ──
+  // ── 3. Fetch chapters when subject / stream / language changes ────────────
   useEffect(() => {
     if (!selectedClassId || !selectedSubjectId) {
       setChapters([]);
@@ -650,21 +672,27 @@ function CreateAssessmentDrawer({
     setChapters([]);
     setValue("topic", "");
 
+    const board = getBoard();
+
     sharedApi
-      .getChaptersBySubject(selectedClassId, selectedSubjectId)
+      .getChaptersBySubject(selectedClassId, selectedSubjectId, board, selectedStreamId, selectedLanguage)
       .then((res) => {
         const data = res.data?.data ?? res.data;
         if (Array.isArray(data)) {
-          // Backend returns objects {chapter_id, chapter_name} or plain strings
-          const names = data.map((ch: { chapter_name?: string } | string) =>
-            typeof ch === "string" ? ch : ch.chapter_name ?? ""
-          ).filter(Boolean);
-          setChapters(names);
+          // Chapter objects have shape { id, name, ... } from the curriculum service
+          const items = data
+            .map((ch: { id?: number; name?: string; chapter_name?: string; chapter_id?: number }) => ({
+              id:   ch.id ?? ch.chapter_id ?? 0,
+              name: ch.name ?? ch.chapter_name ?? "",
+            }))
+            .filter((ch) => ch.name);
+          setChapters(items);
+          if (items.length > 0) setValue("topic", items[0].name);
         }
       })
       .catch(() => setChapters([]))
       .finally(() => setLoadingChapters(false));
-  }, [selectedClassId, selectedSubjectId]);
+  }, [selectedClassId, selectedSubjectId, selectedStreamId, selectedLanguage]);
 
   const toggleType = (val: string) =>
     setSelectedTypes((prev) =>
@@ -678,11 +706,12 @@ function CreateAssessmentDrawer({
     }
     setAiRunning(true);
     try {
-      const cls = classes.find((c) => String(c.class_id) === data.class_id);
       const res = await teacherApi.createAssessment({
         title:               data.title,
         subject_id:          selectedSubjectId!,
         class_id:            Number(data.class_id),
+        stream_id:           selectedStreamId,
+        language:            selectedLanguage,
         topic:               data.topic || undefined,
         difficulty:          data.difficulty,
         time_limit_minutes:  data.time_limit ? Number(data.time_limit) : undefined,
@@ -703,14 +732,17 @@ function CreateAssessmentDrawer({
     }
   };
 
+  // ── Shared field style ────────────────────────────────────────────────────
+  const fieldCls = "w-full bg-background border border-input rounded-xl px-3 py-2.5 text-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm";
+
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={onClose} />
 
-      <div className="fixed right-0 top-0 z-50 h-full w-full max-w-lg bg-card border-l border-border shadow-2xl flex flex-col overflow-hidden">
+      <div className="fixed right-0 top-0 z-50 h-screen w-full max-w-lg bg-card border-l border-border shadow-2xl flex flex-col">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
+        <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-border bg-muted/30">
           <div>
             <h2 className="text-lg font-bold text-foreground">Create Assessment</h2>
             <p className="text-muted-foreground text-xs mt-0.5">AI will generate questions for you</p>
@@ -734,8 +766,8 @@ function CreateAssessmentDrawer({
           </div>
         )}
 
-        {/* Form body */}
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 custom-scrollbar">
+        {/* Form body — pb-[76px] leaves room for the absolutely-pinned footer */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-5 pb-[76px] space-y-5">
 
           {/* Title */}
           <div>
@@ -744,14 +776,37 @@ function CreateAssessmentDrawer({
             </label>
             <input
               {...register("title", { required: "Title is required" })}
-              className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-foreground
-                placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+              className={`${fieldCls} placeholder:text-muted-foreground`}
               placeholder="e.g. Chapter 5 – Laws of Motion Test"
             />
             {errors.title && <p className="text-destructive text-xs mt-1">{errors.title.message}</p>}
           </div>
 
-          {/* Class (first — fetched from API) */}
+          {/* Language selector */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Language</label>
+            <div className="flex gap-2">
+              {LANGUAGES.map((lang) => {
+                const sel = selectedLanguage === lang.value;
+                return (
+                  <button
+                    key={lang.value}
+                    type="button"
+                    onClick={() => setSelectedLanguage(lang.value)}
+                    className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                      sel
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary/40"
+                    }`}
+                  >
+                    {lang.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Class */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               Class <span className="text-destructive">*</span>
@@ -766,22 +821,64 @@ function CreateAssessmentDrawer({
                 value={selectedClassId}
                 onChange={(e) => {
                   const id = e.target.value;
+                  const cls = classes.find((c) => String(c.id ?? c.class_id) === id);
+                  const clsName = cls?.class_name ?? "";
                   setSelectedClassId(id);
+                  setSelectedClassName(clsName);
                   setValue("class_id", id);
+                  // Senior class (>10) → default to Science (1); junior → General (4)
+                  const clsNum = parseInt((clsName.match(/\d+/) || ["0"])[0], 10);
+                  setSelectedStreamId(clsNum > 10 ? 1 : 4);
                 }}
-                className="w-full bg-background border border-input rounded-xl px-3 py-2.5 text-foreground
-                  focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                className={fieldCls}
               >
                 <option value="">Select class</option>
                 {classes.map((c) => (
-                  <option key={c.class_id} value={String(c.class_id)}>{c.class_name}</option>
+                  <option key={c.id ?? c.class_id} value={String(c.id ?? c.class_id)}>{c.class_name}</option>
                 ))}
               </select>
             )}
             {errors.class_id && <p className="text-destructive text-xs mt-1">{errors.class_id.message}</p>}
           </div>
 
-          {/* Subject (loaded from selected class) */}
+          {/* Stream — only shown for classes above 10, General (id=4) excluded */}
+          {isSenior && (
+            <div>
+              <label className="block text-sm font-medium text-foreground mb-1.5">
+                Stream
+                <span className="ml-1.5 text-xs text-muted-foreground font-normal">(Class 11 &amp; above)</span>
+              </label>
+              {streams.filter((s) => s.id !== 4).length === 0 ? (
+                <div className="flex items-center gap-2 text-muted-foreground text-sm py-2.5">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Loading streams…
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  {streams
+                    .filter((s) => s.id !== 4)  // exclude General
+                    .map((s) => {
+                      const sel = selectedStreamId === s.id;
+                      return (
+                        <button
+                          key={s.id}
+                          type="button"
+                          onClick={() => setSelectedStreamId(s.id)}
+                          className={`flex-1 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                            sel
+                              ? "border-primary bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground hover:border-primary/40"
+                          }`}
+                        >
+                          {s.stream_name}
+                        </button>
+                      );
+                    })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Subject */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">
               Subject <span className="text-destructive">*</span>
@@ -798,24 +895,23 @@ function CreateAssessmentDrawer({
                   const sn  = e.target.value;
                   const sub = subjects.find((s) => s.subject_name === sn);
                   setValue("subject_name", sn);
-                  setSelectedSubjectId(sub?.subject_id ?? null);
+                  setSelectedSubjectId(sub?.id ?? sub?.subject_id ?? null);
                   setSelectedSubjectName(sn);
                 }}
-                className="w-full bg-background border border-input rounded-xl px-3 py-2.5 text-foreground
-                  focus:outline-none focus:ring-2 focus:ring-ring text-sm disabled:opacity-50"
+                className={`${fieldCls} disabled:opacity-50`}
               >
                 <option value="">
                   {!selectedClassId ? "Select a class first" : subjects.length === 0 ? "No subjects available" : "Select subject"}
                 </option>
                 {subjects.map((s) => (
-                  <option key={s.subject_id} value={s.subject_name}>{s.subject_name}</option>
+                  <option key={s.id ?? s.subject_id} value={s.subject_name}>{s.subject_name}</option>
                 ))}
               </select>
             )}
             {errors.subject_name && <p className="text-destructive text-xs mt-1">{errors.subject_name.message}</p>}
           </div>
 
-          {/* Topic / Chapter — dropdown if chapters loaded, text input as fallback */}
+          {/* Topic / Chapter */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-1.5">Topic / Chapter</label>
 
@@ -826,19 +922,17 @@ function CreateAssessmentDrawer({
             ) : chapters.length > 0 ? (
               <select
                 {...register("topic")}
-                className="w-full bg-background border border-input rounded-xl px-3 py-2.5 text-foreground
-                  focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                className={fieldCls}
               >
                 <option value="">Select chapter</option>
                 {chapters.map((ch) => (
-                  <option key={ch} value={ch}>{ch}</option>
+                  <option key={ch.id} value={ch.name}>{ch.name}</option>
                 ))}
               </select>
             ) : (
               <input
                 {...register("topic")}
-                className="w-full bg-background border border-input rounded-xl px-4 py-2.5 text-foreground
-                  placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                className={`${fieldCls} placeholder:text-muted-foreground`}
                 placeholder={
                   selectedSubjectName
                     ? "No chapters found — type a topic manually"
@@ -878,8 +972,7 @@ function CreateAssessmentDrawer({
                 type="number" min={1}
                 {...register("time_limit")}
                 placeholder="No limit"
-                className="w-full bg-background border border-input rounded-xl px-3 py-2.5 text-foreground
-                  focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                className={fieldCls}
               />
             </div>
             <div>
@@ -887,8 +980,7 @@ function CreateAssessmentDrawer({
               <input
                 type="number" min={1} max={50}
                 {...register("num_questions", { valueAsNumber: true, min: 1 })}
-                className="w-full bg-background border border-input rounded-xl px-3 py-2.5 text-foreground
-                  focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                className={fieldCls}
               />
             </div>
           </div>
@@ -901,8 +993,10 @@ function CreateAssessmentDrawer({
                 const checked = selectedTypes.includes(qt.value);
                 return (
                   <label key={qt.value}
-                    className={`flex items-center gap-3 border rounded-xl px-4 py-3 cursor-pointer transition-all text-sm font-medium
-                      ${checked ? "border-primary bg-primary/5 text-primary" : "border-border text-muted-foreground hover:border-primary/30"}`}>
+                    className={`flex items-center gap-3 border-2 rounded-xl px-4 py-3 cursor-pointer transition-all text-sm font-medium select-none
+                      ${checked
+                        ? "border-primary bg-primary/5 text-primary"
+                        : "border-border text-muted-foreground hover:border-primary/30"}`}>
                     <input type="checkbox" checked={checked} onChange={() => toggleType(qt.value)} className="sr-only" />
                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 transition-all
                       ${checked ? "border-primary bg-primary" : "border-muted-foreground"}`}>
@@ -916,8 +1010,8 @@ function CreateAssessmentDrawer({
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-border bg-muted/20 flex gap-3">
+        {/* Footer — absolutely pinned to the bottom so it NEVER moves */}
+        <div className="absolute bottom-0 left-0 right-0 px-6 py-4 border-t border-border bg-card flex gap-3">
           <button type="button" onClick={onClose}
             className="flex-1 py-2.5 rounded-xl border border-border text-sm font-medium
               text-muted-foreground hover:bg-accent transition-all">
