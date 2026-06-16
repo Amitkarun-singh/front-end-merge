@@ -293,7 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   /**
-   * Fetch user profile from GET /api/V1/profile/profile
+   * Fetch user profile from GET /api/v1/profile/profile
    * Flattens nested { user, school, student } into a single object.
    */
   const fetchProfile = useCallback(async () => {
@@ -303,7 +303,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const url = `${API_BASE}/api/V1/profile/profile`;
+    const url = `${API_BASE}/api/v1/profile/profile`;
 
 
     try {
@@ -355,7 +355,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /**
    * Fetch all accounts linked to the current user's phone number.
-   * GET /api/V1/auth/accounts
+   * GET /api/v1/auth/accounts
    * Non-fatal — never throws; silently skips if no token or request fails.
    * Uses tokenRef.current (stale-closure-safe) — exact same pattern as fetchProfile.
    */
@@ -364,7 +364,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!currentToken) return;
 
     try {
-      const res = await fetch(`${API_BASE}/api/V1/auth/accounts`, {
+      const res = await fetch(`${API_BASE}/api/v1/auth/accounts`, {
         method: "GET",
         headers: {
           "Content-Type": "application/json",
@@ -388,7 +388,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * Upload avatar image — POST /api/V1/auth/update-avatar
+   * Upload avatar image — POST /api/v1/auth/update-avatar
    */
   const updateAvatar = useCallback(async (file: File) => {
     const currentToken = tokenRef.current;
@@ -399,7 +399,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     formData.append("file", file);
 
 
-    const res = await fetch(`${API_BASE}/api/V1/profile/update-avatar`, {
+    const res = await fetch(`${API_BASE}/api/v1/profile/update-avatar`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${currentToken}`,
@@ -428,13 +428,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /**
-   * Password login — POST /api/V1/auth/login
+   * Password login — POST /api/v1/auth/login
    */
   const login = async (payload: Record<string, string>) => {
     setAuthState((prev) => ({ ...prev, loading: true, error: null, errorDetails: null }));
 
     try {
-      const res = await fetch(`${API_BASE}/api/V1/auth/login`, {
+      const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -495,7 +495,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Immediately fetch full profile after login
       try {
-        const profileRes = await fetch(`${API_BASE}/api/V1/profile/profile`, {
+        const profileRes = await fetch(`${API_BASE}/api/v1/profile/profile`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -569,7 +569,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /**
    * Verify OTP via Firebase, then exchange the Firebase idToken with the backend.
-   * Backend endpoint: POST /api/V1/auth/login  { idToken }
+   * Backend endpoint: POST /api/v1/auth/login  { idToken }
    * Server verifies the idToken using Firebase Admin SDK and returns an app token.
    */
   const verifyOtp = async (payload: {
@@ -586,7 +586,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const idToken = await firebaseUser.getIdToken();
 
       // Step 3: Exchange the Firebase ID token with our backend for an app token
-      const res = await fetch(`${API_BASE}/api/V1/auth/login`, {
+      const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ idToken, phone_number: payload.phone_number }),
@@ -647,7 +647,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Step 4: Fetch full profile after OTP login
       try {
-        const profileRes = await fetch(`${API_BASE}/api/V1/profile/profile`, {
+        const profileRes = await fetch(`${API_BASE}/api/v1/profile/profile`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -699,7 +699,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /**
    * Switch active session to a different linked account.
-   * POST /api/V1/auth/switch-account
+   * POST /api/v1/auth/switch-account
    *
    * NOTE: The previous session token is NOT explicitly closed (no /auth/logout
    * call is made for the outgoing account). This is a conscious design choice —
@@ -717,7 +717,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthState((prev) => ({ ...prev, loading: true, error: null, errorDetails: null }));
 
     try {
-      const res = await fetch(`${API_BASE}/api/V1/auth/switch-account`, {
+      const res = await fetch(`${API_BASE}/api/v1/auth/switch-account`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -768,7 +768,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // We cannot call fetchProfile() here because tokenRef.current is updated
       // via a useEffect and still holds the OLD token at this point.
       try {
-        const profileRes = await fetch(`${API_BASE}/api/V1/profile/profile`, {
+        const profileRes = await fetch(`${API_BASE}/api/v1/profile/profile`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -809,7 +809,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Account selection — POST /api/V1/auth/select-account
+   * Account selection — POST /api/v1/auth/select-account
    * Called after the user picks one account from the multi-account picker.
    * On success, completes login exactly like a normal login response.
    */
@@ -817,7 +817,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAuthState((prev) => ({ ...prev, loading: true, error: null, errorDetails: null }));
 
     try {
-      const res = await fetch(`${API_BASE}/api/V1/auth/select-account`, {
+      const res = await fetch(`${API_BASE}/api/v1/auth/select-account`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ user_id: userId }),
@@ -872,7 +872,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Fetch full profile
       try {
-        const profileRes = await fetch(`${API_BASE}/api/V1/profile/profile`, {
+        const profileRes = await fetch(`${API_BASE}/api/v1/profile/profile`, {
           method: "GET",
           headers: {
             "Content-Type": "application/json",
@@ -921,7 +921,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   /**
-   * Logout — POST /api/V1/auth/logout
+   * Logout — POST /api/v1/auth/logout
    */
   const logout = async () => {
     const currentToken = authState.token;
@@ -943,7 +943,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (currentToken) {
       try {
-        await fetch(`${API_BASE}/api/V1/auth/logout`, {
+        await fetch(`${API_BASE}/api/v1/auth/logout`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

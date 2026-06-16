@@ -1084,3 +1084,69 @@
 .mr-1 {
   margin-right: 0.25rem;
 }
+
+/* ── Stream field animated wrapper ───────────────────────────────────────────── */
+/*  Uses max-height + opacity so the dropdown slides in/out smoothly instead of  */
+/*  popping abruptly. Driven by the .reg-stream-anim--visible class toggle.       */
+.reg-stream-anim {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  /* Extra margin is also animated so the gap closes cleanly */
+  margin-top: 0;
+  transition:
+    max-height 250ms ease,
+    opacity    200ms ease,
+    margin-top 200ms ease;
+  pointer-events: none;
+}
+
+.reg-stream-anim--visible {
+  max-height: 120px;   /* tall enough for label + select + error */
+  opacity: 1;
+  margin-top: 0;       /* reg-form gap already handles spacing */
+  pointer-events: auto;
+}
+
+/* ── Curriculum fetch error box ──────────────────────────────────────────────── */
+.reg-curriculum-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  background: hsl(0 84% 97%);
+  border: 1px solid hsl(0 84% 88%);
+  border-radius: 0.75rem;
+  color: hsl(0 84% 40%);
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.reg-curriculum-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.75rem;
+  background: hsl(0 84% 40%);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.2s ease, transform 0.15s ease;
+  flex-shrink: 0;
+}
+
+.reg-curriculum-retry:hover {
+  background: hsl(0 84% 32%);
+  transform: translateY(-1px);
+}
+
+.reg-curriculum-retry:active {
+  transform: translateY(0) scale(0.97);
+}

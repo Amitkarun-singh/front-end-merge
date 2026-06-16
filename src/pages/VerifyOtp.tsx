@@ -22,7 +22,9 @@ export default function VerifyOtp() {
   const navigate = useNavigate();
   const { setAuthData } = useAuth();
   const {
-    phone_number, role, class: userClass, password, full_name, email, board, setRegistrationData,
+    phone_number, role, class: userClass, password, full_name, email, board,
+    section_name, stream,
+    setRegistrationData,
   } = useRegistration();
 
   // Guard: redirect if no phone (registration not done yet)
@@ -30,12 +32,12 @@ export default function VerifyOtp() {
     if (!phone_number) navigate('/register', { replace: true });
   }, [phone_number, navigate]);
 
-  const [otp, setOtp]                     = useState<string[]>(Array(6).fill(''));
-  const [loading, setLoading]             = useState(false);
-  const [shake, setShake]                 = useState(false);
-  const [error, setError]                 = useState('');
-  const [toast, setToast]                 = useState<Toast | null>(null);
-  const [countdown, setCountdown]         = useState(OTP_RESEND_SECONDS);
+  const [otp, setOtp] = useState<string[]>(Array(6).fill(''));
+  const [loading, setLoading] = useState(false);
+  const [shake, setShake] = useState(false);
+  const [error, setError] = useState('');
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [countdown, setCountdown] = useState(OTP_RESEND_SECONDS);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const showToast = (t: Toast) => {
@@ -77,12 +79,12 @@ export default function VerifyOtp() {
     try {
       // Step 1: Verify with Firebase
       const firebaseUser = await firebaseVerifyOTP(otpString);
-      
+
       // Step 2: Get ID Token
       const idToken = await firebaseUser.getIdToken();
 
       // Step 3: Send registration data to backend
-      const res = await fetch(`${API_BASE}/api/V1/auth/register`, {
+      const res = await fetch(`${API_BASE}/api/v1/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -95,6 +97,11 @@ export default function VerifyOtp() {
           board,
           idToken,
           self_register: true,
+          // ── STUDENT-only curriculum fields ──────────────────────────────────
+          ...(role === 'STUDENT' && {
+            section_name: section_name ?? undefined,
+            stream: stream ?? null,
+          }),
         }),
       });
 
@@ -105,7 +112,7 @@ export default function VerifyOtp() {
       const data = await res.json().catch(() => ({}));
       const d = data.data ?? data;
       const profile = d.profile || {};
-      
+
       const authData = {
         accessToken: d.accessToken ?? d.token ?? null,
         refreshToken: d.refreshToken ?? null,
@@ -146,7 +153,7 @@ export default function VerifyOtp() {
       } else if (err instanceof Error) {
         message = err.message;
       }
-      console.log("error message ",message)
+      console.log("error message ", message)
       setError(message);
       setRegistrationData({ error: message, errorDetails: errDetails });
       showToast({ type: 'error', message });

@@ -1,12 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import './Register.css';
 import './StudentLoginPage.css';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ArrowRight, CheckCircle2, RefreshCw } from 'lucide-react';
 import { useRegistration, handleResponseError, RegistrationError } from '@/context/RegistrationContext';
 import ToggleSwitch from '@/components/ToggleSwitch';
 import schools2aiIcon from '@/assets/schools2ai-icon.png';
 import { config } from '../../app.config.js';
+import { getSections, getStreams } from '@/api/curriculum';
 
 const API_BASE = config.server;
 
@@ -36,21 +37,21 @@ function SkeletonSelect() {
 
 export default function CompleteProfile() {
   const navigate = useNavigate();
-  const { role, accessToken, full_name, board: contextBoard, clearRegistration } = useRegistration();
+  const { role, accessToken, full_name, board: contextBoard, clearRegistration, setRegistrationData } = useRegistration();
 
   // Guard: redirect if no accessToken
   useEffect(() => {
     if (!accessToken) navigate('/register', { replace: true });
   }, [accessToken, navigate]);
 
-  const [onboarding, setOnboarding]         = useState<OnboardingData | null>(null);
+  const [onboarding, setOnboarding] = useState<OnboardingData | null>(null);
   const [onboardingLoading, setOnboardingLoading] = useState(true);
-  const [loading, setLoading]               = useState(false);
-  const [inlineError, setInlineError]       = useState('');
-  const [fieldErrors, setFieldErrors]       = useState<Record<string, string>>({});
-  const [toast, setToast]                   = useState<Toast | null>(null);
-  const [showSuccess, setShowSuccess]       = useState(false);
-  const [countdown, setCountdown]           = useState(3);
+  const [loading, setLoading] = useState(false);
+  const [inlineError, setInlineError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [toast, setToast] = useState<Toast | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [countdown, setCountdown] = useState(3);
 
   // Student fields
   const [classId, setClassId] = useState('');
@@ -59,12 +60,31 @@ export default function CompleteProfile() {
   const [gender, setGender] = useState('');
   const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
 
+  // Student curriculum fields (section & stream)
+  const [selectedSection, setSelectedSection] = useState('');
+  const [selectedStream,  setSelectedStream]  = useState<string | null>(null);
+  const [availableSections, setAvailableSections] = useState<{ id: number; section_name: string }[]>([]);
+  const [availableStreams,  setAvailableStreams]  = useState<{ id: number; stream_name: string }[]>([]);
+  const [curriculumLoading, setCurriculumLoading] = useState(false);
+  const [curriculumError,   setCurriculumError]  = useState('');
+
+  // Derived: grade number from selected class
+  const gradeNumber = useMemo(() => {
+    if (!classId || !onboarding) return null;
+    const cls = onboarding.classes.find(c => String(c.class_id) === classId);
+    if (!cls) return null;
+    const match = cls.class_name.match(/(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
+  }, [classId, onboarding]);
+
+  const showStream = role === 'STUDENT' && gradeNumber !== null && gradeNumber >= 11;
+
   // Teacher fields
   const [teacherClass, setTeacherClass] = useState('');
-  const [subjectId, setSubjectId]       = useState('');
-  const [experience, setExperience]     = useState('');
-  const [age, setAge]                   = useState('');
-  const [deviceType, setDeviceType]     = useState('');
+  const [subjectId, setSubjectId] = useState('');
+  const [experience, setExperience] = useState('');
+  const [age, setAge] = useState('');
+  const [deviceType, setDeviceType] = useState('');
 
   const showToast = (t: Toast) => {
     setToast(t);
@@ -75,7 +95,7 @@ export default function CompleteProfile() {
     if (!accessToken) return;
     setOnboardingLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/api/V1/auth/register/onboarding`, {
+      const res = await fetch(`${API_BASE}/api/v1/auth/register/onboarding`, {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (!res.ok) {
@@ -102,6 +122,28 @@ export default function CompleteProfile() {
 
   useEffect(() => { fetchOnboarding(); }, [fetchOnboarding]);
 
+  // Fetch sections & streams from curriculum service (STUDENT only, once per token)
+  const fetchCurriculum = useCallback(async () => {
+    if (!accessToken || role !== 'STUDENT') return;
+    setCurriculumLoading(true);
+    setCurriculumError('');
+    try {
+      const [sections, streams] = await Promise.all([
+        getSections(accessToken),
+        getStreams(accessToken),
+      ]);
+      setAvailableSections(sections);
+      // Filter out General stream (id === 4)
+      setAvailableStreams(streams.filter(s => s.id !== 4));
+    } catch {
+      setCurriculumError('Could not load options. Please try again.');
+    } finally {
+      setCurriculumLoading(false);
+    }
+  }, [accessToken, role]);
+
+  useEffect(() => { fetchCurriculum(); }, [fetchCurriculum]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -109,6 +151,10 @@ export default function CompleteProfile() {
     const errs: Record<string, string> = {};
     if (role === 'STUDENT') {
       if (!classId) errs.classId = 'Please select your class';
+      if (!selectedSection) errs.section = 'Please select your section';
+      if (showStream && !selectedStream) errs.stream = 'Please select your stream';
+      // Block submit if curriculum options failed to load
+      if (curriculumError) errs.section = 'Please load section options before submitting';
     } else if (role === 'TEACHER') {
       if (!subjectId) errs.subjectId = 'Please select your primary subject';
     }
@@ -132,7 +178,12 @@ export default function CompleteProfile() {
           dob: dob || undefined,
           gender: gender ? gender.toLowerCase() : undefined,
           analytics_enabled: analyticsEnabled,
+          // ── New curriculum fields ────────────────────────────────────
+          section_name: selectedSection,
+          stream: gradeNumber !== null && gradeNumber >= 11 ? selectedStream : null,
         };
+        // Also persist to registration context so VerifyOtp carries them forward
+        setRegistrationData({ section_name: selectedSection, stream: gradeNumber !== null && gradeNumber >= 11 ? selectedStream : null });
       } else {
         body = {
           primary_subject_id: subjectId ? Number(subjectId) : undefined,
@@ -144,7 +195,7 @@ export default function CompleteProfile() {
         };
       }
 
-      const res = await fetch(`${API_BASE}/api/V1/auth/register/complete-profile`, {
+      const res = await fetch(`${API_BASE}/api/v1/auth/register/complete-profile`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -288,28 +339,28 @@ export default function CompleteProfile() {
         <p className="reg-step-label">Step 3 of 3 — Complete your profile</p>
 
         <div className="login-card" style={{ borderRadius: '0 0 1.5rem 1.5rem' }}>
-            {/* Header with school badge */}
-            <div className="login-header" style={{ position: 'relative' }}>
-              <div className="login-logo">
-                <img src={schools2aiIcon} alt="Schools2AI" className="login-logo-img" />
-                <h1 className="login-logo-text">Schools<span>2AI</span></h1>
-              </div>
-              <p className="login-subtitle">Almost done!</p>
-              <p className="login-description">Tell us a bit more about yourself</p>
-              {/* School badge */}
-              {onboarding?.schoolDefaults?.school_name && (
-                <span style={{
-                  position: 'absolute', top: 0, right: 0,
-                  background: '#EEF2FF', border: '1px solid #C7D2FE',
-                  borderRadius: '999px', padding: '0.25rem 0.625rem',
-                  fontSize: '0.72rem', fontWeight: 700,
-                  color: 'hsl(262 83% 48%)', display: 'flex', alignItems: 'center', gap: 4,
-                }}>
-                  🏫 {onboarding.schoolDefaults.school_name}
-                  {onboarding.schoolDefaults.board && ` · ${onboarding.schoolDefaults.board}`}
-                </span>
-              )}
+          {/* Header with school badge */}
+          <div className="login-header" style={{ position: 'relative' }}>
+            <div className="login-logo">
+              <img src={schools2aiIcon} alt="Schools2AI" className="login-logo-img" />
+              <h1 className="login-logo-text">Schools<span>2AI</span></h1>
             </div>
+            <p className="login-subtitle">Almost done!</p>
+            <p className="login-description">Tell us a bit more about yourself</p>
+            {/* School badge */}
+            {onboarding?.schoolDefaults?.school_name && (
+              <span style={{
+                position: 'absolute', top: 0, right: 0,
+                background: '#EEF2FF', border: '1px solid #C7D2FE',
+                borderRadius: '999px', padding: '0.25rem 0.625rem',
+                fontSize: '0.72rem', fontWeight: 700,
+                color: 'hsl(262 83% 48%)', display: 'flex', alignItems: 'center', gap: 4,
+              }}>
+                🏫 {onboarding.schoolDefaults.school_name}
+                {onboarding.schoolDefaults.board && ` · ${onboarding.schoolDefaults.board}`}
+              </span>
+            )}
+          </div>
 
           {/* School info banner (if linked) */}
           {onboarding?.schoolDefaults?.school_name && (
@@ -346,7 +397,19 @@ export default function CompleteProfile() {
                     <select
                       id="reg-class"
                       value={classId}
-                      onChange={e => { setClassId(e.target.value); setFieldErrors(p => ({ ...p, classId: '' })); }}
+                      onChange={e => {
+                        const newId = e.target.value;
+                        setClassId(newId);
+                        setFieldErrors(p => ({ ...p, classId: '' }));
+                        // Find new grade number to clear stream if needed
+                        const cls = onboarding?.classes.find(c => String(c.class_id) === newId);
+                        const m = cls?.class_name.match(/(\d+)/);
+                        const newGrade = m ? parseInt(m[1], 10) : null;
+                        if (newGrade === null || newGrade < 11) {
+                          setSelectedStream(null);
+                          setFieldErrors(p => ({ ...p, stream: '' }));
+                        }
+                      }}
                       className={`reg-input reg-input-no-icon reg-input-select${fieldErrors.classId ? ' reg-input-error' : ''}`}
                     >
                       <option value="">Which class are you in?</option>
@@ -356,6 +419,68 @@ export default function CompleteProfile() {
                     </select>
                   )}
                   {fieldErrors.classId && <span className="reg-field-error" role="alert">⚠ {fieldErrors.classId}</span>}
+                </div>
+
+                {/* Section — always shown for STUDENT, fetched from curriculum API */}
+                <div className="reg-field">
+                  <label htmlFor="reg-section" className="reg-label">
+                    Section <span style={{ color: '#EF4444' }}>*</span>
+                  </label>
+                  {curriculumError ? (
+                    <div className="reg-curriculum-error" role="alert">
+                      <span>⚠ {curriculumError}</span>
+                      <button
+                        type="button"
+                        className="reg-curriculum-retry"
+                        onClick={fetchCurriculum}
+                      >
+                        <RefreshCw size={13} style={{ display: 'inline', marginRight: 4 }} />
+                        Retry
+                      </button>
+                    </div>
+                  ) : curriculumLoading ? <SkeletonSelect /> : (
+                    <select
+                      id="reg-section"
+                      value={selectedSection}
+                      onChange={e => { setSelectedSection(e.target.value); setFieldErrors(p => ({ ...p, section: '' })); }}
+                      className={`reg-input reg-input-no-icon reg-input-select${fieldErrors.section ? ' reg-input-error' : ''}`}
+                      disabled={curriculumLoading}
+                    >
+                      <option value="">Which section are you in?</option>
+                      {availableSections.map(s => (
+                        <option key={s.id} value={s.section_name}>{s.section_name}</option>
+                      ))}
+                    </select>
+                  )}
+                  {fieldErrors.section && <span className="reg-field-error" role="alert">⚠ {fieldErrors.section}</span>}
+                </div>
+
+                {/* Stream — STUDENT only, shown only when grade ≥ 11 */}
+                <div
+                  className={`reg-stream-anim${showStream ? ' reg-stream-anim--visible' : ''}`}
+                  aria-hidden={!showStream}
+                >
+                  <div className="reg-field">
+                    <label htmlFor="reg-stream" className="reg-label">
+                      Stream <span style={{ color: '#EF4444' }}>*</span>
+                    </label>
+                    {curriculumLoading ? <SkeletonSelect /> : (
+                      <select
+                        id="reg-stream"
+                        value={selectedStream ?? ''}
+                        onChange={e => { setSelectedStream(e.target.value || null); setFieldErrors(p => ({ ...p, stream: '' })); }}
+                        className={`reg-input reg-input-no-icon reg-input-select${fieldErrors.stream ? ' reg-input-error' : ''}`}
+                        disabled={curriculumLoading || !showStream}
+                        tabIndex={showStream ? 0 : -1}
+                      >
+                        <option value="">Which stream are you in?</option>
+                        {availableStreams.map(s => (
+                          <option key={s.id} value={s.stream_name}>{s.stream_name}</option>
+                        ))}
+                      </select>
+                    )}
+                    {fieldErrors.stream && <span className="reg-field-error" role="alert">⚠ {fieldErrors.stream}</span>}
+                  </div>
                 </div>
 
                 {/* Language */}

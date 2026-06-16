@@ -70,7 +70,7 @@ export const createApiClient = (token: string) => {
 export const getClasses = async (token: string) => {
   const api = createApiClient(token);
 
-  const response = await api.get("/curriculum/class",{params : {type}});
+  const response = await api.get("/curriculum/class", { params: { type } });
 
   return response.data.data;
 };
@@ -84,14 +84,9 @@ export const getStreams = async (token: string) => {
 };
 
 export const getSections = async (token: string): Promise<Section[]> => {
-  // The curriculum microservice exposes /api/v1/section directly.
-  // The admin-backend proxy does not yet expose this endpoint,
-  // so we call the curriculum service directly (same as admin-frontend).
-  const CURRICULUM_URL = "http://localhost:3000";
+  const api = createApiClient(token);
   try {
-    const res = await axios.get(`${CURRICULUM_URL}/api/v1/section`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await api.get("/curriculum/section");
     const data = res.data?.data ?? res.data;
     return Array.isArray(data) ? data : [];
   } catch {
