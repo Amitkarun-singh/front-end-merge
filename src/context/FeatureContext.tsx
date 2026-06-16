@@ -98,8 +98,8 @@ export function FeatureProvider({ children }: { children: ReactNode }) {
       const list: SchoolFeature[] = Array.isArray(json)
         ? json
         : Array.isArray(json.data)
-        ? json.data
-        : [];
+          ? json.data
+          : [];
 
 
       setFeatures(list);

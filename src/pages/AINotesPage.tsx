@@ -90,64 +90,64 @@ const normaliseNotes = (raw: string): string => {
 // Six section colour themes — purely position-driven, never random
 const SECTION_THEMES = [
   {
-    sectionBg:  "bg-violet-50/70 dark:bg-violet-950/20",
+    sectionBg: "bg-violet-50/70 dark:bg-violet-950/20",
     leftBorder: "border-l-4 border-violet-400",
-    headerBg:   "bg-violet-100 dark:bg-violet-900/50",
+    headerBg: "bg-violet-100 dark:bg-violet-900/50",
     headerText: "text-violet-800 dark:text-violet-200",
-    dot:        "bg-violet-400",
-    h3Bar:      "bg-violet-300 dark:bg-violet-600",
-    badge:      "bg-violet-500",
+    dot: "bg-violet-400",
+    h3Bar: "bg-violet-300 dark:bg-violet-600",
+    badge: "bg-violet-500",
   },
   {
-    sectionBg:  "bg-blue-50/70 dark:bg-blue-950/20",
+    sectionBg: "bg-blue-50/70 dark:bg-blue-950/20",
     leftBorder: "border-l-4 border-blue-400",
-    headerBg:   "bg-blue-100 dark:bg-blue-900/50",
+    headerBg: "bg-blue-100 dark:bg-blue-900/50",
     headerText: "text-blue-800 dark:text-blue-200",
-    dot:        "bg-blue-400",
-    h3Bar:      "bg-blue-300 dark:bg-blue-600",
-    badge:      "bg-blue-500",
+    dot: "bg-blue-400",
+    h3Bar: "bg-blue-300 dark:bg-blue-600",
+    badge: "bg-blue-500",
   },
   {
-    sectionBg:  "bg-emerald-50/70 dark:bg-emerald-950/20",
+    sectionBg: "bg-emerald-50/70 dark:bg-emerald-950/20",
     leftBorder: "border-l-4 border-emerald-400",
-    headerBg:   "bg-emerald-100 dark:bg-emerald-900/50",
+    headerBg: "bg-emerald-100 dark:bg-emerald-900/50",
     headerText: "text-emerald-800 dark:text-emerald-200",
-    dot:        "bg-emerald-400",
-    h3Bar:      "bg-emerald-300 dark:bg-emerald-600",
-    badge:      "bg-emerald-500",
+    dot: "bg-emerald-400",
+    h3Bar: "bg-emerald-300 dark:bg-emerald-600",
+    badge: "bg-emerald-500",
   },
   {
-    sectionBg:  "bg-amber-50/70 dark:bg-amber-950/20",
+    sectionBg: "bg-amber-50/70 dark:bg-amber-950/20",
     leftBorder: "border-l-4 border-amber-400",
-    headerBg:   "bg-amber-100 dark:bg-amber-900/50",
+    headerBg: "bg-amber-100 dark:bg-amber-900/50",
     headerText: "text-amber-800 dark:text-amber-200",
-    dot:        "bg-amber-400",
-    h3Bar:      "bg-amber-300 dark:bg-amber-600",
-    badge:      "bg-amber-500",
+    dot: "bg-amber-400",
+    h3Bar: "bg-amber-300 dark:bg-amber-600",
+    badge: "bg-amber-500",
   },
   {
-    sectionBg:  "bg-rose-50/70 dark:bg-rose-950/20",
+    sectionBg: "bg-rose-50/70 dark:bg-rose-950/20",
     leftBorder: "border-l-4 border-rose-400",
-    headerBg:   "bg-rose-100 dark:bg-rose-900/50",
+    headerBg: "bg-rose-100 dark:bg-rose-900/50",
     headerText: "text-rose-800 dark:text-rose-200",
-    dot:        "bg-rose-400",
-    h3Bar:      "bg-rose-300 dark:bg-rose-600",
-    badge:      "bg-rose-500",
+    dot: "bg-rose-400",
+    h3Bar: "bg-rose-300 dark:bg-rose-600",
+    badge: "bg-rose-500",
   },
   {
-    sectionBg:  "bg-cyan-50/70 dark:bg-cyan-950/20",
+    sectionBg: "bg-cyan-50/70 dark:bg-cyan-950/20",
     leftBorder: "border-l-4 border-cyan-400",
-    headerBg:   "bg-cyan-100 dark:bg-cyan-900/50",
+    headerBg: "bg-cyan-100 dark:bg-cyan-900/50",
     headerText: "text-cyan-800 dark:text-cyan-200",
-    dot:        "bg-cyan-400",
-    h3Bar:      "bg-cyan-300 dark:bg-cyan-600",
-    badge:      "bg-cyan-500",
+    dot: "bg-cyan-400",
+    h3Bar: "bg-cyan-300 dark:bg-cyan-600",
+    badge: "bg-cyan-500",
   },
 ] as const;
 
 // Section-level counters (reset before each render)
-let _sectionIdx    = 0;
-let _listItemIdx   = 0;
+let _sectionIdx = 0;
+let _listItemIdx = 0;
 let _globalItemIdx = 0;   // advances across ALL lists — drives emoji cycling
 
 // Current section theme snapshot — set when H2 is rendered so child elements share it
@@ -223,7 +223,7 @@ const makeComponents = () => ({
   // ── List item — emoji + coloured dot (UL) or coloured badge number (OL) ─────
   li({ children, ordered }: { children?: React.ReactNode; ordered?: boolean }) {
     const idx = _listItemIdx++;
-    const t   = _currentTheme;
+    const t = _currentTheme;
 
     if (ordered) {
       // Ordered steps: section-coloured numbered badge — consistent per section
@@ -298,7 +298,7 @@ const makeComponents = () => ({
   td({ children }: { children?: React.ReactNode }) {
     return <td className="px-4 py-2.5 text-muted-foreground border-b border-border/40 text-sm">{children}</td>;
   },
-  tr({ children, ...props }: { children?: React.ReactNode; [k: string]: unknown }) {
+  tr({ children, ...props }: { children?: React.ReactNode;[k: string]: unknown }) {
     return <tr className="even:bg-muted/20 hover:bg-muted/30 transition-colors duration-150" {...props}>{children}</tr>;
   },
 
@@ -330,19 +330,19 @@ type PreviewMode = "notes" | "book" | null;
 
 export default function AINotesPage() {
   const [languages, setLanguages] = useState<string[]>([]);
-  const [streams, setStreams]     = useState<Stream[]>([]);
-  const [classes, setClasses]     = useState<Class[]>([]);
-  const [subjects, setSubjects]   = useState<Subject[]>([]);
-  const [chapters, setChapters]   = useState<Chapter[]>([]);
+  const [streams, setStreams] = useState<Stream[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
 
-  const [language, setLanguage]               = useState("");
-  const [stream, setStream]                   = useState("");
+  const [language, setLanguage] = useState("");
+  const [stream, setStream] = useState("");
   // Pre-seed className from profile so subjects load immediately after language pick
-  const [className, setClassName]             = useState("");
-  const [subject, setSubject]                 = useState("");
+  const [className, setClassName] = useState("");
+  const [subject, setSubject] = useState("");
   const [selectedChapter, setSelectedChapter] = useState<string | null>(null);
 
-  const [note, setNote]           = useState<AINote | null>(null);
+  const [note, setNote] = useState<AINote | null>(null);
   const [showNotes, setShowNotes] = useState(false);
 
   // Search
@@ -369,8 +369,8 @@ export default function AINotesPage() {
   const rawProfileClass = user?.class_name
     ? String(user.class_name).replace(/^grade\s*/i, "").trim()
     : user?.class
-    ? String(user.class).replace(/^grade\s*/i, "").trim()
-    : null;
+      ? String(user.class).replace(/^grade\s*/i, "").trim()
+      : null;
   // profileClass = plain number string (e.g. "10") or null for non-students / no class
   const profileClass = isStudent && rawProfileClass ? rawProfileClass : null;
   // Display label shown in the locked field (e.g. "Grade 10")
@@ -398,7 +398,7 @@ export default function AINotesPage() {
 
   // ── Fetch languages ──
   useEffect(() => {
-    fetch(`${config.server}/api/V1/ainote/languages`, {
+    fetch(`${config.server}/api/v1/ainote/languages`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
     })
@@ -414,7 +414,7 @@ export default function AINotesPage() {
     if (profileClass) {
       const fetchClassesForStudent = async () => {
         try {
-          const fetchedClasses = await getClasses(token,"ai-notes");
+          const fetchedClasses = await getClasses(token, "ai-notes");
           if (Array.isArray(fetchedClasses)) {
             setClasses(fetchedClasses);
             setClassName(profileClass);
@@ -429,7 +429,7 @@ export default function AINotesPage() {
 
     const fetchClasses = async () => {
       try {
-        const fetchedClasses = await getClasses(token,"ai-notes");
+        const fetchedClasses = await getClasses(token, "ai-notes");
         if (Array.isArray(fetchedClasses)) {
           setClasses(fetchedClasses);
         }
@@ -533,7 +533,7 @@ export default function AINotesPage() {
     if (!selectedChapter) return;
     const streamParam = needsStream && stream ? `&stream=${stream}` : "";
     const res = await fetch(
-      `${config.server}/api/V1/ainote?language=${language}&board=${board}&class=${className}&subject=${subject}&topic=${selectedChapter}${streamParam}`,
+      `${config.server}/api/v1/ainote?language=${language}&board=${board}&class=${className}&subject=${subject}&topic=${selectedChapter}${streamParam}`,
       { method: "GET", headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await res.json();
@@ -651,286 +651,284 @@ export default function AINotesPage() {
           <div className="edtech-card mb-6">
             <div className="flex flex-wrap gap-3 items-end">
 
-            {/* Language */}
-            <div className="flex-1 min-w-[140px]">
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Language
-              </label>
-              <Select
-                value={language}
-                onValueChange={(val) => {
-                  setLanguage(val);
-                  setClassName("");
-                  resetStream();
-                  resetNotes();
-                  setSelectedChapter(null);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select language" />
-                </SelectTrigger>
-                <SelectContent>
-                  {languages.map((l) => (
-                    <SelectItem key={l} value={l}>
-                      {l}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Class */}
-            <div className="flex-1 min-w-[140px]">
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Class
-              </label>
-
-              {profileClass ? (
-                // Student with profile class → static locked display, no dropdown
-                <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-border bg-muted/40 text-sm font-medium text-foreground">
-                  <span>{profileClassLabel}</span>
-                  <span className="ml-auto text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
-                    your grade
-                  </span>
-                </div>
-              ) : (
-                // Teacher / student without a profile class → full dropdown
+              {/* Language */}
+              <div className="flex-1 min-w-[140px]">
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Language
+                </label>
                 <Select
-                  value={className}
+                  value={language}
                   onValueChange={(val) => {
-                    setClassName(val);
+                    setLanguage(val);
+                    setClassName("");
                     resetStream();
                     resetNotes();
                     setSelectedChapter(null);
                   }}
-                  disabled={!language}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select class" />
+                    <SelectValue placeholder="Select language" />
                   </SelectTrigger>
                   <SelectContent>
-                    {classes.map((c) => (
-                      <SelectItem key={c.id} value={c.slug}>
-                        {c.class_name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-
-            {/* Stream — only for class 11 & 12 */}
-            {needsStream && (
-              <div className="flex-1 min-w-[140px]">
-                <label className="text-sm font-medium text-foreground mb-2 block">
-                  Stream
-                </label>
-                <Select
-                  value={stream}
-                  onValueChange={(val) => {
-                    setStream(val);
-                    setSubject("");
-                    setSubjects([]);
-                    setChapters([]);
-                    setSelectedChapter(null);
-                    resetNotes();
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select stream" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {streams.map((s) => (
-                      <SelectItem key={s.id} value={s.stream_name}>
-                        {s.stream_name}
+                    {languages.map((l) => (
+                      <SelectItem key={l} value={l}>
+                        {l}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
-            )}
 
-            {/* Subject */}
-            <div className="flex-1 min-w-[140px]">
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Subject
-              </label>
-              <Select
-                value={subject}
-                onValueChange={(val) => {
-                  setSubject(val);
-                  resetNotes();
-                  setSelectedChapter(null);
-                }}
-                disabled={needsStream ? !stream : !className}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={needsStream && !stream ? "Select stream first" : "Select subject"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {subjects.map((s) => (
-                    <SelectItem key={s.id} value={s.subject_name}>
-                      {s.subject_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {/* Class */}
+              <div className="flex-1 min-w-[140px]">
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Class
+                </label>
+
+                {profileClass ? (
+                  // Student with profile class → static locked display, no dropdown
+                  <div className="flex items-center gap-2 h-10 px-3 rounded-md border border-border bg-muted/40 text-sm font-medium text-foreground">
+                    <span>{profileClassLabel}</span>
+                    <span className="ml-auto text-xs text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+                      your grade
+                    </span>
+                  </div>
+                ) : (
+                  // Teacher / student without a profile class → full dropdown
+                  <Select
+                    value={className}
+                    onValueChange={(val) => {
+                      setClassName(val);
+                      resetStream();
+                      resetNotes();
+                      setSelectedChapter(null);
+                    }}
+                    disabled={!language}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select class" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {classes.map((c) => (
+                        <SelectItem key={c.id} value={c.slug}>
+                          {c.class_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+
+              {/* Stream — only for class 11 & 12 */}
+              {needsStream && (
+                <div className="flex-1 min-w-[140px]">
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    Stream
+                  </label>
+                  <Select
+                    value={stream}
+                    onValueChange={(val) => {
+                      setStream(val);
+                      setSubject("");
+                      setSubjects([]);
+                      setChapters([]);
+                      setSelectedChapter(null);
+                      resetNotes();
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select stream" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {streams.map((s) => (
+                        <SelectItem key={s.id} value={s.stream_name}>
+                          {s.stream_name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Subject */}
+              <div className="flex-1 min-w-[140px]">
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Subject
+                </label>
+                <Select
+                  value={subject}
+                  onValueChange={(val) => {
+                    setSubject(val);
+                    resetNotes();
+                    setSelectedChapter(null);
+                  }}
+                  disabled={needsStream ? !stream : !className}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={needsStream && !stream ? "Select stream first" : "Select subject"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {subjects.map((s) => (
+                      <SelectItem key={s.id} value={s.subject_name}>
+                        {s.subject_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Chapter */}
+              <div className="flex-1 min-w-[140px]">
+                <label className="text-sm font-medium text-foreground mb-2 block">
+                  Chapter
+                </label>
+                <Select
+                  value={selectedChapter || ""}
+                  onValueChange={(val) => {
+                    setSelectedChapter(val);
+                    resetNotes();
+                  }}
+                  disabled={!subject}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={subject ? "Select chapter" : "Select subject first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {chapters.map((chapter) => (
+                      <SelectItem key={chapter.id} value={chapter.name}>
+                        {chapter.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
             </div>
-
-            {/* Chapter */}
-            <div className="flex-1 min-w-[140px]">
-              <label className="text-sm font-medium text-foreground mb-2 block">
-                Chapter
-              </label>
-              <Select
-                value={selectedChapter || ""}
-                onValueChange={(val) => {
-                  setSelectedChapter(val);
-                  resetNotes();
-                }}
-                disabled={!subject}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder={subject ? "Select chapter" : "Select subject first"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {chapters.map((chapter) => (
-                    <SelectItem key={chapter.id} value={chapter.name}>
-                      {chapter.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-          </div>
           </div>
         )}
 
         {/* Main content grid — hidden when PDF open */}
         {!isPdfOpen && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Chapter list */}
-          <div className="edtech-card lg:col-span-1">
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search chapters..."
-                className="pl-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <ScrollArea className="h-[400px]">
-              <div className="space-y-1">
-                {chapters
-                  .filter((ch) =>
-                    ch.name.toLowerCase().includes(searchQuery.toLowerCase())
-                  )
-                  .map((chapter) => (
-                    <button
-                      key={chapter.id}
-                      onClick={() => {
-                        setSelectedChapter(chapter.name);
-                        resetNotes();
-                      }}
-                      className={`w-full flex items-center justify-between p-3 rounded-lg text-left text-sm transition-colors ${
-                        selectedChapter === chapter.name
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "hover:bg-muted text-foreground"
-                      }`}
-                    >
-                      <span>{chapter.name}</span>
-                      <div
-                        className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${
-                          selectedChapter === chapter.name
-                            ? "border-primary bg-primary"
-                            : "border-muted-foreground/30"
-                        }`}
-                      />
-                    </button>
-                  ))}
+            {/* Chapter list */}
+            <div className="edtech-card lg:col-span-1">
+              <div className="relative mb-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search chapters..."
+                  className="pl-10"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
-            </ScrollArea>
-          </div>
-
-          {/* Notes / PDF area — right panel */}
-          <div className="lg:col-span-2">
-            {showNotes && note ? (
-              /* ─── Short Notes card ─── */
-              <div className="edtech-card">
-                {/* Card header */}
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h2 className="font-display text-xl font-semibold text-foreground">
-                      {note.topic} — CBSE Grade {className} {subject}
-                    </h2>
-                  </div>
-                  <div className="flex gap-2">
-                    {/* Full Note Preview button */}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={openFullNotesPdf}
-                    >
-                      <FileText className="w-4 h-4 mr-2" />
-                      Full Note Preview
-                    </Button>
-                    {/* Download button */}
-                    <Button variant="outline" size="sm" asChild>
-                      <a
-                        href={note.pdfUrl}
-                        download
-                        target="_blank"
-                        rel="noopener noreferrer"
+              <ScrollArea className="h-[400px]">
+                <div className="space-y-1">
+                  {chapters
+                    .filter((ch) =>
+                      ch.name.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map((chapter) => (
+                      <button
+                        key={chapter.id}
+                        onClick={() => {
+                          setSelectedChapter(chapter.name);
+                          resetNotes();
+                        }}
+                        className={`w-full flex items-center justify-between p-3 rounded-lg text-left text-sm transition-colors ${selectedChapter === chapter.name
+                            ? "bg-primary/10 text-primary font-medium"
+                            : "hover:bg-muted text-foreground"
+                          }`}
                       >
-                        <Download className="w-4 h-4 mr-2" />
-                        Download
-                      </a>
-                    </Button>
-                  </div>
+                        <span>{chapter.name}</span>
+                        <div
+                          className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${selectedChapter === chapter.name
+                              ? "border-primary bg-primary"
+                              : "border-muted-foreground/30"
+                            }`}
+                        />
+                      </button>
+                    ))}
                 </div>
+              </ScrollArea>
+            </div>
 
-                {/* Rendered short notes — interactive emoji-rich renderer */}
-                <ScrollArea className="h-[520px] pr-2">
-                  <div className="space-y-0.5 [&_.katex-display]:my-4 [&_.katex-display]:overflow-x-auto [&_.katex-display]:p-3 [&_.katex-display]:rounded-xl [&_.katex-display]:bg-muted/40 [&_.katex-display]:border [&_.katex-display]:border-border/50">
-                    {/* Reset section counters before each render */}
-                    {(() => { _sectionIdx = 0; _listItemIdx = 0; _globalItemIdx = 0; return null; })()}
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkMath]}
-                      rehypePlugins={[rehypeKatex]}
-                      components={makeComponents()}
-                    >
-                      {normaliseNotes(note.short_notes)}
-                    </ReactMarkdown>
+            {/* Notes / PDF area — right panel */}
+            <div className="lg:col-span-2">
+              {showNotes && note ? (
+                /* ─── Short Notes card ─── */
+                <div className="edtech-card">
+                  {/* Card header */}
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h2 className="font-display text-xl font-semibold text-foreground">
+                        {note.topic} — CBSE Grade {className} {subject}
+                      </h2>
+                    </div>
+                    <div className="flex gap-2">
+                      {/* Full Note Preview button */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={openFullNotesPdf}
+                      >
+                        <FileText className="w-4 h-4 mr-2" />
+                        Full Note Preview
+                      </Button>
+                      {/* Download button */}
+                      <Button variant="outline" size="sm" asChild>
+                        <a
+                          href={note.pdfUrl}
+                          download
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <Download className="w-4 h-4 mr-2" />
+                          Download
+                        </a>
+                      </Button>
+                    </div>
                   </div>
-                </ScrollArea>
-              </div>
-            ) : (
-              /* ─── Empty state ─── */
-              <div className="edtech-card text-center py-16">
-                <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-accent flex items-center justify-center">
-                  <FileText className="w-10 h-10 text-primary" />
+
+                  {/* Rendered short notes — interactive emoji-rich renderer */}
+                  <ScrollArea className="h-[520px] pr-2">
+                    <div className="space-y-0.5 [&_.katex-display]:my-4 [&_.katex-display]:overflow-x-auto [&_.katex-display]:p-3 [&_.katex-display]:rounded-xl [&_.katex-display]:bg-muted/40 [&_.katex-display]:border [&_.katex-display]:border-border/50">
+                      {/* Reset section counters before each render */}
+                      {(() => { _sectionIdx = 0; _listItemIdx = 0; _globalItemIdx = 0; return null; })()}
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkMath]}
+                        rehypePlugins={[rehypeKatex]}
+                        components={makeComponents()}
+                      >
+                        {normaliseNotes(note.short_notes)}
+                      </ReactMarkdown>
+                    </div>
+                  </ScrollArea>
                 </div>
-                <h3 className="font-display text-xl font-semibold text-foreground mb-2">
-                  Generate Study Notes
-                </h3>
-                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                  Select a chapter and click generate to create comprehensive
-                  study notes with key concepts and summaries.
-                </p>
-                <Button
-                  onClick={handleGenerateNotes}
-                  className="gradient-button"
-                  disabled={!selectedChapter}
-                >
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Notes
-                </Button>
-              </div>
-            )}
+              ) : (
+                /* ─── Empty state ─── */
+                <div className="edtech-card text-center py-16">
+                  <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-accent flex items-center justify-center">
+                    <FileText className="w-10 h-10 text-primary" />
+                  </div>
+                  <h3 className="font-display text-xl font-semibold text-foreground mb-2">
+                    Generate Study Notes
+                  </h3>
+                  <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                    Select a chapter and click generate to create comprehensive
+                    study notes with key concepts and summaries.
+                  </p>
+                  <Button
+                    onClick={handleGenerateNotes}
+                    className="gradient-button"
+                    disabled={!selectedChapter}
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Generate Notes
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
         )}
       </div>
     </div>

@@ -143,14 +143,14 @@ export function toRelativeTime(raw: string | undefined | null): string {
   if (!raw) return "—";
   const d = new Date(raw);
   if (isNaN(d.getTime())) return raw; // already a human string
-  const diff  = Date.now() - d.getTime();
-  const mins  = Math.floor(diff / 60_000);
+  const diff = Date.now() - d.getTime();
+  const mins = Math.floor(diff / 60_000);
   const hours = Math.floor(diff / 3_600_000);
-  const days  = Math.floor(diff / 86_400_000);
-  if (mins  < 1)  return "Just now";
-  if (mins  < 60) return `${mins} min ago`;
+  const days = Math.floor(diff / 86_400_000);
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} min ago`;
   if (hours < 24) return `${hours} hour${hours > 1 ? "s" : ""} ago`;
-  if (days  < 2)  return "Yesterday";
+  if (days < 2) return "Yesterday";
   return `${days} days ago`;
 }
 
@@ -315,7 +315,7 @@ async function apiFetch<T>(endpoint: string, token: string): Promise<T> {
 export async function fetchRecentQueries(
   token: string,
 ): Promise<RecentQuery[]> {
-  const raw = await apiFetch<unknown[]>("/api/V1/history/recent-queries", token);
+  const raw = await apiFetch<unknown[]>("/api/v1/history/recent-queries", token);
   const arr = Array.isArray(raw) ? raw : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return arr.map((r: any) => normaliseQuery(r));
@@ -325,7 +325,7 @@ export async function fetchFeaturesExplored(
   token: string,
 ): Promise<FeatureExplored[]> {
   const raw = await apiFetch<unknown[]>(
-    "/api/V1/history/features-explored",
+    "/api/v1/history/features-explored",
     token,
   );
   const arr = Array.isArray(raw) ? raw : [];
@@ -334,7 +334,7 @@ export async function fetchFeaturesExplored(
 }
 
 export async function fetchLoginHistory(token: string): Promise<LoginRecord[]> {
-  const raw = await apiFetch<unknown[]>("/api/V1/history/login-history", token);
+  const raw = await apiFetch<unknown[]>("/api/v1/history/login-history", token);
   const arr = Array.isArray(raw) ? raw : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return arr.map((r: any) => normaliseLogin(r));
@@ -343,7 +343,7 @@ export async function fetchLoginHistory(token: string): Promise<LoginRecord[]> {
 export async function fetchWeekActivity(
   token: string,
 ): Promise<WeekActivity[]> {
-  const raw = await apiFetch<unknown>("/api/V1/history/week-activity", token);
+  const raw = await apiFetch<unknown>("/api/v1/history/week-activity", token);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const r = raw as any;
   const arr = Array.isArray(raw)
@@ -363,7 +363,7 @@ export async function fetchWeekActivity(
 }
 
 export async function fetchHistoryStats(token: string): Promise<HistoryStats> {
-  const raw = await apiFetch<HistoryStats>("/api/V1/history/stats", token);
+  const raw = await apiFetch<HistoryStats>("/api/v1/history/stats", token);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return normaliseStats(raw as any);
 }
@@ -394,9 +394,9 @@ function normaliseLatestTest(raw: any): LatestTest {
   return { subject, score };
 }
 
-/** GET /api/V1/history/latest-tests — returns last 3 practice test results */
+/** GET /api/v1/history/latest-tests — returns last 3 practice test results */
 export async function fetchLatestTests(token: string): Promise<LatestTest[]> {
-  const raw = await apiFetch<unknown[]>("/api/V1/history/latest-tests", token);
+  const raw = await apiFetch<unknown[]>("/api/v1/history/latest-tests", token);
   const arr = Array.isArray(raw) ? raw : [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return arr.map((r: any) => normaliseLatestTest(r));
@@ -410,7 +410,7 @@ export async function fetchConversation(
   const qs = source ? `?source=${encodeURIComponent(source)}` : "";
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raw = await apiFetch<any>(
-    `/api/V1/history/conversation/${conversationId}${qs}`,
+    `/api/v1/history/conversation/${conversationId}${qs}`,
     token,
   );
 
@@ -420,15 +420,15 @@ export async function fetchConversation(
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const messages: ConversationMessage[] = rawMessages.map((m: any) => ({
-    role:      m.role === "user" || m.role === "human" ? "user" : "assistant",
-    content:   m.content ?? m.message ?? m.text ?? m.response ?? "",
+    role: m.role === "user" || m.role === "human" ? "user" : "assistant",
+    content: m.content ?? m.message ?? m.text ?? m.response ?? "",
     timestamp: m.timestamp ?? m.created_at ?? m.time ?? undefined,
   }));
 
   return {
-    id:         conversationId,
-    title:      raw.title      ?? raw.name    ?? "Conversation",
-    tool:       raw.tool       ?? raw.source  ?? raw.feature ?? "AI Gini",
+    id: conversationId,
+    title: raw.title ?? raw.name ?? "Conversation",
+    tool: raw.tool ?? raw.source ?? raw.feature ?? "AI Gini",
     messages,
     created_at: raw.created_at ?? raw.started_at ?? raw.date ?? undefined,
     turn_count: raw.turn_count ?? raw.turnCount ?? undefined,

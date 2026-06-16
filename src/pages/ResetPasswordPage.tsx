@@ -9,21 +9,21 @@ import { config } from '../../app.config.js';
 const API_BASE = config.server;
 
 export default function ResetPasswordPage() {
-  const [newPassword, setNewPassword]         = useState('');
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showNew, setShowNew]                 = useState(false);
-  const [showConfirm, setShowConfirm]         = useState(false);
-  const [isLoading, setIsLoading]             = useState(false);
-  const [error, setError]                     = useState<string | null>(null);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const navigate  = useNavigate();
+  const navigate = useNavigate();
   const { login } = useAuth();          // used to store auth state after reset
-  const newPwRef  = useRef<HTMLInputElement>(null);
+  const newPwRef = useRef<HTMLInputElement>(null);
 
   // ── Validation ──────────────────────────────────────────────────────────────
-  const minLength  = newPassword.length >= 8;
-  const pwMatch    = newPassword.length > 0 && newPassword === confirmPassword;
-  const canSubmit  = minLength && pwMatch && !isLoading;
+  const minLength = newPassword.length >= 8;
+  const pwMatch = newPassword.length > 0 && newPassword === confirmPassword;
+  const canSubmit = minLength && pwMatch && !isLoading;
 
   // Autofocus new-password field on mount
   useEffect(() => {
@@ -52,7 +52,7 @@ export default function ResetPasswordPage() {
     setError(null);
 
     try {
-      const res = await fetch(`${API_BASE}/api/V1/auth/reset-first-time-password`, {
+      const res = await fetch(`${API_BASE}/api/v1/auth/reset-first-time-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -78,7 +78,7 @@ export default function ResetPasswordPage() {
 
       // Success — treat exactly like a normal login response
       const responseData = data.data || data;
-      const accessToken  = responseData.accessToken || responseData.token;
+      const accessToken = responseData.accessToken || responseData.token;
 
       // Persist the real token via AuthContext's internal storage mechanism
       // We trigger the same "login succeeded" path manually:
@@ -113,7 +113,7 @@ export default function ResetPasswordPage() {
       <div className="flex items-center gap-2" style={{ fontSize: '0.8rem' }}>
         {met
           ? <CheckCircle2 style={{ width: 14, height: 14, color: '#22c55e', flexShrink: 0 }} />
-          : <Circle       style={{ width: 14, height: 14, color: '#94a3b8', flexShrink: 0 }} />
+          : <Circle style={{ width: 14, height: 14, color: '#94a3b8', flexShrink: 0 }} />
         }
         <span style={{ color: met ? '#22c55e' : '#94a3b8', transition: 'color 0.2s' }}>
           {label}
@@ -232,7 +232,7 @@ export default function ResetPasswordPage() {
           {/* Live requirements */}
           <div id="pw-requirements" style={{ display: 'flex', flexDirection: 'column', gap: 5, padding: '2px 0 6px' }}>
             <Requirement met={minLength} label="At least 8 characters" />
-            <Requirement met={pwMatch}   label="Passwords match" />
+            <Requirement met={pwMatch} label="Passwords match" />
           </div>
 
           {/* Submit */}

@@ -1,4 +1,4 @@
-// src/api/curriculum.ts"
+// src/api/curriculum.ts
 import { config } from "../../app.config.js";
 
 import axios from "axios";
@@ -38,10 +38,21 @@ export interface Chapter {
   language: string;
 }
 
+export interface Section {
+  id: number;
+  section_id: number;  // alias — may match id depending on backend response
+  section_name: string;
+  slug?: string;
+}
+
 interface ApiResponse<T> {
   success: boolean;
   data: T;
 }
+
+/* ===========================
+   API CLIENT
+=========================== */
 
 export const createApiClient = (token: string) => {
   return axios.create({
@@ -52,10 +63,14 @@ export const createApiClient = (token: string) => {
   });
 };
 
-export const getClasses = async (token: string,type:string) => {
+/* ===========================
+   READ — CLASSES / STREAMS / SECTIONS
+=========================== */
+
+export const getClasses = async (token: string) => {
   const api = createApiClient(token);
 
-  const response = await api.get("/curriculum/class",{params : {type}});
+  const response = await api.get("/curriculum/class", { params: { type } });
 
   return response.data.data;
 };
@@ -67,6 +82,21 @@ export const getStreams = async (token: string) => {
 
   return response.data.data;
 };
+
+export const getSections = async (token: string): Promise<Section[]> => {
+  const api = createApiClient(token);
+  try {
+    const res = await api.get("/curriculum/section");
+    const data = res.data?.data ?? res.data;
+    return Array.isArray(data) ? data : [];
+  } catch {
+    return [];
+  }
+};
+
+/* ===========================
+   READ — SUBJECTS
+=========================== */
 
 export const getSubjects = async (
   token: string,
@@ -90,6 +120,10 @@ export const getSubjects = async (
 
   return response.data.data;
 };
+
+/* ===========================
+   READ — CHAPTERS
+=========================== */
 
 export const getChapters = async (
   token: string,
@@ -115,33 +149,85 @@ export const getChapters = async (
   return response.data.data;
 };
 
-// export const getCurriculumData = async (
-//   token: string,
-//   classId?: number,
-//   subjectId?: number,
-//   board: string = "CBSE",
-//   streamId?: number,
-//   lang: string = "english"
-// ) => {
-//   const [classes, streams] = await Promise.all([
-//     getClasses(token),
-//     getStreams(token),
-//   ]);
+/* ===========================
+   WRITE — ASSIGN / REMOVE CLASS
+=========================== */
 
-//   let subjects = [];
-//   if (classId !== undefined && streamId !== undefined) {
-//     subjects = await getSubjects(token, classId, board, streamId);
-//   }
+export const assignClass = async (
+  token: string,
+  payload: {
+    userId: string | number;
+    schoolId: string | number;
+    classId: string | number;
+    streamId: string | number;
+    sectionId: string | number;
+  }
+) => {
+  const api = createApiClient(token);
+  const response = await api.post("/curriculum/assign-class", payload);
+  return response.data;
+};
 
-//   let chapters = [];
-//   if (classId !== undefined && subjectId !== undefined && streamId !== undefined) {
-//     chapters = await getChapters(token, classId, subjectId, board, streamId, lang);
-//   }
+export const removeClass = async (
+  token: string,
+  userId: string | number
+) => {
+  const api = createApiClient(token);
+  const response = await api.delete("/curriculum/remove-class", {
+    data: { userId },
+  });
+  return response.data;
+};
 
-//   return {
-//     classes,
-//     streams,
-//     subjects,
-//     chapters,
-//   };
-// };
+/* ===========================
+   WRITE — CREATE / DELETE SUBJECT
+=========================== */
+
+export const createSubject = async (
+  token: string,
+  payload: {
+    subjectName: string;
+    board: string;
+    streamId: string | number;
+    classIds?: number[];
+  }
+) => {
+  const api = createApiClient(token);
+  const response = await api.post("/curriculum/subject", payload);
+  return response.data;
+};
+
+export const deleteSubject = async (
+  token: string,
+  subjectId: string | number
+) => {
+  const api = createApiClient(token);
+  const response = await api.delete(`/curriculum/subject/${subjectId}`);
+  return response.data;
+};
+
+/* ===========================
+   WRITE — CREATE / DELETE CHAPTER
+=========================== */
+
+export const createChapter = async (
+  token: string,
+  payload: {
+    name: string;
+    subjectId: string | number;
+    language: string;
+  }
+) => {
+  const api = createApiClient(token);
+  const response = await api.post("/curriculum/chapter", payload);
+  return response.data;
+};
+
+export const deleteChapter = async (
+  token: string,
+  chapterId: string | number
+) => {
+  const api = createApiClient(token);
+  const response = await api.delete(`/curriculum/chapter/${chapterId}`);
+  return response.data;
+};

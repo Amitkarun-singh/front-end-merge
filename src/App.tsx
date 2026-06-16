@@ -13,6 +13,7 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { ToastProvider } from "@/components/assessment/ToastProvider";
 
 import StudentLoginPage from "./pages/StudentLoginPage";
+import AccountPickerPage from "./pages/AccountPickerPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import Register from "./pages/Register";
@@ -32,6 +33,7 @@ import SupportPage from "./pages/SupportPage";
 import NotFound from "./pages/NotFound";
 import QuestionBankPage from "./pages/QuestionBankPage";
 import ConversationPage from "./pages/ConversationPage";
+import AccessDeniedPage from "./pages/AccessDeniedPage";
 
 // ── Assessment: Teacher ──────────────────────────────────
 import TeacherAssessmentsPage from "./pages/assessment/teacher/TeacherAssessmentsPage";
@@ -108,8 +110,10 @@ const App = () => {
                   <Routes>
                     {/* ── Public ── */}
                     <Route path="/login" element={<StudentLoginPage />} />
+                    <Route path="/account-picker" element={<AccountPickerPage />} />
                     <Route path="/reset-password" element={<ResetPasswordPage />} />
                     <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+                    <Route path="/access-denied" element={<AccessDeniedPage />} />
                     {/* ── Registration flow ── */}
                     <Route path="/register" element={<Register />} />
                     <Route path="/register/verify" element={<VerifyOtp />} />

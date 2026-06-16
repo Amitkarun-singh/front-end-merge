@@ -2,6 +2,7 @@ import { useState, useEffect, createContext, useContext } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useFeatures, FeatureName } from "@/context/FeatureContext";
+import { AccountSwitcher } from "./AccountSwitcher";
 import { cn } from "@/lib/utils";
 import {
   Home,
@@ -259,33 +260,57 @@ export function AppSidebar() {
       </nav>
 
       {/* User profile & Logout */}
-      <div className="p-3 border-t border-sidebar-border flex-shrink-0">
+      <div className="p-3 border-t border-sidebar-border flex-shrink-0 relative">
+        {/* Account switcher — only visible when sidebar is expanded (showLabel=true) */}
+        <AccountSwitcher showLabel={showLabel} />
         <Link to="/profile" className="flex items-center gap-3 p-2 rounded-lg hover:bg-sidebar-accent transition-colors">
-          <div className="w-8 h-8 rounded-full flex-shrink-0 overflow-hidden">
-            {user?.avatar ? (
-              <img
-                src={user.avatar}
-                alt={displayName}
-                className="w-8 h-8 rounded-full object-cover"
-                onError={(e) => {
-                  console.warn("[Sidebar] Avatar image failed to load:", user.avatar);
-                  e.currentTarget.style.display = "none";
-                  const sibling = e.currentTarget.nextElementSibling as HTMLElement | null;
-                  if (sibling) sibling.style.display = "flex";
-                }}
-              />
-            ) : null}
-            <div
-              style={{ display: user?.avatar ? "none" : "flex" }}
-              className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary items-center justify-center text-primary-foreground font-medium text-sm"
-            >
-              {initials}
+          {/* Avatar with green active dot */}
+          <div className="relative flex-shrink-0">
+            <div className="w-8 h-8 rounded-full overflow-hidden">
+              {user?.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt={displayName}
+                  className="w-8 h-8 rounded-full object-cover"
+                  onError={(e) => {
+                    console.warn("[Sidebar] Avatar image failed to load:", user.avatar);
+                    e.currentTarget.style.display = "none";
+                    const sibling = e.currentTarget.nextElementSibling as HTMLElement | null;
+                    if (sibling) sibling.style.display = "flex";
+                  }}
+                />
+              ) : null}
+              <div
+                style={{ display: user?.avatar ? "none" : "flex" }}
+                className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary items-center justify-center text-primary-foreground font-medium text-sm"
+              >
+                {initials}
+              </div>
             </div>
+            {/* Green pulse dot — shows user is active/online */}
+            <span
+              className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-sidebar-background"
+              style={{ background: "hsl(160 60% 45%)" }}
+            >
+              <span
+                className="absolute inset-0 rounded-full animate-ping"
+                style={{ background: "hsl(160 60% 45% / 0.5)" }}
+              />
+            </span>
           </div>
+
           {showLabel && (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{displayName}</p>
-              <p className="text-xs text-muted-foreground">{roleName}</p>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                  style={{ background: "hsl(160 60% 45%)" }}
+                />
+                <p className="text-xs truncate" style={{ color: "hsl(160 60% 38%)" }}>
+                  Online · {roleName}
+                </p>
+              </div>
             </div>
           )}
         </Link>

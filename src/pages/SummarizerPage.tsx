@@ -30,11 +30,11 @@ import "katex/dist/katex.min.css";
 
 const MAX_LENGTH_OPTIONS = [
   { label: "Default (Auto)", value: "__auto__" },
-  { label: "50 words",       value: "50" },
-  { label: "100 words",      value: "100" },
-  { label: "250 words",      value: "250" },
-  { label: "500 words",      value: "500" },
-  { label: "1000 words",     value: "1000" },
+  { label: "50 words", value: "50" },
+  { label: "100 words", value: "100" },
+  { label: "250 words", value: "250" },
+  { label: "500 words", value: "500" },
+  { label: "1000 words", value: "1000" },
 ];
 
 interface MaxLengthSelectProps {
@@ -117,7 +117,7 @@ export default function SummarizerPage() {
         formData.append("maxlength", wordLimit);  // correct spelling fallback
       }
 
-      const res = await fetch(`${config.server}/api/V1/summarize`, {
+      const res = await fetch(`${config.server}/api/v1/summarize`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
@@ -142,7 +142,7 @@ export default function SummarizerPage() {
     setFeedbackSent(true);
 
     try {
-      await fetch(`${config.server}/api/V1/summarize/feedback`, {
+      await fetch(`${config.server}/api/v1/summarize/feedback`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -230,11 +230,10 @@ export default function SummarizerPage() {
             <div
               onDragOver={(e) => e.preventDefault()}
               onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-2xl p-12 text-center transition-colors ${
-                file
+              className={`border-2 border-dashed rounded-2xl p-12 text-center transition-colors ${file
                   ? "border-primary bg-primary/5"
                   : "border-border hover:border-primary/50"
-              }`}
+                }`}
             >
               {file ? (
                 <div className="flex flex-col items-center gap-4">
@@ -255,7 +254,7 @@ export default function SummarizerPage() {
                       <p className="text-sm text-muted-foreground">
                         How many words do you want in the summary?
                       </p>
-                  <MaxLengthSelect value={maxLength} onChange={handleMaxLengthChange} />
+                      <MaxLengthSelect value={maxLength} onChange={handleMaxLengthChange} />
                     </div>
                   </div>
 

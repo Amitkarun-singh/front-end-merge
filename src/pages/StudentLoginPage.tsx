@@ -104,11 +104,20 @@ export default function StudentLoginPage() {
     e.preventDefault();
 
     try {
-      await verifyOtp({
+      const result = await verifyOtp({
         phone_number: `${formData.countryCode}${formData.phoneNumber}`,
         otp: formData.otp,
       });
-      // navigate happens via useEffect
+
+      // Multi-account: navigate to the account picker.
+      // Pass accounts via router state as a race-condition-safe fallback —
+      // AccountPickerPage reads from context OR router state so it always
+      // has the list even if the context update hasn't committed yet.
+      if (result?.requiresAccountSelection) {
+        navigate('/account-picker', { state: { accounts: result.accounts ?? [] } });
+        return;
+      }
+      // Normal flow — navigate happens via useEffect (isAuthenticated)
     } catch {
       // error is set in context
     }
