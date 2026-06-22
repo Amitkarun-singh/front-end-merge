@@ -3,8 +3,8 @@ import './Register.css';
 import './StudentLoginPage.css';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  Eye, EyeOff, User, Phone, Mail, Lock, GraduationCap,
-  BookOpen, ArrowRight, Check,
+  Eye, EyeOff, User, Phone, Mail, Lock,
+  ArrowRight, Check,
 } from 'lucide-react';
 import { useRegistration } from '@/context/RegistrationContext';
 import PasswordStrength from '@/components/PasswordStrength';
@@ -64,7 +64,7 @@ export default function Register() {
   const navigate = useNavigate();
   const { role, setRegistrationData } = useRegistration();
 
-  const [selectedRole, setSelectedRole] = useState<'STUDENT' | 'TEACHER'>(role || 'STUDENT');
+  const selectedRole = 'STUDENT';
   const [fullName,        setFullName]        = useState('');
   const [selectedClasses,  setSelectedClasses] = useState<string[]>([]);
   const [phoneNumber,     setPhoneNumber]     = useState('');
@@ -103,13 +103,7 @@ export default function Register() {
   };
 
   const handleClassToggle = (cls: string) => {
-    if (selectedRole === 'STUDENT') {
-      setSelectedClasses([cls]);
-    } else {
-      setSelectedClasses(prev => 
-        prev.includes(cls) ? prev.filter(c => c !== cls) : [...prev, cls]
-      );
-    }
+    setSelectedClasses([cls]);
     clearFieldError('selected_class');
   };
 
@@ -246,24 +240,6 @@ export default function Register() {
               <p className="login-description">Learn and grow — no school enrollment needed</p>
             </div>
 
-            {/* Role Toggle */}
-            <div className="reg-role-group" role="radiogroup" aria-label="Select your role">
-              {(['STUDENT', 'TEACHER'] as const).map(r => (
-                <button
-                  key={r}
-                  type="button"
-                  role="radio"
-                  aria-checked={selectedRole === r}
-                  className={`reg-role-pill${selectedRole === r ? ' reg-role-pill-active' : ''}`}
-                  onClick={() => setSelectedRole(r)}
-                  id={`role-${r.toLowerCase()}`}
-                >
-                  {r === 'STUDENT' ? <GraduationCap size={15} /> : <BookOpen size={15} />}
-                  I am a {r === 'STUDENT' ? 'Student' : 'Teacher'}
-                </button>
-              ))}
-            </div>
-
             {/* General error */}
             {errors.general && (
               <div className="reg-error-banner" role="alert"><span>⚠ {errors.general}</span></div>
@@ -296,7 +272,7 @@ export default function Register() {
               {/* Class Selection */}
               <div className="reg-field">
                 <label className="reg-label">
-                  {selectedRole === 'TEACHER' ? 'Classes you teach' : 'Your Class'} <span style={{ color: '#EF4444' }}>*</span>
+                  Your Class <span style={{ color: '#EF4444' }}>*</span>
                 </label>
                 <div className="reg-class-grid">
                   {CLASSES.map(cls => {
