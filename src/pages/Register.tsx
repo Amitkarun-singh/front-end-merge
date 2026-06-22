@@ -33,7 +33,40 @@ const BOARDS = [
   { id: 'IB',    label: 'IB / Other',   sub: 'International Baccalaureate' },
 ] as const;
 
-const CLASSES = ['5', '6', '7', '8', '9', '10', '11', '12'];
+interface ClassItem {
+  id: number;
+  class_name: string;
+  slug: string;
+}
+
+interface StreamItem {
+  id: number;
+  stream_name: string;
+  slug: string;
+}
+
+const FALLBACK_CLASSES: ClassItem[] = [
+  { id: 1, class_name: 'Grade 1', slug: '1' },
+  { id: 2, class_name: 'Grade 2', slug: '2' },
+  { id: 3, class_name: 'Grade 3', slug: '3' },
+  { id: 4, class_name: 'Grade 4', slug: '4' },
+  { id: 5, class_name: 'Grade 5', slug: '5' },
+  { id: 6, class_name: 'Grade 6', slug: '6' },
+  { id: 7, class_name: 'Grade 7', slug: '7' },
+  { id: 8, class_name: 'Grade 8', slug: '8' },
+  { id: 9, class_name: 'Grade 9', slug: '9' },
+  { id: 10, class_name: 'Grade 10', slug: '10' },
+  { id: 11, class_name: 'Grade 11', slug: '11' },
+  { id: 12, class_name: 'Grade 12', slug: '12' },
+];
+
+const FALLBACK_STREAMS: StreamItem[] = [
+  { id: 1, stream_name: 'Science', slug: 'science' },
+  { id: 2, stream_name: 'Commerce', slug: 'commerce' },
+  { id: 3, stream_name: 'Arts / Humanities', slug: 'arts-humanities' },
+  { id: 4, stream_name: 'General', slug: 'general' },
+];
+
 type BoardId = typeof BOARDS[number]['id'];
 
 // ─── Validation helpers ────────────────────────────────────────────────────────
@@ -56,6 +89,7 @@ interface FieldErrors {
   confirm_password?: string;
   board?: string;
   general?: string;
+  stream?: string;
 }
 
 interface Toast { type: 'error' | 'warning' | 'success'; message: string; }
@@ -65,8 +99,11 @@ export default function Register() {
   const { role, setRegistrationData } = useRegistration();
 
   const selectedRole = 'STUDENT';
+  const [classesList,     setClassesList]     = useState<ClassItem[]>(FALLBACK_CLASSES);
+  const [streamsList,     setStreamsList]     = useState<StreamItem[]>(FALLBACK_STREAMS);
   const [fullName,        setFullName]        = useState('');
   const [selectedClasses,  setSelectedClasses] = useState<string[]>([]);
+  const [selectedStream,  setSelectedStream]  = useState<string | null>(null);
   const [phoneNumber,     setPhoneNumber]     = useState('');
   const [email,           setEmail]           = useState('');
   const [password,        setPassword]        = useState('');
@@ -97,6 +134,42 @@ export default function Register() {
 
   useEffect(() => () => { Object.values(errorTimers.current).forEach(clearTimeout); }, []);
 
+  useEffect(() => {
+    let active = true;
+
+    const loadData = async () => {
+      try {
+        const classesRes = await fetch(`${API_BASE}/api/v1/auth/register/classes`);
+        if (classesRes.ok) {
+          const classesJson = await classesRes.json();
+          if (classesJson.success && classesJson.data?.data && active) {
+            setClassesList(classesJson.data.data);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching classes:', err);
+      }
+
+      try {
+        const streamsRes = await fetch(`${API_BASE}/api/v1/auth/register/stream`);
+        if (streamsRes.ok) {
+          const streamsJson = await streamsRes.json();
+          if (streamsJson.success && streamsJson.data?.data && active) {
+            setStreamsList(streamsJson.data.data);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching streams:', err);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handlePhoneChange = (raw: string) => {
     setPhoneNumber(raw.replace(/\D/g, '').slice(0, 10));
     clearFieldError('phone_number');
@@ -105,6 +178,10 @@ export default function Register() {
   const handleClassToggle = (cls: string) => {
     setSelectedClasses([cls]);
     clearFieldError('selected_class');
+    if (cls !== '11' && cls !== '12') {
+      setSelectedStream(null);
+      clearFieldError('stream');
+    }
   };
 
   // ─── Client-side validation ────────────────────────────────────────────────
@@ -142,6 +219,12 @@ export default function Register() {
       errs.board = 'Please select your board';
     }
 
+    const selectedClass = selectedClasses[0];
+    const needsStream = selectedClass === '11' || selectedClass === '12';
+    if (needsStream && !selectedStream) {
+      errs.stream = 'Please select your stream';
+    }
+
     setErrors(errs);
     return Object.keys(errs).length === 0;
   };
@@ -155,6 +238,9 @@ export default function Register() {
     setSubmitting(true);
 
     try {
+      const selectedClass = selectedClasses[0];
+      const needsStream = selectedClass === '11' || selectedClass === '12';
+
       // Save credentials to context first
       setRegistrationData({
         role: selectedRole,
@@ -168,6 +254,7 @@ export default function Register() {
         school_id: null,
         school_name: null,
         school_address: null,
+        stream: needsStream ? selectedStream : null,
         error: null,
         errorDetails: null,
       });
@@ -275,23 +362,53 @@ export default function Register() {
                   Your Class <span style={{ color: '#EF4444' }}>*</span>
                 </label>
                 <div className="reg-class-grid">
-                  {CLASSES.map(cls => {
-                    const active = selectedClasses.includes(cls);
+                  {classesList.map(cls => {
+                    const active = selectedClasses.includes(cls.slug);
                     return (
                       <button
-                        key={cls}
+                        key={cls.id}
                         type="button"
                         className={`reg-class-pill-btn${active ? ' reg-class-pill-btn-active' : ''}`}
-                        onClick={() => handleClassToggle(cls)}
+                        onClick={() => handleClassToggle(cls.slug)}
                       >
                         {active && <Check size={12} className="mr-1" />}
-                        Class {cls}
+                        {cls.class_name}
                       </button>
                     );
                   })}
                 </div>
                 {errors.selected_class && <span className="reg-field-error" role="alert">⚠ {errors.selected_class}</span>}
               </div>
+
+              {/* Stream Selection */}
+              {(() => {
+                const selectedClass = selectedClasses[0];
+                const needsStream = selectedClass === '11' || selectedClass === '12';
+                return (
+                  <div className={`reg-field reg-stream-anim${needsStream ? ' reg-stream-anim--visible' : ''}`} aria-hidden={!needsStream}>
+                    <label htmlFor="reg-stream" className="reg-label">
+                      Your Stream <span style={{ color: '#EF4444' }}>*</span>
+                    </label>
+                    <div className="reg-input-wrap">
+                      <select
+                        id="reg-stream"
+                        value={selectedStream || ''}
+                        onChange={e => { setSelectedStream(e.target.value || null); clearFieldError('stream'); }}
+                        className={`reg-input reg-input-no-icon reg-input-select${errors.stream ? ' reg-input-error' : ''}`}
+                        required={needsStream}
+                        disabled={!needsStream}
+                        tabIndex={needsStream ? 0 : -1}
+                      >
+                        <option value="" disabled>Select your stream</option>
+                        {streamsList.map(s => (
+                          <option key={s.id} value={s.stream_name}>{s.stream_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {errors.stream && <span className="reg-field-error" role="alert">⚠ {errors.stream}</span>}
+                  </div>
+                );
+              })()}
 
               {/* Phone */}
               <div className="reg-field">
