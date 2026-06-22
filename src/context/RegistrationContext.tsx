@@ -74,6 +74,7 @@ export interface RegistrationState {
   // ── Credentials (saved before school lookup) ──
   password: string | null;
   full_name: string | null;
+  username: string | null;
   email: string | null;
   // ── Location (Steps 3-6) ──
   state: string | null;
@@ -120,6 +121,7 @@ const defaultState: RegistrationState = {
   class: null,
   password: null,
   full_name: null,
+  username: null,
   email: null,
   state: null,
   state_board: null,

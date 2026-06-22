@@ -82,6 +82,7 @@ const validateEmail = (e: string) => !e || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
 
 interface FieldErrors {
   full_name?: string;
+  username?: string;
   selected_class?: string;
   phone_number?: string;
   email?: string;
@@ -102,6 +103,9 @@ export default function Register() {
   const [classesList,     setClassesList]     = useState<ClassItem[]>(FALLBACK_CLASSES);
   const [streamsList,     setStreamsList]     = useState<StreamItem[]>(FALLBACK_STREAMS);
   const [fullName,        setFullName]        = useState('');
+  const [username,        setUsername]        = useState('');
+  const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
+  const [checkingUsername, setCheckingUsername] = useState(false);
   const [selectedClasses,  setSelectedClasses] = useState<string[]>([]);
   const [selectedStream,  setSelectedStream]  = useState<string | null>(null);
   const [phoneNumber,     setPhoneNumber]     = useState('');
@@ -117,6 +121,7 @@ export default function Register() {
   const [toast,           setToast]           = useState<Toast | null>(null);
 
   const errorTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const checkUsernameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = (t: Toast) => {
     setToast(t);
@@ -132,7 +137,10 @@ export default function Register() {
     errorTimers.current[field] = setTimeout(() => clearFieldError(field), 6000);
   };
 
-  useEffect(() => () => { Object.values(errorTimers.current).forEach(clearTimeout); }, []);
+  useEffect(() => () => {
+    Object.values(errorTimers.current).forEach(clearTimeout);
+    if (checkUsernameTimer.current) clearTimeout(checkUsernameTimer.current);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -170,6 +178,47 @@ export default function Register() {
     };
   }, []);
 
+  const checkUsernameAvailability = async (val: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/auth/register/exist/username`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: val }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success && json.data?.available) {
+        setUsernameAvailable(true);
+        return true;
+      } else {
+        setUsernameAvailable(false);
+        setFieldError('username', json.message || 'Username already taken');
+        return false;
+      }
+    } catch (err) {
+      console.error('Error verifying username:', err);
+      return false;
+    }
+  };
+
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.toLowerCase().replace(/[^a-z0-9_.-]/g, '');
+    setUsername(val);
+    setUsernameAvailable(null);
+    clearFieldError('username');
+
+    if (checkUsernameTimer.current) clearTimeout(checkUsernameTimer.current);
+
+    if (val.trim().length >= 3) {
+      setCheckingUsername(true);
+      checkUsernameTimer.current = setTimeout(async () => {
+        await checkUsernameAvailability(val.trim());
+        setCheckingUsername(false);
+      }, 600);
+    } else {
+      setCheckingUsername(false);
+    }
+  };
+
   const handlePhoneChange = (raw: string) => {
     setPhoneNumber(raw.replace(/\D/g, '').slice(0, 10));
     clearFieldError('phone_number');
@@ -189,6 +238,15 @@ export default function Register() {
     const errs: FieldErrors = {};
 
     if (!fullName.trim()) errs.full_name = 'Full name is required';
+    
+    if (!username.trim()) {
+      errs.username = 'Username is required';
+    } else if (username.trim().length < 3) {
+      errs.username = 'Username must be at least 3 characters';
+    } else if (usernameAvailable === false) {
+      errs.username = 'Username already taken';
+    }
+
     if (selectedClasses.length === 0) errs.selected_class = 'Please select at least one class';
 
     if (!phoneNumber.trim()) {
@@ -238,6 +296,14 @@ export default function Register() {
     setSubmitting(true);
 
     try {
+      if (username.trim().length >= 3 && usernameAvailable !== true) {
+        const ok = await checkUsernameAvailability(username.trim());
+        if (!ok) {
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const selectedClass = selectedClasses[0];
       const needsStream = selectedClass === '11' || selectedClass === '12';
 
@@ -248,6 +314,7 @@ export default function Register() {
         password,
         phone_number: `${countryCode}${phoneNumber.trim()}`,
         full_name: fullName.trim() || null,
+        username: username.trim(),
         email: email.trim() || null,
         board: selectedBoard,
         boardLabel: selectedBoard,
@@ -273,7 +340,7 @@ export default function Register() {
   };
 
   const isCbse = selectedBoard === 'CBSE';
-  const canSubmit = isCbse && !submitting;
+  const canSubmit = isCbse && !submitting && !checkingUsername;
 
   return (
     <div className="login-page">
@@ -354,6 +421,37 @@ export default function Register() {
                   />
                 </div>
                 {errors.full_name && <span className="reg-field-error" role="alert">⚠ {errors.full_name}</span>}
+              </div>
+
+              {/* Username */}
+              <div className="reg-field">
+                <label htmlFor="reg-username" className="reg-label">
+                  Username <span style={{ color: '#EF4444' }}>*</span>
+                </label>
+                <div className="reg-input-wrap">
+                  <User className="reg-input-icon" />
+                  <input
+                    id="reg-username"
+                    type="text"
+                    value={username}
+                    onChange={handleUsernameChange}
+                    placeholder="Choose a username"
+                    className={`reg-input${errors.username ? ' reg-input-error' : ''}`}
+                    required
+                    autoComplete="username"
+                  />
+                  {checkingUsername && (
+                    <div className="reg-pw-toggle" style={{ pointerEvents: 'none' }}>
+                      <div className="reg-spinner" style={{ width: '1rem', height: '1rem', border: '2px solid rgba(139,92,246,0.3)', borderTopColor: 'hsl(262,83%,58%)' }} />
+                    </div>
+                  )}
+                </div>
+                {errors.username && <span className="reg-field-error" role="alert">⚠ {errors.username}</span>}
+                {usernameAvailable === true && (
+                  <span style={{ fontSize: '0.8rem', color: '#10B981', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    ✓ Username is available
+                  </span>
+                )}
               </div>
 
               {/* Class Selection */}

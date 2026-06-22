@@ -22,7 +22,7 @@ export default function VerifyOtp() {
   const navigate = useNavigate();
   const { setAuthData } = useAuth();
   const {
-    phone_number, role, class: userClass, password, full_name, email, board,
+    phone_number, role, class: userClass, password, full_name, username, email, board,
     section_name, stream,
     setRegistrationData,
   } = useRegistration();
@@ -93,6 +93,7 @@ export default function VerifyOtp() {
           password,
           phone_number,
           full_name,
+          username,
           email,
           board,
           idToken,
