@@ -9,6 +9,8 @@ import OtpInput from '@/components/OtpInput';
 import schools2aiIcon from '@/assets/schools2ai-icon.png';
 import { config } from '../../app.config.js';
 import { verifyOTP as firebaseVerifyOTP, sendOTP as firebaseSendOTP } from "@/firebase/otp";
+import { saveUserSession } from '@/indexDB/indexDB';
+import { handleLoginNotifications } from '@/firebase/notification';
 
 const API_BASE = config.server;
 const OTP_RESEND_SECONDS = 45;
@@ -138,6 +140,8 @@ export default function VerifyOtp() {
           role: authData.role,
         }
       });
+
+
 
       navigate('/', { replace: true });
     } catch (err: unknown) {

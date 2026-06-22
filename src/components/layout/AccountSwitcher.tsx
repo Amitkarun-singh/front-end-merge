@@ -95,7 +95,7 @@ export function AccountSwitcher({ showLabel }: AccountSwitcherProps) {
   // ── Guards (after all hooks) ──────────────────────────────────────────────
   // Strip roles the portal doesn't support (parent, admin, etc.)
   const PORTAL_ROLES = ['teacher', 'student'];
-  const visibleAccounts = linkedAccounts.filter((a) =>
+  const visibleAccounts = (linkedAccounts || []).filter((a) =>
     PORTAL_ROLES.includes(a.role.toLowerCase().trim())
   );
 

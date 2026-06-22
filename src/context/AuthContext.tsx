@@ -170,14 +170,24 @@ function flattenProfile(raw: Record<string, unknown>): User {
 
   const hasNested = raw.user !== undefined || raw.school !== undefined || raw.student !== undefined;
 
+  const extractRole = (roleVal: unknown): string | undefined => {
+    if (typeof roleVal === 'string') return roleVal;
+    if (roleVal && typeof roleVal === 'object') {
+      const rObj = roleVal as Record<string, unknown>;
+      return (rObj.role_name as string) || (rObj.name as string) || (rObj.role as string);
+    }
+    return undefined;
+  };
 
   if (!hasNested) {
     // Already flat — avatarUrl at top level takes priority over avatar key
     const avatarFlat = (raw.avatarUrl as string | null) || (raw.avatar as string | null);
+    const resolvedRole = extractRole(raw.role);
 
     return {
       ...raw,
       avatar: avatarFlat,
+      role: resolvedRole ?? raw.role,
       overall_score: raw.overall_score as number | undefined,
       current_streak: raw.current_streak as number | undefined,
       longest_streak: raw.longest_streak as number | undefined,
@@ -190,11 +200,13 @@ function flattenProfile(raw: Record<string, unknown>): User {
   const avatarUrl = (raw.avatarUrl as string | null)   // full signed URL  ← use this
     || (userObj.avatar as string | null);   // fallback: raw key (may not render)
 
+  const resolvedRole = extractRole(userObj.role) || extractRole(raw.role);
 
   return {
     // User fields
     id: userObj.user_id as string | number,
     user_id: userObj.user_id as string | number,
+    role: resolvedRole,
     full_name: userObj.full_name as string,
     name: userObj.full_name as string,
     email: userObj.email as string,
@@ -958,14 +970,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const setAuthData = useCallback((data: { token: string; user: any }) => {
     const profile = flattenProfile(data.user);
-    setAuthState({
+    setAuthState((prev) => ({
+      ...prev,
       isAuthenticated: true,
       user: profile,
       token: data.token,
       loading: false,
       error: null,
       errorDetails: null,
-    });
+      pendingAccounts: prev.pendingAccounts ?? null,
+      linkedAccounts: prev.linkedAccounts ?? [],
+    }));
   }, []);
 
   const clearError = () => {

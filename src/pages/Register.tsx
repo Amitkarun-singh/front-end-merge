@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import './Register.css';
 import './StudentLoginPage.css';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Eye, EyeOff, User, Phone, Mail, Lock,
   ArrowRight, Check,
 } from 'lucide-react';
 import { useRegistration } from '@/context/RegistrationContext';
+import { useAuth } from '@/context/AuthContext';
 import PasswordStrength from '@/components/PasswordStrength';
 import schools2aiIcon from '@/assets/schools2ai-icon.png';
 import { config } from '../../app.config.js';
@@ -97,7 +98,17 @@ interface Toast { type: 'error' | 'warning' | 'success'; message: string; }
 
 export default function Register() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const { role, setRegistrationData } = useRegistration();
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+      navigate(from, { replace: true });
+    }
+  }, [isAuthenticated, navigate, location.state]);
 
   const selectedRole = 'STUDENT';
   const [classesList,     setClassesList]     = useState<ClassItem[]>(FALLBACK_CLASSES);
