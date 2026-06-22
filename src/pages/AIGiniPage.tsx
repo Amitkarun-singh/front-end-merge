@@ -9,7 +9,7 @@ import {
   MonitorSmartphone,
   ArrowRight,
   Send,
-  RotateCcw ,Ban,
+  RotateCcw, Ban,
   Paperclip,
   Loader2,
   ThumbsUp,
@@ -509,24 +509,21 @@ const ChatView: FC<ChatViewProps> = ({
             return (
               <div
                 key={message.id}
-                className={`flex ${
-                  message.role === "user" ? "justify-end" : "justify-start"
-                }`}
+                className={`flex ${message.role === "user" ? "justify-end" : "justify-start"
+                  }`}
               >
                 <div className="max-w-[82%] space-y-1">
                   <div
-                    className={`${
-                      message.role === "user"
+                    className={`${message.role === "user"
                         ? "chat-bubble-user"
                         : "chat-bubble-ai"
-                    } text-left`}
+                      } text-left`}
                   >
                     <div
-                      className={`prose prose-sm max-w-none leading-snug ${
-                        message.role === "user"
+                      className={`prose prose-sm max-w-none leading-snug ${message.role === "user"
                           ? "prose-invert text-primary-foreground"
                           : "prose-neutral dark:prose-invert"
-                      }`}
+                        }`}
                     >
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm, remarkMath]}
@@ -560,11 +557,10 @@ const ChatView: FC<ChatViewProps> = ({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className={`h-6 w-6 border ${
-                            feedback?.rating === "up"
+                          className={`h-6 w-6 border ${feedback?.rating === "up"
                               ? "border-primary bg-primary/10 text-primary"
                               : "border-transparent"
-                          }`}
+                            }`}
                           onClick={() => handleThumbClick(message.id, "up")}
                           disabled={isLoading}
                         >
@@ -574,11 +570,10 @@ const ChatView: FC<ChatViewProps> = ({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          className={`h-6 w-6 border ${
-                            feedback?.rating === "down"
+                          className={`h-6 w-6 border ${feedback?.rating === "down"
                               ? "border-destructive bg-destructive/10 text-destructive"
                               : "border-transparent"
-                          }`}
+                            }`}
                           onClick={() => handleThumbClick(message.id, "down")}
                           disabled={isLoading}
                         >
@@ -764,7 +759,7 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
     const fetchClasses = async () => {
       if (!token) return;
       try {
-        const fetchedClasses = await getClasses(token);
+        const fetchedClasses = await getClasses(token, "");
         if (Array.isArray(fetchedClasses) && fetchedClasses.length > 0) {
           setClasses(fetchedClasses);
           if (!selectedClass) {
@@ -852,9 +847,8 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
     <div className="max-w-3xl mx-auto">
       {/* Glass card — identical structure to HomePage's edtech-card glass */}
       <div
-        className={`edtech-card glass p-6 md:p-8 transition-all duration-300 ${
-          isInChat ? "flex flex-col" : ""
-        }`}
+        className={`edtech-card glass p-6 md:p-8 transition-all duration-300 ${isInChat ? "flex flex-col" : ""
+          }`}
         style={
           isInChat ? { height: "calc(100vh - 320px)", minHeight: "420px" } : {}
         }
