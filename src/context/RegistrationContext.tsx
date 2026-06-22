@@ -97,6 +97,8 @@ export interface RegistrationState {
   // ── Curriculum (STUDENT only) ──
   section_name: string | null;    // always required for students
   stream: string | null;          // required for Grade ≥ 11; null otherwise
+  classId: number | null;
+  streamId: number | null;
   // ── Error handling ──
   error: string | null;
   errorDetails: RegistrationErrorDetails | null;
@@ -139,6 +141,8 @@ const defaultState: RegistrationState = {
   school_address: null,
   section_name: null,
   stream: null,
+  classId: null,
+  streamId: null,
   error: null,
   errorDetails: null,
 };

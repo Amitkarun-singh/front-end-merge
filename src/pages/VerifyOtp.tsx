@@ -22,8 +22,8 @@ export default function VerifyOtp() {
   const navigate = useNavigate();
   const { setAuthData } = useAuth();
   const {
-    phone_number, role, class: userClass, password, full_name, username, email, board,
-    section_name, stream,
+    phone_number, role, class: userClass, classId, password, full_name, username, email, board,
+    section_name, stream, streamId,
     setRegistrationData,
   } = useRegistration();
 
@@ -90,18 +90,20 @@ export default function VerifyOtp() {
         body: JSON.stringify({
           role,
           class: userClass,
+          classId: classId || undefined,
           password,
           phone_number,
           full_name,
           username,
-          email,
+          email: email || undefined,
           board,
           idToken,
           self_register: true,
           // ── STUDENT-only curriculum fields ──────────────────────────────────
           ...(role === 'STUDENT' && {
-            section_name: section_name ?? undefined,
-            stream: stream ?? null,
+            section_name: section_name || undefined,
+            stream: stream || undefined,
+            streamId: streamId || undefined,
           }),
         }),
       });

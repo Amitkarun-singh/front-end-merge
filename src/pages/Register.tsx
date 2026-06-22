@@ -106,6 +106,8 @@ export default function Register() {
   const [username,        setUsername]        = useState('');
   const [usernameAvailable, setUsernameAvailable] = useState<boolean | null>(null);
   const [checkingUsername, setCheckingUsername] = useState(false);
+  const [phoneAvailable,    setPhoneAvailable]    = useState<boolean | null>(null);
+  const [checkingPhone,     setCheckingPhone]     = useState(false);
   const [selectedClasses,  setSelectedClasses] = useState<string[]>([]);
   const [selectedStream,  setSelectedStream]  = useState<string | null>(null);
   const [phoneNumber,     setPhoneNumber]     = useState('');
@@ -122,6 +124,7 @@ export default function Register() {
 
   const errorTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const checkUsernameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const checkPhoneTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const showToast = (t: Toast) => {
     setToast(t);
@@ -140,6 +143,7 @@ export default function Register() {
   useEffect(() => () => {
     Object.values(errorTimers.current).forEach(clearTimeout);
     if (checkUsernameTimer.current) clearTimeout(checkUsernameTimer.current);
+    if (checkPhoneTimer.current) clearTimeout(checkPhoneTimer.current);
   }, []);
 
   useEffect(() => {
@@ -219,9 +223,65 @@ export default function Register() {
     }
   };
 
+  const checkPhoneAvailability = async (val: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/api/v1/auth/register/exist/phone-number`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: val }),
+      });
+      const json = await res.json();
+      if (res.ok && json.success && json.data?.available) {
+        setPhoneAvailable(true);
+        return true;
+      } else {
+        setPhoneAvailable(false);
+        setFieldError('phone_number', json.message || 'Phone number already taken');
+        return false;
+      }
+    } catch (err) {
+      console.error('Error verifying phone number:', err);
+      return false;
+    }
+  };
+
   const handlePhoneChange = (raw: string) => {
-    setPhoneNumber(raw.replace(/\D/g, '').slice(0, 10));
+    const digits = raw.replace(/\D/g, '').slice(0, 10);
+    setPhoneNumber(digits);
+    setPhoneAvailable(null);
     clearFieldError('phone_number');
+
+    if (checkPhoneTimer.current) clearTimeout(checkPhoneTimer.current);
+
+    if (digits.length === 10) {
+      setCheckingPhone(true);
+      checkPhoneTimer.current = setTimeout(async () => {
+        const fullNum = `${countryCode}${digits}`;
+        await checkPhoneAvailability(fullNum);
+        setCheckingPhone(false);
+      }, 500);
+    } else {
+      setCheckingPhone(false);
+    }
+  };
+
+  const handleCountryCodeChange = (code: string) => {
+    setCountryCode(code);
+    setPhoneAvailable(null);
+    clearFieldError('phone_number');
+
+    if (checkPhoneTimer.current) clearTimeout(checkPhoneTimer.current);
+
+    if (phoneNumber.length === 10) {
+      setCheckingPhone(true);
+      checkPhoneTimer.current = setTimeout(async () => {
+        const fullNum = `${code}${phoneNumber}`;
+        await checkPhoneAvailability(fullNum);
+        setCheckingPhone(false);
+      }, 500);
+    } else {
+      setCheckingPhone(false);
+    }
   };
 
   const handleClassToggle = (cls: string) => {
@@ -255,6 +315,8 @@ export default function Register() {
       errs.phone_number = countryCode === '+91'
         ? 'Enter a valid 10-digit mobile number (starting with 6–9)'
         : 'Enter a valid phone number (7 to 15 digits)';
+    } else if (phoneAvailable === false) {
+      errs.phone_number = 'Phone number already taken';
     }
 
     if (email && !validateEmail(email)) {
@@ -304,13 +366,36 @@ export default function Register() {
         }
       }
 
+      if (phoneNumber.trim().length === 10 && phoneAvailable !== true) {
+        const fullNum = `${countryCode}${phoneNumber.trim()}`;
+        const ok = await checkPhoneAvailability(fullNum);
+        if (!ok) {
+          setSubmitting(false);
+          return;
+        }
+      }
+
       const selectedClass = selectedClasses[0];
       const needsStream = selectedClass === '11' || selectedClass === '12';
+
+      const matchedClass = classesList.find(c => c.slug === selectedClass);
+      const classId = matchedClass ? matchedClass.id : null;
+
+      const generalStream = streamsList.find(s => s.slug === 'general' || s.stream_name.toLowerCase() === 'general');
+      const defaultStreamName = generalStream ? generalStream.stream_name : 'General';
+      const defaultStreamId = generalStream ? generalStream.id : 4;
+
+      const matchedStream = streamsList.find(s => s.stream_name === selectedStream);
+      const streamId = matchedStream ? matchedStream.id : null;
+
+      const finalStreamName = needsStream ? selectedStream : defaultStreamName;
+      const finalStreamId = needsStream ? streamId : defaultStreamId;
 
       // Save credentials to context first
       setRegistrationData({
         role: selectedRole,
         class: selectedClasses.sort((a, b) => Number(a) - Number(b)).join(','),
+        classId,
         password,
         phone_number: `${countryCode}${phoneNumber.trim()}`,
         full_name: fullName.trim() || null,
@@ -321,7 +406,8 @@ export default function Register() {
         school_id: null,
         school_name: null,
         school_address: null,
-        stream: needsStream ? selectedStream : null,
+        stream: finalStreamName,
+        streamId: finalStreamId,
         error: null,
         errorDetails: null,
       });
@@ -340,7 +426,7 @@ export default function Register() {
   };
 
   const isCbse = selectedBoard === 'CBSE';
-  const canSubmit = isCbse && !submitting && !checkingUsername;
+  const canSubmit = isCbse && !submitting && !checkingUsername && !checkingPhone;
 
   return (
     <div className="login-page">
@@ -518,7 +604,7 @@ export default function Register() {
                     <div className="country-code-wrapper">
                       <select
                         value={countryCode}
-                        onChange={(e) => setCountryCode(e.target.value)}
+                        onChange={(e) => handleCountryCodeChange(e.target.value)}
                         className="country-code-select"
                       >
                         {COUNTRY_CODES.map((c) => (
@@ -542,7 +628,11 @@ export default function Register() {
                         maxLength={10}
                         autoComplete="tel"
                       />
-                      {phoneNumber.length > 0 && (
+                      {checkingPhone ? (
+                        <div className="reg-pw-toggle" style={{ pointerEvents: 'none' }}>
+                          <div className="reg-spinner" style={{ width: '1rem', height: '1rem', border: '2px solid rgba(139,92,246,0.3)', borderTopColor: 'hsl(262,83%,58%)' }} />
+                        </div>
+                      ) : phoneNumber.length > 0 && (
                         <span style={{
                           position: 'absolute', right: '0.875rem', top: '50%',
                           transform: 'translateY(-50%)', fontSize: '0.75rem',
