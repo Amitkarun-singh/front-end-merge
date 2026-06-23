@@ -22,6 +22,7 @@ import CompleteProfile from "./pages/CompleteProfile";
 import HomePage from "./pages/HomePage";
 import AIGiniPage from "./pages/AIGiniPage";
 import AINotesPage from "./pages/AINotesPage";
+import AIPPTPage from "./pages/AIPPTPage";
 import AIPracticePage from "./pages/AIPracticePage";
 import AITutorPage from "./pages/AITutorPage";
 import SummarizerPage from "./pages/SummarizerPage";
@@ -181,6 +182,14 @@ const App = () => {
                                 element={
                                   <FeatureRoute feature="AI_NOTES">
                                     <AINotesPage />
+                                  </FeatureRoute>
+                                }
+                              />
+                              <Route
+                                path="/ai-ppt"
+                                element={
+                                  <FeatureRoute feature="AI_NOTES">
+                                    <AIPPTPage />
                                   </FeatureRoute>
                                 }
                               />

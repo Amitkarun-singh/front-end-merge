@@ -67,27 +67,31 @@ export const createApiClient = (token: string) => {
    READ — CLASSES / STREAMS / SECTIONS
 =========================== */
 
-export const getClasses = async (token: string) => {
+export const getClasses = async (token: string, type?: string) => {
   const api = createApiClient(token);
 
-  const response = await api.get("/curriculum/class", { params: { type } });
+  const response = await api.get("/curriculum/class", type ? { params: { type } } : undefined);
 
-  return response.data.data;
+  // API returns: { statusCode, data: { success, data: [...] }, message }
+  // So the actual array lives at response.data.data.data (with fallback)
+  const raw = response.data?.data;
+  return Array.isArray(raw?.data) ? raw.data : Array.isArray(raw) ? raw : [];
 };
 
 export const getStreams = async (token: string) => {
   const api = createApiClient(token);
 
   const response = await api.get("/curriculum/stream");
-
-  return response.data.data;
+  // API: { statusCode, data: { success, data: [...] }, message }
+  return response.data?.data?.data ?? response.data?.data ?? [];
 };
 
 export const getSections = async (token: string): Promise<Section[]> => {
   const api = createApiClient(token);
   try {
     const res = await api.get("/curriculum/section");
-    const data = res.data?.data ?? res.data;
+    // API: { statusCode, data: { success, data: [...] }, message }
+    const data = res.data?.data?.data ?? res.data?.data ?? [];
     return Array.isArray(data) ? data : [];
   } catch {
     return [];
@@ -118,7 +122,7 @@ export const getSubjects = async (
     }
   );
 
-  return response.data.data;
+  return response.data?.data?.data ?? response.data?.data ?? [];
 };
 
 /* ===========================
@@ -146,7 +150,7 @@ export const getChapters = async (
     }
   );
 
-  return response.data.data;
+  return response.data?.data?.data ?? response.data?.data ?? [];
 };
 
 /* ===========================
