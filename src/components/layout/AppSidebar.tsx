@@ -21,6 +21,7 @@ import {
   LogOut,
   ClipboardCheck,
   BookOpenCheck,
+  Presentation,
   X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -50,6 +51,7 @@ interface StudyTool {
 const studyTools: StudyTool[] = [
   { title: "AI Gini",        url: "/ai-gini",       icon: MessageCircle, feature: "AI_GINI"       },
   { title: "AI Notes",       url: "/ai-notes",      icon: FileText,      feature: "AI_NOTES"      },
+  { title: "AI PPT",         url: "/ai-ppt",        icon: Presentation,  feature: "AI_NOTES"      },
   { title: "AI Tutor",       url: "/ai-tutor",      icon: GraduationCap, feature: "AI_TUTOR"      },
   { title: "AI Practice",    url: "/ai-practice",   icon: ClipboardList, feature: "AI_PRACTICE"   },
   { title: "Doc Summariser", url: "/summarizer",    icon: FileSearch,    feature: "DOC_SUMMARISER" },
