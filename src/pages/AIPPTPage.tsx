@@ -66,6 +66,8 @@ export default function AIPPTPage() {
   const [pptMap, setPptMap] = useState<Record<number, AIPpt>>({});
   // Set of chapter ids that have a PPT (used to filter the chapter list)
   const [pptChapterIds, setPptChapterIds] = useState<Set<number>>(new Set());
+  // Set of subject ids that have at least one PPT (null = not yet fetched; Set = API responded)
+  const [pptSubjectIds, setPptSubjectIds] = useState<Set<number> | null>(null);
 
   // ── Selected PPT & PDF preview state ─────────────────────────
   const [selectedPpt, setSelectedPpt] = useState<AIPpt | null>(null);
@@ -116,6 +118,7 @@ export default function AIPPTPage() {
     setChapters([]);
     setSubject("");
     setSelectedChapter(null);
+    setPptSubjectIds(null);
     resetPpt();
   };
 
@@ -128,7 +131,15 @@ export default function AIPPTPage() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((r) => r.json())
-      .then((data) => setLanguages(Array.isArray(data?.data) ? data.data : []))
+      .then((data) => {
+        const list: string[] = Array.isArray(data?.data) ? data.data : [];
+        setLanguages(list);
+        // Auto-select English if available and no language chosen yet
+        if (!language) {
+          const english = list.find((l) => l.toLowerCase() === "english");
+          if (english) setLanguage(english);
+        }
+      })
       .catch(() => {});
   }, [token]);
 
@@ -195,6 +206,48 @@ export default function AIPPTPage() {
     )
       .then((data) => { if (Array.isArray(data)) setSubjects(data); })
       .catch(() => {});
+  }, [language, className, stream, needsStream, classes, streams, token, board]);
+
+  // ─────────────────────────────────────────────────────────────
+  // 4b. PPT Subjects — derive subject IDs that have ≥1 PPT row
+  //     Uses the existing GET /api/v1/aippt (no subject filter)
+  //     to avoid needing a separate /subjects endpoint.
+  // ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!language || !className || !token) { setPptSubjectIds(null); return; }
+    if (needsStream && !stream) { setPptSubjectIds(null); return; }
+
+    const currentClass = classes.find((c) => c.slug === className);
+    if (!currentClass) return;
+
+    const generalStream = streams.find(
+      (s) => s.stream_name.toLowerCase() === "general" || s.slug === "general"
+    );
+    const defaultStreamId = generalStream ? generalStream.id : 4;
+    const currentStream = streams.find((s) => s.stream_name === stream);
+    const streamId = needsStream && currentStream ? currentStream.id : defaultStreamId;
+
+    const params = new URLSearchParams({
+      language,
+      board,
+      class: String(currentClass.id),
+      stream: String(streamId),
+    });
+
+    // Fetch all PPTs for this class (no subject filter) and extract distinct subject IDs
+    fetch(`${config.server}/api/v1/aippt?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        const list: AIPpt[] = Array.isArray(data?.data) ? data.data : [];
+        const ids = new Set<number>(list.map((p) => p.subject).filter(Boolean));
+        setPptSubjectIds(ids);
+      })
+      .catch(() => {
+        // On network error fall back to showing all subjects
+        setPptSubjectIds(null);
+      });
   }, [language, className, stream, needsStream, classes, streams, token, board]);
 
   // ─────────────────────────────────────────────────────────────
@@ -287,6 +340,13 @@ export default function AIPPTPage() {
   const filteredChapters = pptChapters.filter((ch) =>
     ch.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Derived: subjects filtered to those that have ≥1 PPT.
+  // - null  → API not yet responded (or reset) → show all subjects (loading state)
+  // - Set   → API responded → filter strictly; empty Set means no subjects have PPTs
+  const pptSubjects = pptSubjectIds === null
+    ? subjects
+    : subjects.filter((s) => pptSubjectIds.has(s.id));
 
   // When a chapter is selected, look up the PPT
   const handleSelectChapter = (chapter: Chapter) => {
@@ -490,7 +550,7 @@ export default function AIPPTPage() {
                     />
                   </SelectTrigger>
                   <SelectContent>
-                    {subjects.map((s) => (
+                    {pptSubjects.map((s) => (
                       <SelectItem key={s.id} value={s.subject_name}>{s.subject_name}</SelectItem>
                     ))}
                   </SelectContent>

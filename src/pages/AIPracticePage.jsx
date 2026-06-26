@@ -16,6 +16,7 @@ import LoadingScreen from "@/pages/components/LoadingScreen";
 
 import { config } from "../../app.config.js";
 import { getClasses, getStreams, getSubjects, getChapters } from "../api/curriculum";
+import { useAuth } from "@/context/AuthContext";
 
 /**
  * @typedef {Object} QuestionType
@@ -73,8 +74,27 @@ export default function AIPracticePage() {
   const local = JSON.parse(localStorage.getItem("schools2ai_auth"));
   const token = local?.token;
 
+  // ── Role & profile class detection (mirrors AINotesPage / AIPPTPage) ──
+  const { user } = useAuth();
+  const rawRole = typeof user?.role === "string"
+    ? user.role
+    : user?.role?.name;
+  const isStudent = rawRole?.toLowerCase() === "student";
+
+  const rawProfileClass = user?.class_name
+    ? String(user.class_name).replace(/^grade\s*/i, "").trim()
+    : user?.class
+      ? String(user.class).replace(/^grade\s*/i, "").trim()
+      : null;
+  /** Plain number string (e.g. "10") for the student's own class; null for teachers */
+  const profileClass = isStudent && rawProfileClass ? rawProfileClass : null;
+  /** Display label shown in the locked class badge (e.g. "Grade 10") */
+  const profileClassLabel = profileClass ? `Grade ${profileClass}` : null;
+
   /**
    * Effect: Fetch available classes on mount.
+   * - Students: auto-assign their own class (class list used to resolve classId for subjects).
+   * - Teachers/others: load all classes so they can pick any.
    */
   useEffect(() => {
     const fetchClasses = async () => {
@@ -83,7 +103,11 @@ export default function AIPracticePage() {
         const fetchedClasses = await getClasses(token);
         if (Array.isArray(fetchedClasses) && fetchedClasses.length > 0) {
           setClasses(fetchedClasses);
-          if (!selectedClass) {
+          if (profileClass) {
+            // Student: lock to their profile class
+            setSelectedClass(profileClass);
+          } else if (!selectedClass) {
+            // Teacher/other: default to first class
             setSelectedClass(fetchedClasses[0].class_name.toString());
           }
         }
@@ -345,31 +369,40 @@ export default function AIPracticePage() {
               <h3 className="font-semibold text-foreground mb-4">
                 Select Class
               </h3>
-              <Select
-                value={selectedClass}
-                onValueChange={(val) => {
-                  setSelectedClass(val);
-                  setSelectedStream("");
-                  setSelectedSubject("");
-                  setSubjects([]);
-                  setChapters([]);
-                  setSelectedChapters([]);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select class" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((cls) => (
-                    <SelectItem
-                      key={cls.id}
-                      value={cls.class_name.toString()}
-                    >
-                      {cls.class_name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {isStudent && profileClassLabel ? (
+                /* Student: class locked to their profile */
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/60 border border-border/40 text-sm text-muted-foreground">
+                  <span>{profileClassLabel}</span>
+                  <span className="text-xs text-muted-foreground/60">(your class)</span>
+                </div>
+              ) : (
+                /* Teacher/other: free class selection */
+                <Select
+                  value={selectedClass}
+                  onValueChange={(val) => {
+                    setSelectedClass(val);
+                    setSelectedStream("");
+                    setSelectedSubject("");
+                    setSubjects([]);
+                    setChapters([]);
+                    setSelectedChapters([]);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select class" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls) => (
+                      <SelectItem
+                        key={cls.id}
+                        value={cls.class_name.toString()}
+                      >
+                        {cls.class_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             {needsStream && (

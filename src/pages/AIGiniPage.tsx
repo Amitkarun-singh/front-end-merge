@@ -156,6 +156,10 @@ interface WelcomeScreenProps {
   onClassChange: (val: string) => void;
   onStreamChange: (val: string) => void;
   onSubjectChange: (val: string) => void;
+  /** For students: the locked class label (e.g. "Grade 10"); null for teachers */
+  profileClassLabel: string | null;
+  /** True when the logged-in user is a student */
+  isStudent: boolean;
 }
 
 /**
@@ -180,6 +184,8 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
   onClassChange,
   onStreamChange,
   onSubjectChange,
+  profileClassLabel,
+  isStudent,
 }) => (
   <div className="flex flex-col md:flex-row items-center gap-6">
     {/* Mascot — width-only, no fixed height, so the image keeps its natural proportions
@@ -228,20 +234,28 @@ const WelcomeScreen: FC<WelcomeScreenProps> = ({
           </SelectContent>
         </Select>
 
-        <Select value={selectedClass} onValueChange={onClassChange}>
-          <SelectTrigger className="w-fit h-7 border border-border/40 bg-muted/60 rounded-full px-3 text-xs text-muted-foreground gap-1 focus:ring-0 focus:ring-offset-0">
+        {/* Class selector — locked for students, free for teachers */}
+        {isStudent && profileClassLabel ? (
+          <span className="inline-flex items-center gap-1 h-7 border border-border/40 bg-muted/60 rounded-full px-3 text-xs text-muted-foreground">
             <MonitorSmartphone className="w-3 h-3" />
-            <SelectValue placeholder="Class" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Class</SelectItem>
-            {classes.map((cls) => (
-              <SelectItem key={cls.id} value={cls.class_name.toString()}>
-                {cls.class_name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            {profileClassLabel}
+          </span>
+        ) : (
+          <Select value={selectedClass} onValueChange={onClassChange}>
+            <SelectTrigger className="w-fit h-7 border border-border/40 bg-muted/60 rounded-full px-3 text-xs text-muted-foreground gap-1 focus:ring-0 focus:ring-offset-0">
+              <MonitorSmartphone className="w-3 h-3" />
+              <SelectValue placeholder="Class" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Class</SelectItem>
+              {classes.map((cls) => (
+                <SelectItem key={cls.id} value={cls.class_name.toString()}>
+                  {cls.class_name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
 
         {needsStream && (
           <Select value={selectedStream} onValueChange={onStreamChange}>
@@ -726,6 +740,23 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
   const localAuth = localStorage.getItem("schools2ai_auth");
   const token = localAuth ? JSON.parse(localAuth).token : null;
 
+  // ── Role & profile class detection (mirrors AINotesPage / AIPPTPage) ──
+  const { user } = useAuth();
+  const rawRole = typeof user?.role === "string"
+    ? user.role
+    : (user?.role as Record<string, unknown>)?.name as string | undefined;
+  const isStudent = rawRole?.toLowerCase() === "student";
+
+  const rawProfileClass = (user as Record<string, unknown>)?.class_name
+    ? String((user as Record<string, unknown>).class_name).replace(/^grade\s*/i, "").trim()
+    : user?.class
+      ? String(user.class).replace(/^grade\s*/i, "").trim()
+      : null;
+  /** Plain number string (e.g. "10") for the student's own class; null otherwise */
+  const profileClass = isStudent && rawProfileClass ? rawProfileClass : null;
+  /** Display label shown in the locked class badge (e.g. "Grade 10") */
+  const profileClassLabel = profileClass ? `Grade ${profileClass}` : null;
+
   // Helper to determine if a stream is needed for the selected class (Grade 11 & 12)
   const needsStream = selectedClass && (
     selectedClass.toString().trim() === "11" ||
@@ -755,6 +786,8 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
   };
 
   // ── Fetch Classes ──
+  // Students: auto-assign their own class (fetched list used only to resolve classId).
+  // Teachers/others: load all classes so they can pick any.
   useEffect(() => {
     const fetchClasses = async () => {
       if (!token) return;
@@ -762,7 +795,11 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
         const fetchedClasses = await getClasses(token, "");
         if (Array.isArray(fetchedClasses) && fetchedClasses.length > 0) {
           setClasses(fetchedClasses);
-          if (!selectedClass) {
+          if (profileClass) {
+            // Student: lock to their own class
+            setSelectedClass(profileClass);
+          } else if (!selectedClass) {
+            // Teacher/other: default to first class
             setSelectedClass(fetchedClasses[0].class_name.toString());
           }
         }
@@ -885,6 +922,8 @@ const ChatBox = ({ setLoadConversation }: ChatBoxProps) => {
               onClassChange={handleClassChange}
               onStreamChange={handleStreamChange}
               onSubjectChange={handleSubjectChange}
+              profileClassLabel={profileClassLabel}
+              isStudent={isStudent}
             />
           ) : (
             <ChatView

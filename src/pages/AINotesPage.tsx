@@ -403,7 +403,15 @@ export default function AINotesPage() {
       headers: { Authorization: `Bearer ${token}` },
     })
       .then((res) => res.json())
-      .then((data) => setLanguages(data.data || []));
+      .then((data) => {
+        const list: string[] = data.data || [];
+        setLanguages(list);
+        // Auto-select English if available and no language chosen yet
+        if (!language) {
+          const english = list.find((l) => l.toLowerCase() === "english");
+          if (english) setLanguage(english);
+        }
+      });
   }, []);
 
   // ── Fetch classes (requires language; board is derived automatically) ──
